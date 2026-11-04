@@ -1,0 +1,190 @@
+﻿@page
+@model RegisterModel
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Đăng ký";
+}
+
+<div class="row justify-content-center mt-4 mb-5">
+
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+
+        <div class="card border-0 shadow-sm rounded-4">
+
+            <div class="card-body p-4 p-md-5">
+
+                <!-- TIÊU ĐỀ -->
+
+                <div class="text-center mb-4">
+
+                    <div class="fs-1 mb-2">
+                        💰
+                    </div>
+
+                    <h2 class="fw-bold text-primary mb-2">
+                        Đăng ký tài khoản
+                    </h2>
+
+                    <p class="text-muted mb-0">
+                        Tạo tài khoản để quản lý chi tiêu gia đình
+                    </p>
+
+                </div>
+
+
+                <!-- FORM -->
+
+                <form id="registerForm"
+                      asp-route-returnUrl="@Model.ReturnUrl"
+                      method="post">
+
+                    <!-- THÔNG BÁO LỖI -->
+
+                    <div asp-validation-summary="ModelOnly"
+                         class="alert alert-danger py-2"
+                         role="alert">
+                    </div>
+
+
+                    <!-- HỌ VÀ TÊN -->
+
+                    <div class="mb-3">
+
+                        <label asp-for="Input.HoTen"
+                               class="form-label fw-semibold">
+
+                            Họ và tên
+
+                        </label>
+
+                        <input asp-for="Input.HoTen"
+                               class="form-control form-control-lg"
+                               autocomplete="name"
+                               aria-required="true"
+                               placeholder="Nhập họ và tên" />
+
+                        <span asp-validation-for="Input.HoTen"
+                              class="text-danger small">
+                        </span>
+
+                    </div>
+
+
+                    <!-- EMAIL -->
+
+                    <div class="mb-3">
+
+                        <label asp-for="Input.Email"
+                               class="form-label fw-semibold">
+
+                            Email
+
+                        </label>
+
+                        <input asp-for="Input.Email"
+                               class="form-control form-control-lg"
+                               autocomplete="username"
+                               aria-required="true"
+                               placeholder="Nhập email" />
+
+                        <span asp-validation-for="Input.Email"
+                              class="text-danger small">
+                        </span>
+
+                    </div>
+
+
+                    <!-- MẬT KHẨU -->
+
+                    <div class="mb-3">
+
+                        <label asp-for="Input.Password"
+                               class="form-label fw-semibold">
+
+                            Mật khẩu
+
+                        </label>
+
+                        <input asp-for="Input.Password"
+                               class="form-control form-control-lg"
+                               autocomplete="new-password"
+                               aria-required="true"
+                               placeholder="Nhập mật khẩu" />
+
+                        <span asp-validation-for="Input.Password"
+                              class="text-danger small">
+                        </span>
+
+                    </div>
+
+
+                    <!-- NHẬP LẠI MẬT KHẨU -->
+
+                    <div class="mb-4">
+
+                        <label asp-for="Input.ConfirmPassword"
+                               class="form-label fw-semibold">
+
+                            Nhập lại mật khẩu
+
+                        </label>
+
+                        <input asp-for="Input.ConfirmPassword"
+                               class="form-control form-control-lg"
+                               autocomplete="new-password"
+                               aria-required="true"
+                               placeholder="Nhập lại mật khẩu" />
+
+                        <span asp-validation-for="Input.ConfirmPassword"
+                              class="text-danger small">
+                        </span>
+
+                    </div>
+
+
+                    <!-- NÚT ĐĂNG KÝ -->
+
+                    <button id="registerSubmit"
+                            type="submit"
+                            class="w-100 btn btn-primary btn-lg fw-semibold">
+
+                        📝 Đăng ký
+
+                    </button>
+
+
+                    <!-- ĐĂNG NHẬP -->
+
+                    <div class="text-center mt-4">
+
+                        <span class="text-muted">
+                            Đã có tài khoản?
+                        </span>
+
+                        <a asp-page="./Login"
+                           asp-route-returnUrl="@Model.ReturnUrl"
+                           class="text-decoration-none fw-semibold">
+
+                            Đăng nhập
+
+                        </a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@section Scripts {
+
+    <partial name="_ValidationScriptsPartial" />
+
+}
