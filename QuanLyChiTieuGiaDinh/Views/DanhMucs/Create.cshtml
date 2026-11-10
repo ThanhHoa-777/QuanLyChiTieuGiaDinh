@@ -1,0 +1,263 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.DanhMuc
+
+@{
+    ViewData["Title"] = "Thêm danh mục";
+
+    var danhMucCha =
+        ViewBag.DanhMucCha as List<QuanLyChiTieuGiaDinh.Models.DanhMuc>
+        ?? new List<QuanLyChiTieuGiaDinh.Models.DanhMuc>();
+
+    var emojis = new[]
+    {
+        "🍔", "🍜", "🍕", "🍚", "☕",
+        "🏠", "💡", "💧", "📱", "🌐",
+        "🚗", "🏍️", "🚌", "⛽", "🚕",
+        "🛒", "🛍️", "👕", "👟", "💄",
+        "🎓", "📚", "💊", "🏥", "⚽",
+        "🎮", "🎬", "✈️", "🏖️", "🐶",
+        "💰", "💵", "🎁", "💳", "🏦"
+    };
+}
+
+<div class="container mt-4">
+
+    <div class="row justify-content-center">
+
+        <div class="col-md-8">
+
+            <div class="card shadow-sm">
+
+                <!-- TIÊU ĐỀ -->
+
+                <div class="card-header bg-primary text-white">
+
+                    <h3 class="mb-0">
+                        <i class="bi bi-plus-circle"></i>
+                        Thêm danh mục
+                    </h3>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    <!-- THÔNG BÁO -->
+
+                    <div class="alert alert-info">
+
+                        <i class="bi bi-info-circle"></i>
+
+                        Danh mục này sẽ được tạo cho
+                        <strong>hộ gia đình hiện tại</strong>.
+
+                        Thành viên trong gia đình cũng có thể
+                        tạo danh mục mới.
+
+                    </div>
+
+
+                    <form asp-action="Create" method="post">
+
+                        <!-- VALIDATION -->
+
+                        <div asp-validation-summary="ModelOnly"
+                             class="alert alert-danger">
+                        </div>
+
+
+                        <!-- TÊN DANH MỤC -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="TenDanhMuc"
+                                   class="form-label fw-bold">
+
+                                Tên danh mục
+
+                            </label>
+
+                            <input asp-for="TenDanhMuc"
+                                   class="form-control"
+                                   placeholder="Ví dụ: Ăn uống" />
+
+                            <span asp-validation-for="TenDanhMuc"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- LOẠI DANH MỤC -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="LoaiDanhMuc"
+                                   class="form-label fw-bold">
+
+                                Loại danh mục
+
+                            </label>
+
+                            <select asp-for="LoaiDanhMuc"
+                                    class="form-select">
+
+                                <option value="ChiTieu">
+                                    Chi tiêu
+                                </option>
+
+                                <option value="ThuNhap">
+                                    Thu nhập
+                                </option>
+
+                                <option value="TietKiem">
+                                    Tiết kiệm
+                                </option>
+
+                            </select>
+
+                            <span asp-validation-for="LoaiDanhMuc"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- BIỂU TƯỢNG -->
+
+                        <div class="mb-3">
+
+                            <label class="form-label fw-bold">
+
+                                Biểu tượng
+
+                            </label>
+
+                            <!-- Giá trị thực sự gửi về Controller -->
+
+                            <input asp-for="BieuTuong"
+                                   type="hidden"
+                                   id="BieuTuong" />
+
+
+                            <div class="border rounded p-3">
+
+                                <div class="d-flex flex-wrap gap-2">
+
+                                    @foreach (var emoji in emojis)
+                                    {
+                                        <button type="button"
+                                                class="btn btn-light border emoji-button"
+                                                style="font-size: 24px; width: 52px; height: 52px;"
+                                                data-emoji="@emoji">
+
+                                            @emoji
+
+                                        </button>
+                                    }
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- PREVIEW -->
+
+                            <div class="mt-3">
+
+                                <span class="fw-bold">
+                                    Biểu tượng đã chọn:
+                                </span>
+
+                                <span id="emojiPreview"
+                                      class="ms-2"
+                                      style="font-size: 30px;">
+
+                                    @(string.IsNullOrEmpty(Model.BieuTuong)
+                                                                        ? "Chưa chọn"
+                                                                        : Model.BieuTuong)
+
+                                </span>
+
+                            </div>
+
+                            <span asp-validation-for="BieuTuong"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+                        <!-- NÚT -->
+
+                        <div class="mt-4 d-flex gap-2">
+
+                            <button type="submit"
+                                    class="btn btn-primary">
+
+                                <i class="bi bi-plus-circle"></i>
+
+                                Thêm danh mục
+
+                            </button>
+
+                            <a asp-action="Index"
+                               class="btn btn-secondary">
+
+                                <i class="bi bi-arrow-left"></i>
+
+                                Quay lại
+
+                            </a>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@section Scripts {
+
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+
+        document.querySelectorAll(".emoji-button").forEach(function (button) {
+
+            button.addEventListener("click", function () {
+
+                var emoji = this.getAttribute("data-emoji");
+
+                // Lưu emoji vào input hidden
+                document.getElementById("BieuTuong").value = emoji;
+
+                // Hiển thị emoji đã chọn
+                document.getElementById("emojiPreview").textContent = emoji;
+
+                // Bỏ trạng thái chọn của tất cả nút
+                document.querySelectorAll(".emoji-button").forEach(function (item) {
+
+                    item.classList.remove("btn-primary");
+
+                    item.classList.add("btn-light");
+
+                });
+
+                // Đánh dấu emoji hiện tại
+                this.classList.remove("btn-light");
+
+                this.classList.add("btn-primary");
+
+            });
+
+        });
+
+    </script>
+}
