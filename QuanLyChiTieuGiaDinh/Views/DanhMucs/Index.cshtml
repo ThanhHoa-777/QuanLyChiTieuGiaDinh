@@ -1,0 +1,327 @@
+﻿@model IEnumerable<QuanLyChiTieuGiaDinh.Models.DanhMuc>
+
+@{
+    ViewData["Title"] = "Danh mục";
+
+    bool laChuHo = ViewBag.LaChuHo ?? false;
+}
+
+<div class="container mt-4">
+
+    <!-- TIÊU ĐỀ -->
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <div>
+
+            <h2 class="mb-1">
+                <i class="bi bi-tags"></i>
+                Danh mục
+            </h2>
+
+            @if (laChuHo)
+            {
+                <small class="text-muted">
+                    Bạn đang đăng nhập với quyền
+                    <strong>Chủ hộ</strong>.
+                </small>
+            }
+            else
+            {
+                <small class="text-muted">
+                    Bạn đang đăng nhập với quyền
+                    <strong>Thành viên</strong>.
+                </small>
+            }
+
+        </div>
+
+
+        <a asp-action="Create"
+           class="btn btn-primary">
+
+            <i class="bi bi-plus-circle"></i>
+            Thêm danh mục
+
+        </a>
+
+    </div>
+
+
+    <!-- THÔNG BÁO -->
+    @if (TempData["ThongBao"] != null)
+    {
+        <div class="alert alert-warning">
+
+            <i class="bi bi-exclamation-triangle"></i>
+
+            @TempData["ThongBao"]
+
+        </div>
+    }
+
+
+    <!-- GIẢI THÍCH QUYỀN -->
+    @if (laChuHo)
+    {
+        <div class="alert alert-success">
+
+            <i class="bi bi-person-check"></i>
+
+            Bạn là <strong>chủ hộ</strong>.
+            Bạn có thể thêm, sửa và xóa danh mục
+            của hộ gia đình.
+
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+
+            <i class="bi bi-eye"></i>
+
+            Bạn là <strong>thành viên</strong>.
+            Bạn có thể xem danh mục và thêm danh mục mới
+            cho hộ gia đình, nhưng không thể sửa hoặc xóa
+            danh mục.
+
+        </div>
+    }
+
+
+    <!-- DANH SÁCH -->
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+
+            <i class="bi bi-info-circle"></i>
+
+            Chưa có danh mục nào.
+
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>
+                                    Biểu tượng
+                                </th>
+
+                                <th>
+                                    Tên danh mục
+                                </th>
+
+                                <th>
+                                    Loại
+                                </th>
+
+                                <th>
+                                    Phạm vi
+                                </th>
+
+                            
+
+                                <th class="text-end">
+                                    Thao tác
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+
+                                    <!-- BIỂU TƯỢNG -->
+
+                                    <td>
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                                                        item.BieuTuong))
+                                        {
+                                            <span style="font-size: 25px;">
+                                                @item.BieuTuong
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- TÊN -->
+
+                                    <td>
+
+                                        <strong>
+                                            @item.TenDanhMuc
+                                        </strong>
+
+                                    </td>
+
+
+                                    <!-- LOẠI -->
+
+                                    <td>
+
+                                        @if (item.LoaiDanhMuc == "ChiTieu")
+                                        {
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-arrow-down-circle"></i>
+                                                Chi tiêu
+                                            </span>
+                                        }
+                                        else if (item.LoaiDanhMuc == "ThuNhap")
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-arrow-up-circle"></i>
+                                                Thu nhập
+                                            </span>
+                                        }
+                                        else if (item.LoaiDanhMuc == "TietKiem")
+                                        {
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-piggy-bank"></i>
+                                                Tiết kiệm
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @item.LoaiDanhMuc
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- PHẠM VI -->
+
+                                    <td>
+
+                                        @if (item.MaGiaDinh == null)
+                                        {
+                                            <span class="badge bg-secondary">
+
+                                                <i class="bi bi-globe"></i>
+
+                                                Hệ thống
+
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary">
+
+                                                <i class="bi bi-people"></i>
+
+                                                Gia đình
+
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                    <!-- THAO TÁC -->
+
+                                    <td class="text-end">
+
+                                        <div class="d-flex justify-content-end gap-1 flex-wrap">
+
+                                            <!-- CHI TIẾT -->
+
+                                            <a asp-action="Details"
+                                               asp-route-id="@item.MaDanhMuc"
+                                               class="btn btn-outline-secondary btn-sm">
+
+                                                <i class="bi bi-eye"></i>
+                                                Chi tiết
+
+                                            </a>
+
+
+                                            @if (laChuHo &&
+                                                                                item.MaGiaDinh != null)
+                                            {
+                                                <!-- SỬA -->
+
+                                                <a asp-action="Edit"
+                                                   asp-route-id="@item.MaDanhMuc"
+                                                   class="btn btn-outline-warning btn-sm">
+
+                                                    <i class="bi bi-pencil"></i>
+                                                    Sửa
+
+                                                </a>
+
+
+                                                <!-- XÓA -->
+
+                                                <a asp-action="Delete"
+                                                   asp-route-id="@item.MaDanhMuc"
+                                                   class="btn btn-outline-danger btn-sm">
+
+                                                    <i class="bi bi-trash"></i>
+                                                    Xóa
+
+                                                </a>
+                                            }
+                                            else if (item.MaGiaDinh != null)
+                                            {
+                                                <span class="badge bg-light text-dark border align-self-center">
+
+                                                    <i class="bi bi-eye"></i>
+
+                                                    Chỉ xem
+
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-dark border align-self-center">
+
+                                                    <i class="bi bi-lock"></i>
+
+                                                    Hệ thống
+
+                                                </span>
+                                            }
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
