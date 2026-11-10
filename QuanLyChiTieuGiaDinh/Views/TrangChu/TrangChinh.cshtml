@@ -1,0 +1,472 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Trang chủ - Quản Lý Chi Tiêu";
+
+    var nguoiDung = ViewBag.NguoiDung;
+    var hoGiaDinh = ViewBag.HoGiaDinh;
+    bool laChuHo = ViewBag.LaChuHo ?? false;
+
+    decimal tongSoDu = ViewBag.TongSoDu ?? 0;
+    decimal thuThangNay = ViewBag.ThuThangNay ?? 0;
+    decimal chiThangNay = ViewBag.ChiThangNay ?? 0;
+    decimal chenhLechThangNay = ViewBag.ChenhLechThangNay ?? 0;
+    decimal guiTietKiemThangNay = ViewBag.GuiTietKiemThangNay ?? 0;
+
+    int thangHienTai = ViewBag.ThangHienTai ?? DateTime.Now.Month;
+    int namHienTai = ViewBag.NamHienTai ?? DateTime.Now.Year;
+
+    decimal tongHanMucNganSach = ViewBag.TongHanMucNganSach ?? 0;
+    decimal tongDaChiNganSach = ViewBag.TongDaChiNganSach ?? 0;
+
+    var giaoDichGanDay = ViewBag.GiaoDichGanDay as IEnumerable<QuanLyChiTieuGiaDinh.Models.GiaoDich>;
+    var taiKhoans = ViewBag.TaiKhoans as IEnumerable<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>;
+    var nganSachs = ViewBag.NganSachs as IEnumerable<QuanLyChiTieuGiaDinh.Models.NganSach>;
+    var mucTieuTietKiems = ViewBag.MucTieuTietKiems as IEnumerable<QuanLyChiTieuGiaDinh.Models.MucTieuTietKiem>;
+
+    // Lấy chế độ xem hiện tại từ Controller truyền sang ViewBag hoặc QueryString
+    string cheDoXem = ViewBag.CheDoXem as string ?? Context.Request.Query["cheDo"].ToString();
+    bool isCaNhan = cheDoXem == "ca-nhan";
+}
+
+<style>
+        :root {
+                --pastel-green-bg: #f2f9f4;
+                --pastel-green-card: #e8f5e9;
+                --pastel-green-primary: #388e3c;
+                --pastel-green-dark: #1b5e20;
+                --pastel-green-soft: #c8e6c9;
+                --pastel-accent-orange: #fff3e0;
+                --pastel-accent-blue: #e3f2fd;
+
+    }
+
+        body {
+                background-color: var(--pastel-green-bg);
+
+    }
+
+        .card-pastel {
+                background: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 16px;
+                transition: all 0.25s ease-in-out;
+
+    }
+
+            .card-pastel:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 20px rgba(46, 125, 50, 0.08) !important;
+
+    }
+
+        .banner-welcome {
+                background: linear-gradient(135deg, #a5d6a7 0%, #66bb6a 100%);
+                color: #ffffff;
+                border-radius: 20px;
+
+    }
+
+        .stat-badge-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+
+    }
+
+        .btn-quick-action {
+                border-radius: 12px;
+                padding: 10px 18px;
+                font-weight: 600;
+                transition: all 0.2s;
+
+    }
+
+        .btn-pastel-green {
+                background-color: var(--pastel-green-primary);
+                color: white;
+                border: none;
+
+    }
+
+            .btn-pastel-green:hover {
+                    background-color: var(--pastel-green-dark);
+                    color: white;
+
+    }
+
+        .progress-custom {
+                height: 10px;
+                border-radius: 20px;
+                background-color: #e0e0e0;
+
+    }
+</style>
+
+<div class="container-fluid py-4 px-md-4">
+
+    <!-- 1. BẠN CHƯA CÓ HỘ GIA ĐÌNH -->
+    @if (hoGiaDinh == null)
+    {
+        <div class="card card-pastel shadow-sm border-0 text-center py-5 px-3">
+            <div class="card-body">
+                <div class="display-1 text-success mb-3">🏡</div>
+                <h3 class="fw-bold text-dark">Bạn chưa tham gia Hộ Gia Đình nào</h3>
+                <p class="text-muted fs-6 mb-4 max-w-500 mx-auto">
+                    Tạo mới hoặc tham gia một tổ ấm gia đình để bắt đầu theo dõi thu chi minh bạch và tích lũy ngân sách chung ngay hôm nay.
+                </p>
+                <a asp-controller="HoGiaDinhs" asp-action="Index" class="btn btn-pastel-green btn-quick-action px-4 py-2 fs-6">
+                    ➕ Bắt đầu tạo hoặc Tham gia Hộ gia đình
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- 2. LỜI CHÀO & TỔNG QUAN TỔ ẤM -->
+        <div class="banner-welcome p-4 p-md-5 mb-4 shadow-sm position-relative overflow-hidden">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <span class="badge bg-white text-success fw-bold px-3 py-2 rounded-pill mb-2">
+                        🏠 @hoGiaDinh.TenGiaDinh - @(laChuHo ? "👑 Chủ hộ gia đình" : "👤 Thành viên gia đình")
+                    </span>
+                    <h1 class="fw-bold mb-2">Xin chào, @(nguoiDung?.HoTen ?? "Bạn")! 👋</h1>
+                    <p class="mb-0 opacity-90 fs-6">
+                        Hôm nay là <strong>@DateTime.Now.ToString("dd/MM/yyyy")</strong>. Cùng kiểm tra tài chính gia đình và duy trì thói quen chi tiêu hợp lý nhé!
+                    </p>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <div class="bg-white bg-opacity-20 backdrop-blur p-3 rounded-4 d-inline-block text-start border border-white border-opacity-25">
+                        <small class="text-white opacity-75 d-block text-uppercase fw-semibold" style="letter-spacing: 0.5px;">Tổng số dư khả dụng</small>
+                        <span class="fs-2 fw-bold text-white">@tongSoDu.ToString("N0") ₫</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- THANH CHUYỂN ĐỔI CHẾ ĐỘ XEM (CÁ NHÂN / HỘ GIA ĐÌNH) -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <span class="text-muted small fw-semibold">
+                ⚡ Đang hiển thị: <strong class="text-success">@(isCaNhan ? "👤 Tài chính Cá nhân của bạn" : "🏠 Tài chính Hộ gia đình chung")</strong>
+            </span>
+
+            <div class="btn-group shadow-sm" role="group">
+                <a asp-controller="TrangChu" asp-action="TrangChinh" asp-route-cheDo="gia-dinh"
+                             class="btn btn-sm @(!isCaNhan ? "btn-pastel-green" : "btn-white border") fw-semibold px-3">
+                    🏠 Hộ gia đình
+                </a>
+                <a asp-controller="TrangChu" asp-action="TrangChinh" asp-route-cheDo="ca-nhan"
+                             class="btn btn-sm @(isCaNhan ? "btn-pastel-green" : "btn-white border") fw-semibold px-3">
+                    👤 Cá nhân tôi
+                </a>
+            </div>
+        </div>
+
+        <!-- 3. NÚT PHÍM TẮT THAO TÁC NHANH HÀNG NGÀY -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <a asp-controller="GiaoDiches" asp-action="Create" class="btn btn-pastel-green btn-quick-action shadow-sm">
+                ➕ Thêm giao dịch nhanh
+            </a>
+            <a asp-controller="GiaoDiches" asp-action="Index" class="btn btn-white card-pastel text-dark btn-quick-action">
+                🧾 Sổ thu chi gia đình
+            </a>
+            <a asp-controller="BaoCao" asp-action="Index" class="btn btn-white card-pastel text-dark btn-quick-action">
+                📊 Báo cáo phân tích
+            </a>
+            <a asp-controller="NganSaches" asp-action="Index" class="btn btn-white card-pastel text-dark btn-quick-action">
+                📋 Quản lý Ngân sách
+            </a>
+            <a asp-controller="MucTieuTietKiems" asp-action="Index" class="btn btn-white card-pastel text-dark btn-quick-action">
+                💎 Quỹ tiết kiệm
+            </a>
+        </div>
+
+        <!-- 4. THỐNG KÊ THU CHI THÁNG HIỆN TẠI (CARD NỔI BẬT) -->
+        <div class="row g-3 mb-4">
+            <!-- TỔNG THU THÁNG NÀY -->
+            <div class="col-6 col-lg-3">
+                <div class="card card-pastel p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-badge-icon bg-success bg-opacity-10 text-success">📈</div>
+                        <div>
+                            <small class="text-muted d-block fw-medium">Thu tháng @thangHienTai</small>
+                            <span class="fs-5 fw-bold text-success">+@thuThangNay.ToString("N0") ₫</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TỔNG CHI THÁNG NÀY -->
+            <div class="col-6 col-lg-3">
+                <div class="card card-pastel p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-badge-icon bg-danger bg-opacity-10 text-danger">📉</div>
+                        <div>
+                            <small class="text-muted d-block fw-medium">Chi tháng @thangHienTai</small>
+                            <span class="fs-5 fw-bold text-danger">-@chiThangNay.ToString("N0") ₫</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHÊNH LỆCH THU CHI -->
+            <div class="col-6 col-lg-3">
+                <div class="card card-pastel p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-badge-icon bg-primary bg-opacity-10 text-primary">⚖️</div>
+                        <div>
+                            <small class="text-muted d-block fw-medium">Dư tháng @thangHienTai</small>
+                            <span class="fs-5 fw-bold @(chenhLechThangNay >= 0 ? "text-primary" : "text-danger")">
+                                @(chenhLechThangNay >= 0 ? "+" : "")@chenhLechThangNay.ToString("N0") ₫
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TIẾT KIỆM THÁNG NÀY -->
+            <div class="col-6 col-lg-3">
+                <div class="card card-pastel p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-badge-icon bg-warning bg-opacity-10 text-warning">🐖</div>
+                        <div>
+                            <small class="text-muted d-block fw-medium">Gửi tiết kiệm</small>
+                            <span class="fs-5 fw-bold text-dark">+@guiTietKiemThangNay.ToString("N0") ₫</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- CỘT TRÁI: GIAO DỊCH MỚI NHẤT & TÀI KHOẢN VÍ -->
+            <div class="col-lg-8">
+
+                <!-- 5. DANH SÁCH GIAO DỊCH GẦN ĐÂY -->
+                <div class="card card-pastel shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-light rounded-top-4">
+                        <h5 class="fw-bold mb-0 text-dark">🧾 Giao dịch gần đây</h5>
+                        <a asp-controller="GiaoDiches" asp-action="Index" class="text-success text-decoration-none fw-semibold small">
+                            Xem tất cả sổ thu chi →
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (giaoDichGanDay != null && giaoDichGanDay.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light text-muted small">
+                                        <tr>
+                                            <th class="ps-4">Ngày</th>
+                                            <th>Danh mục</th>
+                                            <th>Ví tiền</th>
+                                            <th>Người thực hiện</th>
+                                            <th class="text-end pe-4">Số tiền</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var gd in giaoDichGanDay)
+                                        {
+                                            bool isThu = gd.LoaiGiaoDich == "Thu";
+                                            bool isChi = gd.LoaiGiaoDich == "Chi";
+                                            <tr>
+                                                <td class="ps-4">
+                                                    <span class="fw-medium text-dark d-block">@gd.NgayGiaoDich.ToString("dd/MM/yyyy")</span>
+                                                    <small class="text-muted">@gd.NgayGiaoDich.ToString("HH:mm")</small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark border px-2 py-1 fw-normal">
+                                                        📂 @(gd.DanhMuc?.TenDanhMuc ?? "Chưa phân loại")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-dark fw-medium">@(gd.TaiKhoanTien?.TenTaiKhoan ?? "N/A")</small>
+                                                    @if (gd.TaiKhoanTien != null && gd.TaiKhoanTien.LaTaiKhoanGiaDinh)
+                                                    {
+                                                        <span class="badge bg-success bg-opacity-10 text-success ms-1" style="font-size: 0.68rem;">Chung</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">👤 @(gd.NguoiThucHien?.HoTen ?? "Thành viên")</small>
+                                                </td>
+                                                <td class="text-end pe-4 fw-bold fs-6 @(isThu ? "text-success" : isChi ? "text-danger" : "text-primary")">
+                                                    @(isThu ? "+" : isChi ? "-" : "")@gd.SoTien.ToString("N0") ₫
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <div class="fs-1 mb-2">📥</div>
+                                <p class="mb-2 fw-medium">Chưa có giao dịch nào được ghi nhận trong tháng này.</p>
+                                <a asp-controller="GiaoDiches" asp-action="Create" class="btn btn-sm btn-pastel-green">
+                                    + Thêm khoản thu chi đầu tiên
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- 6. DANH SÁCH TÀI KHOẢN VÍ TIỀN -->
+                <div class="card card-pastel shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-light rounded-top-4">
+                        <h5 class="fw-bold mb-0 text-dark">💳 Ví & Tài khoản ngân hàng</h5>
+                        <a asp-controller="TaiKhoanTiens" asp-action="Index" class="text-success text-decoration-none fw-semibold small">
+                            Quản lý ví →
+                        </a>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (taiKhoans != null && taiKhoans.Any())
+                        {
+                            <div class="row g-3">
+                                @foreach (var tk in taiKhoans)
+                                {
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-light bg-opacity-50 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <span class="fw-bold text-dark">@tk.TenTaiKhoan</span>
+                                                    @if (tk.LaTaiKhoanGiaDinh)
+                                                    {
+                                                        <span class="badge bg-success text-white" style="font-size: 0.65rem;">Ví Gia Đình</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">Ví Cá Nhân</span>
+                                                    }
+                                                </div>
+                                                <small class="text-muted d-block">@tk.LoaiTaiKhoan</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="fw-bold text-dark fs-6 d-block">@tk.SoDuHienTai.ToString("N0") ₫</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center my-3">Chưa có tài khoản ví tiền nào.</p>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CỘT PHẢI: TIẾN TRÌNH NGÂN SÁCH & MỤC TIÊU TIẾT KIỆM -->
+            <div class="col-lg-4">
+
+                <!-- 7. TÌNH HÌNH NGÂN SÁCH THÁNG -->
+                <div class="card card-pastel shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-light rounded-top-4">
+                        <h5 class="fw-bold mb-0 text-dark">📋 Ngân sách tháng @thangHienTai</h5>
+                        <a asp-controller="NganSaches" asp-action="Index" class="text-success text-decoration-none fw-semibold small">Chi tiết</a>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (tongHanMucNganSach > 0)
+                        {
+                            double phanTramNganSach = (double)(tongDaChiNganSach / tongHanMucNganSach * 100);
+                            if (phanTramNganSach > 100) phanTramNganSach = 100;
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between small fw-bold mb-1">
+                                    <span class="text-muted">Đã chi / Hạn mức</span>
+                                    <span class="@(phanTramNganSach >= 90 ? "text-danger" : "text-success")">
+                                        @tongDaChiNganSach.ToString("N0") ₫ / @tongHanMucNganSach.ToString("N0") ₫
+                                    </span>
+                                </div>
+                                <div class="progress progress-custom">
+                                    <div class="progress-bar @(phanTramNganSach >= 90 ? "bg-danger" : phanTramNganSach >= 75 ? "bg-warning" : "bg-success")"
+                                                              role="progressbar" style="width: @phanTramNganSach.ToString("F0")%"></div>
+                                </div>
+                            </div>
+
+                            <hr class="my-3 text-light" />
+
+                            <!-- Hiển thị top danh mục ngân sách -->
+                            @if (nganSachs != null && nganSachs.Any())
+                            {
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach (var ns in nganSachs.Take(3))
+                                    {
+                                        double pct = ns.SoTienHanMuc > 0 ? (double)(ns.SoTienDaSuDung / ns.SoTienHanMuc * 100) : 0;
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span class="fw-medium text-dark">@(ns.DanhMuc?.TenDanhMuc ?? "Mục chi")</span>
+                                                <span class="text-muted">@ns.SoTienDaSuDung.ToString("N0") đ / @ns.SoTienHanMuc.ToString("N0") đ</span>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar @(pct >= 90 ? "bg-danger" : "bg-success")" style="width: @pct.ToString("F0")%"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-3 text-muted">
+                                <p class="small mb-2">Chưa thiết lập hạn mức ngân sách tháng này.</p>
+                                <a asp-controller="NganSaches" asp-action="Create" class="btn btn-sm btn-outline-success">
+                                    + Lập ngân sách mới
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- 8. MỤC TIÊU TIẾT KIỆM NỔI BẬT -->
+                <div class="card card-pastel shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-light rounded-top-4">
+                        <h5 class="fw-bold mb-0 text-dark">💎 Mục tiêu tiết kiệm</h5>
+                        <a asp-controller="MucTieuTietKiems" asp-action="Index" class="text-success text-decoration-none fw-semibold small">Xem quỹ</a>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (mucTieuTietKiems != null && mucTieuTietKiems.Any())
+                        {
+                            <div class="d-flex flex-column gap-3">
+                                @foreach (var mt in mucTieuTietKiems)
+                                {
+                                    double pctMt = mt.SoTienMucTieu > 0 ? (double)(mt.SoTienHienCo / mt.SoTienMucTieu * 100) : 0;
+                                    if (pctMt > 100) pctMt = 100;
+
+                                    <div class="p-3 border rounded-3 bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold text-dark">🎯 @mt.TenMucTieu</span>
+                                            <span class="badge bg-success bg-opacity-10 text-success fw-bold">@pctMt.ToString("F0")%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between small text-muted mb-2">
+                                            <span>Đã có: @mt.SoTienHienCo.ToString("N0") ₫</span>
+                                            <span>Mục tiêu: @mt.SoTienMucTieu.ToString("N0") ₫</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: @pctMt.ToString("F0")%"></div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-3 text-muted">
+                                <p class="small mb-2">Gia đình chưa có mục tiêu tiết kiệm nhóm nào.</p>
+                                <a asp-controller="MucTieuTietKiems" asp-action="Create" class="btn btn-sm btn-outline-success">
+                                    + Khởi tạo mục tiêu
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    }
+

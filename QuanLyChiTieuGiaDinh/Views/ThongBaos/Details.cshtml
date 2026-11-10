@@ -1,0 +1,137 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.ThongBao
+@using QuanLyChiTieuGiaDinh.Models
+
+@{
+    ViewData["Title"] = "Chi tiết thông báo";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1 text-dark">🔔 Chi tiết thông báo</h2>
+        <p class="text-muted mb-0">
+            Xem nội dung chi tiết và xử lý thao tác trực tiếp
+        </p>
+    </div>
+
+    <a asp-action="Index" asp-route-tab="@Model.PhamVi.ToString()" class="btn btn-outline-secondary">
+        ← Quay lại
+    </a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+
+        <div class="d-flex align-items-center mb-3">
+            <div style="font-size: 40px;" class="me-3">
+                @switch (Model.LoaiThongBao)
+                {
+                    case LoaiThongBao.CanhBaoNganSach:
+                        <span>⚠️</span>
+                        break;
+                    case LoaiThongBao.PheDuyet:
+                    case LoaiThongBao.YeuCauThoatHo:
+                        <span>📋</span>
+                        break;
+                    case LoaiThongBao.LoiMoi:
+                        <span>✉️</span>
+                        break;
+                    case LoaiThongBao.BienDongSoDu:
+                    case LoaiThongBao.SplitExpense:
+                        <span>💰</span>
+                        break;
+                    default:
+                        <span>🔔</span>
+                        break;
+                }
+            </div>
+
+            <div class="flex-grow-1">
+                <h4 class="mb-1 text-dark">@Model.TieuDe</h4>
+
+                <div class="d-flex gap-2 align-items-center">
+                    @if (Model.DaDoc)
+                    {
+                        <span class="badge bg-success">✓ Đã đọc</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-primary">Mới</span>
+                    }
+
+                    <span class="badge @(Model.PhamVi == PhamViThongBao.GiaDinh ? "bg-info text-dark" : "bg-secondary")">
+                        @(Model.PhamVi == PhamViThongBao.GiaDinh ? "🏠 Gia đình" : "👤 Cá nhân")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="mb-4">
+            <h6 class="text-muted fw-bold">Nội dung thông báo</h6>
+            <div class="alert alert-light border text-dark p-3 fs-6">
+                @Model.NoiDung
+            </div>
+        </div>
+
+        <!-- THAO TÁC INTERACTIVE ACTIONS (BR52, BR53) -->
+        @if (Model.LoaiThongBao == LoaiThongBao.LoiMoi)
+        {
+            <div class="p-3 bg-light rounded border mb-4">
+                <h6 class="fw-bold mb-2 text-dark">Thao tác nhanh:</h6>
+                @if (Model.IsThaoTacXong)
+                {
+                    <span class="text-success fw-bold">✓ Đã thực hiện thao tác cho lời mời này.</span>
+                }
+                else
+                {
+                    <div class="d-flex gap-2">
+                        <form asp-action="ChapNhanLoiMoi" asp-route-id="@Model.MaThongBao" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-success fw-bold">
+                                ✓ Chấp nhận lời mời
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="row bg-light p-3 rounded mx-0 mb-4">
+            <div class="col-md-6 mb-2 mb-md-0">
+                <strong>Loại thông báo:</strong>
+                <span class="ms-1 text-dark fw-bold">
+                    @Model.LoaiThongBao.ToString()
+                </span>
+            </div>
+
+            <div class="col-md-6">
+                <strong>Thời gian tạo:</strong>
+                <span class="ms-1 text-muted">
+                    @Model.NgayTao.ToString("dd/MM/yyyy HH:mm")
+                </span>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="d-flex justify-content-between align-items-center">
+            <a asp-action="Index" asp-route-tab="@Model.PhamVi.ToString()" class="btn btn-outline-secondary">
+                ← Danh sách thông báo
+            </a>
+
+            <form asp-action="Delete"
+                  asp-route-id="@Model.MaThongBao"
+                  method="post"
+                  onsubmit="return confirm('Bạn có chắc muốn xóa thông báo này không?');">
+
+                @Html.AntiForgeryToken()
+
+                <button type="submit" class="btn btn-outline-danger">
+                    🗑 Xóa thông báo
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>

@@ -1,0 +1,224 @@
+﻿@model IEnumerable<QuanLyChiTieuGiaDinh.Models.ThongBao>
+@using QuanLyChiTieuGiaDinh.Models
+
+@{
+    ViewData["Title"] = "Trung tâm thông báo";
+    string tabCurrent = ViewBag.TabCurrent ?? "CaNhan";
+    string filterCurrent = ViewBag.FilterCurrent ?? "tat-ca";
+    int countCaNhan = ViewBag.CountChuaDocCaNhan ?? 0;
+    int countGiaDinh = ViewBag.CountChuaDocGiaDinh ?? 0;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-1 text-dark">🔔 Trung tâm thông báo</h2>
+        <p class="text-muted mb-0">Quản lý và cập nhật thông báo tài khoản & hộ gia đình</p>
+    </div>
+
+    @if (Model.Any(x => !x.DaDoc))
+    {
+        <form asp-action="DanhDauTatCaDaDoc" asp-route-tab="@tabCurrent" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
+                ✓ Đánh dấu tất cả đã đọc
+            </button>
+        </form>
+    }
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- NAVIGATION TABS -->
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(tabCurrent == "CaNhan" ? "active fw-bold text-primary" : "text-dark")"
+           asp-action="Index" asp-route-tab="CaNhan" asp-route-filter="@filterCurrent">
+            👤 Cá nhân
+            @if (countCaNhan > 0)
+            {
+                <span class="badge bg-danger ms-1">@countCaNhan</span>
+            }
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(tabCurrent == "GiaDinh" ? "active fw-bold text-primary" : "text-dark")"
+           asp-action="Index" asp-route-tab="GiaDinh" asp-route-filter="@filterCurrent">
+            🏠 Gia đình
+            @if (countGiaDinh > 0)
+            {
+                <span class="badge bg-danger ms-1">@countGiaDinh</span>
+            }
+        </a>
+    </li>
+</ul>
+
+<!-- NOTIFICATION FILTERS -->
+<div class="d-flex gap-2 mb-3">
+    <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="tat-ca"
+       class="btn btn-sm @(filterCurrent == "tat-ca" ? "btn-secondary" : "btn-outline-secondary")">
+        Tất cả
+    </a>
+    <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="chua-doc"
+       class="btn btn-sm @(filterCurrent == "chua-doc" ? "btn-primary" : "btn-outline-primary")">
+        Chưa đọc
+    </a>
+    <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="canh-bao"
+       class="btn btn-sm @(filterCurrent == "canh-bao" ? "btn-warning text-dark" : "btn-outline-warning text-dark")">
+        ⚠️ Cảnh báo / Khẩn cấp
+    </a>
+</div>
+
+<!-- DANH SÁCH THÔNG BÁO -->
+@if (!Model.Any())
+{
+    <div class="alert alert-light border text-center py-5 shadow-sm">
+        <div style="font-size: 50px;">🔔</div>
+        <h5 class="mt-3 text-dark">Chưa có thông báo</h5>
+        <p class="text-muted mb-0">
+            Không có thông báo nào thuộc tab <strong>@(tabCurrent == "GiaDinh" ? "Gia đình" : "Cá nhân")</strong>.
+        </p>
+    </div>
+}
+else
+{
+    <div class="list-group shadow-sm">
+        @foreach (var thongBao in Model)
+        {
+            bool isUrgent = thongBao.LoaiThongBao == LoaiThongBao.CanhBaoNganSach;
+            string borderClass = isUrgent ? "border-danger border-2" : (!thongBao.DaDoc ? "border-primary" : "");
+            string bgClass = !thongBao.DaDoc ? "bg-light" : "bg-white";
+
+            <div class="list-group-item list-group-item-action @bgClass @borderClass p-3">
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div class="me-3 flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span style="font-size: 22px;">
+                                @switch (thongBao.LoaiThongBao)
+                                {
+                                    case LoaiThongBao.CanhBaoNganSach:
+                                        <span>⚠️</span>
+                                        break;
+                                    case LoaiThongBao.PheDuyet:
+                                    case LoaiThongBao.YeuCauThoatHo:
+                                        <span>📋</span>
+                                        break;
+                                    case LoaiThongBao.LoiMoi:
+                                        <span>✉️</span>
+                                        break;
+                                    case LoaiThongBao.BienDongSoDu:
+                                    case LoaiThongBao.SplitExpense:
+                                        <span>💰</span>
+                                        break;
+                                    default:
+                                        <span>🔔</span>
+                                        break;
+                                }
+                            </span>
+
+                            <h6 class="mb-0 fw-bold text-dark fs-6">
+                                @thongBao.TieuDe
+                            </h6>
+
+                            @if (!thongBao.DaDoc)
+                            {
+                                <span class="badge bg-primary">Mới</span>
+                            }
+
+                            @if (isUrgent)
+                            {
+                                <span class="badge bg-danger">Khẩn cấp</span>
+                            }
+                        </div>
+
+                        <p class="mb-2 text-secondary fs-6">
+                            @thongBao.NoiDung
+                        </p>
+
+                        <!-- INTERACTIVE ACTIONS INLINE CHO LỜI MỜI -->
+                        @if (thongBao.LoaiThongBao == LoaiThongBao.LoiMoi)
+                        {
+                            <div class="my-2 p-2 bg-white rounded border d-inline-block shadow-sm">
+                                @if (thongBao.IsThaoTacXong)
+                                {
+                                    <span class="text-success fw-bold small"><i class="bi bi-check-circle me-1"></i> Đã xử lý lời mời</span>
+                                }
+                                else
+                                {
+                                    <form asp-action="ChapNhanLoiMoi" asp-route-id="@thongBao.MaThongBao" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-success btn-sm fw-bold me-2">
+                                            ✓ Chấp nhận
+                                        </button>
+                                    </form>
+                                    <form asp-action="TuChoiLoiMoi" asp-route-id="@thongBao.MaThongBao" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn từ chối lời mời này không?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">
+                                            ❌ Từ chối
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        }
+
+                        <div>
+                            <small class="text-muted">
+                                🕒 @thongBao.NgayTao.ToString("dd/MM/yyyy HH:mm")
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- NÚT ĐIỀU HƯỚNG & THAO TÁC -->
+                    <div class="d-flex gap-2 align-items-center">
+
+                        @if (thongBao.LoaiThongBao == LoaiThongBao.YeuCauThoatHo && !string.IsNullOrEmpty(thongBao.DuLieuLienKet))
+                        {
+                            @* KIỂM TRA: Nếu đã thao tác xong HOẶC đã đọc thì chỉ hiện nút Xem *@
+                            @if (thongBao.IsThaoTacXong || thongBao.DaDoc)
+                            {
+                                <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-secondary btn-sm">Xem chi tiết</a>
+                            }
+                            else
+                            {
+                                <a asp-controller="HoGiaDinhs" asp-action="XuLyYeuCau" asp-route-id="@thongBao.DuLieuLienKet" class="btn btn-outline-primary btn-sm fw-bold">
+                                    🔍 Xử lý ngay
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-primary btn-sm">Xem</a>
+                        }
+
+                        @if (!thongBao.DaDoc)
+                        {
+                            <form asp-action="DanhDauDaDoc" asp-route-id="@thongBao.MaThongBao" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-success btn-sm" title="Đánh dấu đã đọc">✓</button>
+                            </form>
+                        }
+
+                        <form asp-action="Delete" asp-route-id="@thongBao.MaThongBao" method="post" onsubmit="return confirm('Bạn có chắc muốn xóa thông báo này không?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Xóa thông báo">🗑</button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        }
+    </div>
+}
