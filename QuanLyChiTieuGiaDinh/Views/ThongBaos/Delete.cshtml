@@ -1,0 +1,160 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.ThongBao
+
+@{
+    ViewData["Title"] = "Xóa thông báo";
+}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+
+        <h2 class="text-danger">
+            <i class="bi bi-trash"></i>
+            Xóa thông báo
+        </h2>
+
+        <p class="text-muted">
+            Xác nhận xóa thông báo này
+        </p>
+
+    </div>
+
+
+    <div class="alert alert-warning shadow-sm">
+
+        <i class="bi bi-exclamation-triangle-fill"></i>
+
+        <strong>
+            Bạn có chắc chắn muốn xóa thông báo này không?
+        </strong>
+
+        <br />
+
+        Sau khi xóa, thông báo sẽ không thể khôi phục.
+
+    </div>
+
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+                @Model.TieuDe
+            </h5>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <dl class="row mb-0">
+
+                <dt class="col-sm-4">
+                    Mã thông báo
+                </dt>
+
+                <dd class="col-sm-8">
+                    @Model.MaThongBao
+                </dd>
+
+
+                <dt class="col-sm-4">
+                    Tiêu đề
+                </dt>
+
+                <dd class="col-sm-8">
+                    @Model.TieuDe
+                </dd>
+
+
+                <dt class="col-sm-4">
+                    Loại thông báo
+                </dt>
+
+                <dd class="col-sm-8">
+
+                    <span class="badge bg-secondary">
+                        @Model.LoaiThongBao
+                    </span>
+
+                </dd>
+
+
+                <dt class="col-sm-4">
+                    Nội dung
+                </dt>
+
+                <dd class="col-sm-8">
+                    @Model.NoiDung
+                </dd>
+
+
+                <dt class="col-sm-4">
+                    Trạng thái
+                </dt>
+
+                <dd class="col-sm-8">
+
+                    @if (Model.DaDoc)
+                    {
+                        <span class="badge bg-success">
+                            Đã đọc
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-danger">
+                            Chưa đọc
+                        </span>
+                    }
+
+                </dd>
+
+
+                <dt class="col-sm-4">
+                    Ngày tạo
+                </dt>
+
+                <dd class="col-sm-8">
+                    @Model.NgayTao.ToString("dd/MM/yyyy HH:mm")
+                </dd>
+
+            </dl>
+
+        </div>
+
+
+        <div class="card-footer bg-white">
+
+            <form asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       asp-for="MaThongBao" />
+
+                <div class="d-flex gap-2">
+
+                    <a asp-action="Index"
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i>
+                        Quay lại
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-danger">
+                        <i class="bi bi-trash"></i>
+                        Xác nhận xóa
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
