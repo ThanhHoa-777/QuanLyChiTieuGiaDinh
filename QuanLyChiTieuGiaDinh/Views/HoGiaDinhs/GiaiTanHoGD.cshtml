@@ -1,0 +1,123 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.HoGiaDinh
+
+@{
+    ViewData["Title"] = "Giải tán hộ gia đình";
+    bool coDuLieu = (ViewBag.CoDuLieu as bool?) ?? false;
+}
+
+<div class="container mt-4">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-header bg-danger text-white py-3">
+                    <h4 class="mb-0">
+                        <i class="bi bi-house-dash me-2"></i>
+                        Giải tán hộ gia đình
+                    </h4>
+                </div>
+
+                <div class="card-body p-4">
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i> @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+                        </div>
+                    }
+
+                    @if (coDuLieu)
+                    {
+                        <div class="alert alert-danger">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-exclamation-triangle me-2"></i> Không thể giải tán hộ gia đình này
+                            </h5>
+
+                            <p class="mb-0">
+                                Hộ gia đình vẫn còn các ràng buộc hoặc dữ liệu tài chính chưa quyết toán. Hãy xử lý trước khi thực hiện giải tán.
+                            </p>
+                        </div>
+
+                        <div class="mt-4">
+                            <a asp-action="Details" asp-route-id="@Model.MaGiaDinh" class="btn btn-primary">
+                                <i class="bi bi-eye me-1"></i> Xem chi tiết hộ
+                            </a>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-exclamation-circle me-1"></i> Xác nhận giải tán hộ gia đình
+                            </h5>
+
+                            Bạn có chắc chắn muốn giải tán hộ gia đình <strong>@Model.TenGiaDinh</strong> không?
+
+                            <hr />
+
+                            <p class="mb-0 small text-danger">
+                                <i class="bi bi-info-circle me-1"></i> 
+                                Hành động này sẽ lưu trữ trạng thái hộ thành "Đã giải tán" và giải phóng toàn bộ thành viên về trạng thái tự do. Lịch sử giao dịch tài chính trước đó vẫn được bảo toàn.
+                            </p>
+                        </div>
+
+                        <dl class="row mb-4">
+                            <dt class="col-sm-4 text-muted">Mã hộ gia đình</dt>
+                            <dd class="col-sm-8 fw-semibold">@Model.MaGiaDinh</dd>
+
+                            <dt class="col-sm-4 text-muted">Tên hộ gia đình</dt>
+                            <dd class="col-sm-8 fw-semibold">@Model.TenGiaDinh</dd>
+
+                            <dt class="col-sm-4 text-muted">Ngày thành lập</dt>
+                            <dd class="col-sm-8">@Model.NgayTao.ToString("dd/MM/yyyy HH:mm")</dd>
+                        </dl>
+
+                        <form asp-action="GiaiTanHo"
+                              method="post"
+                              onsubmit="return confirm('Bạn có chắc chắn muốn giải tán hộ gia đình này không?');">
+
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden" name="maGiaDinh" value="@Model.MaGiaDinh" />
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-house-dash me-1"></i>
+                                    Xác nhận giải tán
+                                </button>
+
+                                <a asp-action="Details"
+                                   asp-route-id="@Model.MaGiaDinh"
+                                   class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Hủy
+                                </a>
+                            </div>
+                        </form>
+                    }
+
+                    @if (coDuLieu)
+                    {
+                        <div class="mt-3">
+                            <a asp-action="Index"
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Quay lại danh sách
+                            </a>
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+

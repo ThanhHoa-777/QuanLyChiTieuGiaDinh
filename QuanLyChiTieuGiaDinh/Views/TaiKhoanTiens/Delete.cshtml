@@ -1,0 +1,333 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.TaiKhoanTien
+
+@{
+    ViewData["Title"] = "Xóa tài khoản tiền";
+}
+
+<div class="container mt-4">
+
+    <div class="row justify-content-center">
+
+        <div class="col-md-8">
+
+            <div class="card shadow-sm">
+
+                <!-- TIÊU ĐỀ -->
+
+                <div class="card-header bg-danger text-white">
+
+                    <h3 class="mb-0">
+                        <i class="bi bi-trash"></i>
+                        Xóa tài khoản tiền
+                    </h3>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    <!-- CẢNH BÁO -->
+
+                    <div class="alert alert-danger">
+
+                        <h5 class="alert-heading">
+
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+
+                            Cảnh báo
+
+                        </h5>
+
+                        <p class="mb-0">
+
+                            Bạn có chắc chắn muốn xóa tài khoản
+                            <strong>@Model.TenTaiKhoan</strong>
+                            không?
+
+                        </p>
+
+                    </div>
+
+
+                    <!-- PHẠM VI TÀI KHOẢN -->
+
+                    <div class="alert @(Model.LaTaiKhoanGiaDinh
+                                                 ? "alert-success"
+                                                 : "alert-info")">
+
+                        @if (Model.LaTaiKhoanGiaDinh)
+                        {
+                            <div class="fw-semibold mb-1">
+
+                                🏠 Tài khoản gia đình
+
+                            </div>
+
+                            <div>
+                                Tài khoản này được chia sẻ cho tất cả
+                                thành viên trong gia đình sử dụng.
+                            </div>
+
+                            <div class="mt-2">
+                                Tuy nhiên, chỉ <strong>người tạo tài khoản</strong>
+                                mới có quyền xóa.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fw-semibold mb-1">
+
+                                👤 Tài khoản cá nhân
+
+                            </div>
+
+                            <div>
+                                Đây là tài khoản cá nhân của người tạo
+                                và chỉ người tạo mới có quyền quản lý.
+                            </div>
+                        }
+
+                    </div>
+
+
+                    <!-- TÊN TÀI KHOẢN -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Tên tài khoản
+                        </label>
+
+                        <div class="form-control">
+                            @Model.TenTaiKhoan
+                        </div>
+
+                    </div>
+
+
+                    <!-- PHẠM VI -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Phạm vi tài khoản
+                        </label>
+
+                        <div>
+
+                            @if (Model.LaTaiKhoanGiaDinh)
+                            {
+                                <span class="badge bg-success fs-6">
+
+                                    🏠 Tài khoản gia đình
+
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary fs-6">
+
+                                    👤 Tài khoản cá nhân
+
+                                </span>
+                            }
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- LOẠI TÀI KHOẢN -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Loại tài khoản
+                        </label>
+
+                        <div class="form-control">
+
+                            @if (Model.LoaiTaiKhoan == "TienMat")
+                            {
+                                <span class="badge bg-success">
+
+                                    💵 Tiền mặt
+
+                                </span>
+                            }
+                            else if (Model.LoaiTaiKhoan == "NganHang")
+                            {
+                                <span class="badge bg-primary">
+
+                                    🏦 Ngân hàng
+
+                                </span>
+                            }
+                            else if (Model.LoaiTaiKhoan == "ViDienTu")
+                            {
+                                <span class="badge bg-info text-dark">
+
+                                    📱 Ví điện tử
+
+                                </span>
+                            }
+                            else
+                            {
+                                @Model.LoaiTaiKhoan
+                            }
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- NGƯỜI TẠO -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Người tạo tài khoản
+                        </label>
+
+                        <div>
+
+                            <span class="badge bg-primary">
+
+                                <i class="bi bi-person-check"></i>
+
+                                Người tạo tài khoản
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SỐ DƯ BAN ĐẦU -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Số dư ban đầu
+                        </label>
+
+                        <div class="form-control">
+
+                            @Model.SoDuBanDau.ToString("N0") ₫
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SỐ DƯ HIỆN TẠI -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Số dư hiện tại
+                        </label>
+
+                        <div class="form-control fw-bold">
+
+                            @Model.SoDuHienTai.ToString("N0") ₫
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- GHI CHÚ -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">
+                            Ghi chú
+                        </label>
+
+                        <div class="form-control"
+                             style="min-height: 70px;">
+
+                            @if (string.IsNullOrWhiteSpace(Model.GhiChu))
+                            {
+                                <span class="text-muted">
+                                    Không có ghi chú
+                                </span>
+                            }
+                            else
+                            {
+                                @Model.GhiChu
+                            }
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- LƯU Ý -->
+
+                    <div class="alert alert-warning">
+
+                        <i class="bi bi-info-circle"></i>
+
+                        <strong>Lưu ý:</strong>
+
+                        Nếu tài khoản này đã phát sinh giao dịch,
+                        hệ thống sẽ không cho phép xóa tài khoản
+                        để tránh làm mất dữ liệu lịch sử.
+
+                    </div>
+
+
+                    <!-- FORM XÓA -->
+
+                    <form asp-action="Delete"
+                          method="post">
+
+                        <input type="hidden"
+                               asp-for="MaTaiKhoan" />
+
+                        <div class="d-flex gap-2 flex-wrap">
+
+                            <button type="submit"
+                                    class="btn btn-danger">
+
+                                <i class="bi bi-trash"></i>
+
+                                Xác nhận xóa
+
+                            </button>
+
+                            <a asp-action="Details"
+                               asp-route-id="@Model.MaTaiKhoan"
+                               class="btn btn-outline-primary">
+
+                                <i class="bi bi-eye"></i>
+
+                                Xem chi tiết
+
+                            </a>
+
+                            <a asp-action="Index"
+                               class="btn btn-secondary">
+
+                                <i class="bi bi-arrow-left"></i>
+
+                                Quay lại
+
+                            </a>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

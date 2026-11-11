@@ -1,0 +1,48 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.TaiKhoanTien
+
+<div class="modal fade" id="modalCaiDatHanMuc" tabindex="-1" aria-labelledby="modalCaiDatHanMucLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form asp-action="CaiDatHanMuc" asp-controller="TaiKhoanTiens" method="post">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalCaiDatHanMucLabel">Cài đặt hạn mức chi tiêu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <input type="hidden" name="maTaiKhoan" value="@Model.MaTaiKhoan" />
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-medium">Chọn thành viên</label>
+                        <select name="maThanhVien" class="form-select" required>
+                            <option value="">-- Chọn thành viên --</option>
+                            @if (ViewBag.DanhSachThanhVien != null)
+                            {
+                                foreach (var tv in (List<QuanLyChiTieuGiaDinh.Models.NguoiDung>)ViewBag.DanhSachThanhVien)
+                                {
+                                    <option value="@tv.MaNguoiDung">@tv.HoTen - @tv.Email</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-medium">Số tiền hạn mức (VNĐ)</label>
+                        <div class="input-group">
+                            <input type="number" name="soTienHanMuc" class="form-control" min="0" step="1000" placeholder="0" required />
+                            <span class="input-group-text">₫</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-medium">Hạn chót</label>
+                        <input type="date" name="hanChot" class="form-control" required />
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary px-4">Lưu hạn mức</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,487 @@
+﻿@model IEnumerable<QuanLyChiTieuGiaDinh.Models.HoGiaDinh>
+
+@{
+    ViewData["Title"] = "Thành viên gia đình";
+    int maNguoiDung = ViewBag.MaNguoiDung ?? 0;
+    bool daCoHoGiaDinh = ViewBag.DaCoHoGiaDinh ?? (Model != null && Model.Any());
+    var danhSachHoGiaDinh = Model ?? Enumerable.Empty<QuanLyChiTieuGiaDinh.Models.HoGiaDinh>();
+    var loiMoiCuaToi = ViewBag.LoiMoiCuaToi as IEnumerable<QuanLyChiTieuGiaDinh.Models.LoiMoiGiaDinh>;
+}
+
+<div class="container py-4">
+
+    <!-- THÔNG BÁO HỆ THỐNG -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+        </div>
+    }
+
+    @if (!danhSachHoGiaDinh.Any())
+    {
+        <!-- TRƯỜNG HỢP CHƯA CÓ HỘ GIA ĐÌNH -->
+        <div class="card border-0 shadow-sm rounded-4 text-center py-5">
+            <div class="card-body">
+                <div class="display-3 mb-3">👨‍👩‍👧‍👦</div>
+                <h3 class="fw-bold">Bạn chưa thuộc hộ gia đình nào</h3>
+                <p class="text-muted mb-4">Hãy tạo hộ gia đình mới để bắt đầu quản lý các thành viên và thu chi cùng nhau.</p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a asp-action="Create" class="btn btn-primary btn-lg px-4 rounded-3">
+                        <i class="bi bi-plus-circle me-1"></i> Tạo hộ gia đình ngay
+                    </a>
+                    <button type="button" class="btn btn-outline-primary btn-lg px-4 rounded-3" data-bs-toggle="modal" data-bs-target="#modalLoiMoiCuaToi">
+                        📩 Xem lời mời đến bạn
+                        @if (loiMoiCuaToi != null && loiMoiCuaToi.Any())
+                        {
+                            <span class="badge bg-danger ms-1 rounded-pill">@loiMoiCuaToi.Count()</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in danhSachHoGiaDinh)
+        {
+            bool laChuHo = item.MaChuHo == maNguoiDung;
+
+            // 1. Lấy danh sách thành viên chính thức
+            var dsThanhVien = item.ThanhVienGiaDinhs?.Where(t => t.TrangThai == "DaXacNhan").ToList() ?? new List<QuanLyChiTieuGiaDinh.Models.ThanhVienGiaDinh>();
+
+            // 2. Lấy danh sách lời mời của Hộ này (ẩn đi các lời mời đã được chấp nhận)
+            var dsLoiMoi = item.LoiMoiGiaDinhs?.Where(l => l.TrangThai != "DaXacNhan").ToList() ?? new List<QuanLyChiTieuGiaDinh.Models.LoiMoiGiaDinh>();
+
+            // TÍNH TOÁN SỐ LƯỢNG ĐỘNG
+            int soThanhVienXacNhan = dsThanhVien.Count;
+            int soChoXacNhan = dsLoiMoi.Count(l => l.TrangThai == "ChoXacNhan");
+            int soTuChoi = dsLoiMoi.Count(l => l.TrangThai == "TuChoi");
+
+            <div class="mb-5">
+
+                <!-- HEADER CỦA HỘ GIA ĐÌNH -->
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="fw-bold mb-1">👨‍👩‍👧‍👦 Thành viên gia đình</h2>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="text-secondary fs-5">Gia đình: <strong class="text-dark">@item.TenGiaDinh</strong></span>
+                            @if (laChuHo)
+                            {
+                                <span class="badge bg-primary px-2 py-1"><i class="bi bi-award me-1"></i>👑 Chủ hộ</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary px-2 py-1"><i class="bi bi-person me-1"></i>Thành viên</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        @if (laChuHo)
+                        {
+                            <button type="button" class="btn btn-primary px-3 py-2 fw-semibold rounded-3" data-bs-toggle="modal" data-bs-target="#modalMoiThanhVien_@item.MaGiaDinh">
+                                <i class="bi bi-plus-lg me-1"></i> Mời thành viên
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- 3 THẺ THỐNG KÊ (STATISTICS CARDS) -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm rounded-3 p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-semibold">Thành viên đã xác nhận</small>
+                                    <div class="fs-2 fw-bold text-success mt-1">@soThanhVienXacNhan</div>
+                                </div>
+                                <div class="fs-1 text-primary opacity-75">👥</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm rounded-3 p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-semibold">Đang chờ xác nhận</small>
+                                    <div class="fs-2 fw-bold text-warning mt-1">@soChoXacNhan</div>
+                                </div>
+                                <div class="fs-1 opacity-75">⏳</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm rounded-3 p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-semibold">Lời mời bị từ chối</small>
+                                    <div class="fs-2 fw-bold text-danger mt-1">@soTuChoi</div>
+                                </div>
+                                <div class="fs-1 opacity-75">❌</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BẢNG DANH SÁCH THÀNH VIÊN VÀ LỜI MỜI -->
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom-0">
+                        <h5 class="fw-bold mb-0 text-dark">📋 Danh sách thành viên và lời mời</h5>
+                        <span class="text-muted small">@(soThanhVienXacNhan + soChoXacNhan + soTuChoi) bản ghi</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Thành viên</th>
+                                    <th>Email</th>
+                                    <th>Vai trò</th>
+                                    <th>Ngày cập nhật</th>
+                                    <th>Trạng thái</th>
+                                   
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- HIỂN THỊ THÀNH VIÊN ĐÃ XÁC NHẬN -->
+                                @foreach (var tv in dsThanhVien)
+                                {
+                                    bool isThisUserChuHo = tv.VaiTro == "ChuHo";
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-person-fill fs-5"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-semibold text-dark">@(tv.NguoiDung?.HoTen ?? "Người dùng")</div>
+                                                    <small class="text-muted">Mã thành viên: #@tv.MaNguoiDung</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>@(tv.NguoiDung?.Email ?? "—")</td>
+                                        <td>
+                                            @if (isThisUserChuHo)
+                                            {
+                                                <span class="badge bg-primary px-2 py-1"><i class="bi bi-award me-1"></i>👑 Chủ hộ</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary px-2 py-1"><i class="bi bi-person me-1"></i>Thành viên</span>
+                                            }
+                                        </td>
+                                        <td>@tv.NgayThamGia.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <span class="badge bg-success px-2 py-1">✓ Đã xác nhận</span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="d-inline-flex gap-1">
+                                                @if (laChuHo && tv.MaNguoiDung != item.MaChuHo)
+                                                {
+                                                    <form asp-action="GoThanhVien" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn gỡ thành viên này khỏi hộ?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="maGiaDinh" value="@item.MaGiaDinh" />
+                                                        <input type="hidden" name="maNguoiDungCanGo" value="@tv.MaNguoiDung" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm px-2" title="Gỡ thành viên">
+                                                            ❌ Gỡ
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+
+                                <!-- HIỂN THỊ CÁC LỜI MỜI ĐANG CHỜ HOẶC BỊ TỪ CHỐI -->
+                                @foreach (var lm in dsLoiMoi)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center gap-3 opacity-75">
+                                                <div class="bg-secondary-subtle text-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-envelope fs-5"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-semibold text-dark">Chưa tham gia</div>
+                                                    <small class="text-muted">Khách mời</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="text-muted">@lm.EmailNguoiNhan</span></td>
+                                        <td><span class="badge bg-light text-dark border px-2 py-1">Khách</span></td>
+                                        <td>@lm.NgayGui.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            @if (lm.TrangThai == "ChoXacNhan")
+                                            {
+                                                <span class="badge bg-warning text-dark px-2 py-1">⏳ Đang chờ</span>
+                                            }
+                                            else if (lm.TrangThai == "TuChoi")
+                                            {
+                                                <span class="badge bg-danger px-2 py-1">❌ Từ chối</span>
+                                            }
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            @if (laChuHo && lm.TrangThai == "ChoXacNhan")
+                                            {
+                                                <form asp-action="HuyLoiMoi" method="post" class="d-inline" onsubmit="return confirm('Bạn có muốn hủy lời mời này không?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="maLoiMoi" value="@lm.MaLoiMoi" />
+                                                    <button type="submit" class="btn btn-outline-secondary btn-sm px-2">
+                                                        Hủy lời mời
+                                                    </button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- THANH ĐIỀU HƯỚNG VÀ CÁC THAO TÁC PHỤ Ở CHÂN TRANG -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-primary btn-sm px-3 rounded-2 position-relative" data-bs-toggle="modal" data-bs-target="#modalLoiMoiCuaToi">
+                            📩 Lời mời của tôi
+                            @if (loiMoiCuaToi != null && loiMoiCuaToi.Any())
+                            {
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    @loiMoiCuaToi.Count()
+                                </span>
+                            }
+                        </button>
+                    </div>
+
+                    @if (laChuHo)
+                    {
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-warning btn-sm px-3 rounded-2 text-dark" data-bs-toggle="modal" data-bs-target="#modalSuaTen_@item.MaGiaDinh">
+                                ✏️ Sửa tên hộ
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-3 rounded-2" data-bs-toggle="modal" data-bs-target="#modalChuyenChuHo_@item.MaGiaDinh">
+                                👑 Chuyển chủ hộ
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm px-3 rounded-2" data-bs-toggle="modal" data-bs-target="#modalGiaiTan_@item.MaGiaDinh">
+                                🔥 Giải tán hộ
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Nút mở modal Rời hộ gia đình -->
+                        <button type="button" class="btn btn-outline-danger btn-sm px-3 rounded-2" data-bs-toggle="modal" data-bs-target="#modalRoiHo_@item.MaGiaDinh">
+                            🚪 Rời hộ gia đình
+                        </button>
+                    }
+                </div>
+
+                <!-- ================= CÁC MODAL (ĐẶT TRONG VÒNG LẶP ĐỂ NHẬN ĐÚNG BIẾN item) ================= -->
+                @if (laChuHo)
+                {
+                    <!-- MODAL MỜI THÀNH VIÊN -->
+                    <div class="modal fade" id="modalMoiThanhVien_@item.MaGiaDinh" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-1"></i> Mời thành viên mới</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form asp-action="GuiLoiMoi" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="maGiaDinh" value="@item.MaGiaDinh" />
+                                    <div class="modal-body p-4">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Email người cần mời</label>
+                                            <input type="email" name="emailNguoiNhan" class="form-control" placeholder="nhap.email@gmail.com" required />
+                                            <small class="text-muted mt-1 d-block">Hệ thống sẽ gửi thông báo lời mời đến tài khoản có email này.</small>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" class="btn btn-primary px-4">Gửi lời mời</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODAL SỬA TÊN HỘ -->
+                    <div class="modal fade" id="modalSuaTen_@item.MaGiaDinh" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-warning text-dark">
+                                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-1"></i> Sửa tên hộ gia đình</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form asp-action="Edit" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="MaGiaDinh" value="@item.MaGiaDinh" />
+                                    <div class="modal-body p-4">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Tên hộ gia đình mới</label>
+                                            <input type="text" name="TenGiaDinh" value="@item.TenGiaDinh" class="form-control" required maxlength="150" />
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" class="btn btn-warning px-4">Lưu thay đổi</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODAL CHUYỂN QUYỀN CHỦ HỘ -->
+                    <div class="modal fade" id="modalChuyenChuHo_@item.MaGiaDinh" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title fw-bold">👑 Chuyển quyền Chủ hộ</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form asp-action="ChuyenVaiTroChuHo" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="maGiaDinh" value="@item.MaGiaDinh" />
+                                    <div class="modal-body p-4">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Chọn thành viên nhận quyền Chủ hộ</label>
+                                            <select name="maChuHoMoi" class="form-select" required>
+                                                <option value="">-- Chọn thành viên --</option>
+                                                @foreach (var tv in dsThanhVien.Where(t => t.MaNguoiDung != item.MaChuHo))
+                                                {
+                                                    <option value="@tv.MaNguoiDung">@(tv.NguoiDung?.HoTen ?? "Thành viên") (@(tv.NguoiDung?.Email))</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <small class="text-danger">⚠️ Sau khi chuyển giao, tài khoản của bạn sẽ trở thành Thành viên thông thường.</small>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" class="btn btn-primary px-4">Xác nhận chuyển</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODAL GIẢI TÁN HỘ -->
+                    <div class="modal fade" id="modalGiaiTan_@item.MaGiaDinh" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title fw-bold">🔥 Xác nhận giải tán hộ</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form asp-action="GiaiTanHo" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="maGiaDinh" value="@item.MaGiaDinh" />
+                                    <div class="modal-body p-4">
+                                        <p class="mb-2">Bạn có chắc chắn muốn giải tán hộ <strong>@item.TenGiaDinh</strong> không?</p>
+                                        <small class="text-danger d-block">Lưu ý: Tất cả thành viên sẽ trở về trạng thái tự do. Lịch sử giao dịch tài chính trước đó vẫn được lưu trữ trên hệ thống.</small>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" class="btn btn-danger px-4">Xác nhận giải tán</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- MODAL RỜI HỘ CÓ LÝ DO (Dành cho thành viên) -->
+                    <div class="modal fade" id="modalRoiHo_@item.MaGiaDinh" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title fw-bold">🚪 Yêu cầu rời hộ gia đình</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form asp-action="GuiYeuCauRoiHo" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="maGiaDinh" value="@item.MaGiaDinh" />
+                                    <div class="modal-body p-4">
+                                        <p class="mb-3">Bạn đang gửi yêu cầu rời khỏi hộ <strong>@item.TenGiaDinh</strong>.</p>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Lý do rời hộ (Không bắt buộc)</label>
+                                            <textarea name="lyDo" class="form-control" rows="3" placeholder="Nhập lý do của bạn để Chủ hộ xem xét..."></textarea>
+                                        </div>
+                                        <small class="text-danger d-block">Lưu ý: Nếu bạn có khoản thu/chi chưa quyết toán, hệ thống sẽ yêu cầu hoàn tất trước.</small>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" class="btn btn-danger px-4">Gửi yêu cầu</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        }
+    }
+</div>
+
+<!-- MODAL LỜI MỜI CỦA TÔI -->
+<div class="modal fade" id="modalLoiMoiCuaToi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">📩 Lời mời gia nhập hộ gia đình</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                @if (loiMoiCuaToi != null && loiMoiCuaToi.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var inv in loiMoiCuaToi)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-dark">Gia đình: @(inv.HoGiaDinh?.TenGiaDinh ?? "Không rõ")</h6>
+                                    <small class="text-muted">Được mời bởi: Mã người dùng #@inv.MaNguoiGui vào ngày @inv.NgayGui.ToString("dd/MM/yyyy HH:mm")</small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <form asp-action="ChapNhanLoiMoi" method="post" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="maLoiMoi" value="@inv.MaLoiMoi" />
+                                        <button type="submit" class="btn btn-success btn-sm px-3">Chấp nhận</button>
+                                    </form>
+                                    <form asp-action="TuChoiLoiMoi" method="post" class="m-0" onsubmit="return confirm('Bạn từ chối lời mời này?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="maLoiMoi" value="@inv.MaLoiMoi" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm px-3">Từ chối</button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Hiện tại bạn không có lời mời nào đang chờ xử lý.
+                    </div>
+                }
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>

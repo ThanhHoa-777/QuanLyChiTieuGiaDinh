@@ -1,0 +1,365 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.TaiKhoanTien
+
+@{
+    ViewData["Title"] = "Sửa tài khoản tiền";
+}
+
+<div class="container mt-4">
+
+    <div class="row justify-content-center">
+
+        <div class="col-md-7">
+
+            <div class="card shadow-sm">
+
+                <!-- TIÊU ĐỀ -->
+                <div class="card-header bg-warning">
+
+                    <h3 class="mb-0">
+                        <i class="bi bi-pencil-square"></i>
+                        Sửa tài khoản tiền
+                    </h3>
+
+                </div>
+
+                <div class="card-body">
+
+                    <!-- THÔNG TIN -->
+                    <div class="alert alert-info">
+
+                        <div class="fw-semibold mb-2">
+                            <i class="bi bi-info-circle"></i>
+                            Thông tin tài khoản
+                        </div>
+
+                        <div class="mb-1">
+                            Bạn đang chỉnh sửa tài khoản do chính bạn tạo.
+                        </div>
+
+                        <div>
+                            <strong>
+                                Số dư tài khoản được hệ thống tự động
+                                cập nhật thông qua giao dịch.
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <form asp-action="Edit"
+                          method="post">
+
+                        <!-- VALIDATION -->
+
+                        <div asp-validation-summary="ModelOnly"
+                             class="alert alert-danger">
+                        </div>
+
+
+                        <!-- MÃ TÀI KHOẢN -->
+
+                        <input type="hidden"
+                               asp-for="MaTaiKhoan" />
+
+
+                        <!-- TÊN TÀI KHOẢN -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="TenTaiKhoan"
+                                   class="form-label fw-bold">
+                            </label>
+
+                            <input asp-for="TenTaiKhoan"
+                                   class="form-control" />
+
+                            <span asp-validation-for="TenTaiKhoan"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- PHẠM VI TÀI KHOẢN -->
+
+                        <div class="mb-4">
+
+                            <label class="form-label fw-bold">
+                                Phạm vi tài khoản
+                            </label>
+
+                            <div class="row g-3">
+
+                                <!-- CÁ NHÂN -->
+
+                                <div class="col-md-6">
+
+                                    <div class="card h-100 border">
+
+                                        <div class="card-body">
+
+                                            <div class="form-check">
+
+                                                <input type="radio"
+                                                       name="LaTaiKhoanGiaDinh"
+                                                       value="false"
+                                                       class="form-check-input"
+                                                       id="taiKhoanCaNhan"
+                                                       @(Model.LaTaiKhoanGiaDinh ? "" : "checked") />
+
+                                                <label class="form-check-label fw-bold"
+                                                       for="taiKhoanCaNhan">
+
+                                                    👤 Tài khoản cá nhân
+
+                                                </label>
+
+                                            </div>
+
+                                            <div class="small text-muted mt-2">
+
+                                                Chỉ bạn có thể xem và sử dụng
+                                                tài khoản này.
+
+                                                <br />
+
+                                                Bạn là người duy nhất
+                                                được sửa hoặc xóa.
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+
+                                <!-- GIA ĐÌNH -->
+
+                                <div class="col-md-6">
+
+                                    <div class="card h-100 border">
+
+                                        <div class="card-body">
+
+                                            <div class="form-check">
+
+                                                <input type="radio"
+                                                       name="LaTaiKhoanGiaDinh"
+                                                       value="true"
+                                                       class="form-check-input"
+                                                       id="taiKhoanGiaDinh"
+                                                       @(Model.LaTaiKhoanGiaDinh ? "checked" : "") />
+
+                                                <label class="form-check-label fw-bold"
+                                                       for="taiKhoanGiaDinh">
+
+                                                    🏠 Tài khoản gia đình
+
+                                                </label>
+
+                                            </div>
+
+                                            <div class="small text-muted mt-2">
+
+                                                Tất cả thành viên trong gia đình
+                                                đều có thể xem và sử dụng.
+
+                                                <br />
+
+                                                Bạn vẫn là người duy nhất
+                                                được sửa hoặc xóa.
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <div class="form-text mt-2">
+                                💡 Bạn có thể thay đổi phạm vi tài khoản
+                                bất cứ lúc nào.
+                            </div>
+
+                        </div>
+
+
+                        <!-- LOẠI TÀI KHOẢN -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="LoaiTaiKhoan"
+                                   class="form-label fw-bold">
+                            </label>
+
+                            <select asp-for="LoaiTaiKhoan"
+                                    class="form-select">
+
+                                <option value="TienMat">
+                                    💵 Tiền mặt
+                                </option>
+
+                                <option value="NganHang">
+                                    🏦 Ngân hàng
+                                </option>
+
+                                <option value="ViDienTu">
+                                    📱 Ví điện tử
+                                </option>
+
+                            </select>
+
+                            <span asp-validation-for="LoaiTaiKhoan"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- SỐ DƯ BAN ĐẦU -->
+
+                        <div class="mb-3">
+
+                            <label class="form-label fw-bold">
+                                Số dư ban đầu
+                            </label>
+
+                            <div class="input-group">
+
+                                <input asp-for="SoDuBanDau"
+                                       class="form-control"
+                                       readonly />
+
+                                <span class="input-group-text">
+                                    ₫
+                                </span>
+
+                            </div>
+
+                            <div class="form-text">
+                                Số dư ban đầu không thể thay đổi
+                                sau khi tài khoản được tạo.
+                            </div>
+
+                        </div>
+
+
+                        <!-- SỐ DƯ HIỆN TẠI -->
+
+                        <div class="mb-3">
+
+                            <label class="form-label fw-bold">
+                                Số dư hiện tại
+                            </label>
+
+                            <div class="input-group">
+
+                                <input asp-for="SoDuHienTai"
+                                       class="form-control"
+                                       readonly />
+
+                                <span class="input-group-text">
+                                    ₫
+                                </span>
+
+                            </div>
+
+                            <div class="form-text">
+                                Số dư được hệ thống tự động cập nhật
+                                theo các giao dịch.
+                            </div>
+
+                        </div>
+
+
+                        <!-- GHI CHÚ -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="GhiChu"
+                                   class="form-label fw-bold">
+                            </label>
+
+                            <textarea asp-for="GhiChu"
+                                      class="form-control"
+                                      rows="3"
+                                      placeholder="Nhập ghi chú nếu có..."></textarea>
+
+                            <span asp-validation-for="GhiChu"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- TRẠNG THÁI -->
+
+                        <div class="mb-4">
+
+                            <div class="form-check">
+
+                                <input asp-for="TrangThai"
+                                       class="form-check-input" />
+
+                                <label asp-for="TrangThai"
+                                       class="form-check-label fw-bold">
+                                    Tài khoản đang hoạt động
+                                </label>
+
+                            </div>
+
+                            <div class="form-text">
+                                Bỏ chọn nếu muốn khóa tài khoản.
+                            </div>
+
+                        </div>
+
+
+                        <!-- NÚT -->
+
+                        <div class="d-flex gap-2">
+
+                            <button type="submit"
+                                    class="btn btn-warning">
+
+                                <i class="bi bi-save"></i>
+                                Lưu thay đổi
+
+                            </button>
+
+                            <a asp-action="Index"
+                               class="btn btn-secondary">
+
+                                <i class="bi bi-arrow-left"></i>
+                                Quay lại
+
+                            </a>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@section Scripts {
+
+    @{
+        await Html.RenderPartialAsync(
+            "_ValidationScriptsPartial");
+    }
+
+}
