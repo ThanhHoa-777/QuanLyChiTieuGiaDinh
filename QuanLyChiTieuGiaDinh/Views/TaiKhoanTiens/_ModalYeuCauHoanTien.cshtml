@@ -1,0 +1,38 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.TaiKhoanTien
+
+<div class="modal fade" id="modalYeuCauHoanTien" tabindex="-1" aria-labelledby="modalYeuCauHoanTienLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form asp-action="TaoYeuCauHoanTien" asp-controller="TaiKhoanTiens" method="post">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-info" id="modalYeuCauHoanTienLabel">Yêu cầu hoàn tiền</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div class="alert alert-info bg-opacity-10 border-0 small mb-4">
+                        Sử dụng form này khi bạn đã nạp dư tiền vào quỹ chung và muốn xin chủ hộ hoàn lại.
+                    </div>
+
+                    <input type="hidden" name="maTaiKhoan" value="@Model.MaTaiKhoan" />
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-medium">Số tiền cần hoàn (VNĐ)</label>
+                        <div class="input-group">
+                            <input type="number" name="soTien" class="form-control" min="1000" step="1000" placeholder="Nhập số tiền" required />
+                            <span class="input-group-text">₫</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-medium">Lý do yêu cầu</label>
+                        <textarea name="lyDo" class="form-control" rows="3" placeholder="Ví dụ: Nạp dư tiền ăn tháng này..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Gửi yêu cầu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

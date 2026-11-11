@@ -1,0 +1,101 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.YeuCauRoiHo
+
+@{
+    ViewData["Title"] = "Xử lý yêu cầu rời hộ";
+    bool coCongNo = ViewBag.CoCongNo ?? false;
+    var dsGiaoDich = ViewBag.DanhSachGiaoDich as List<QuanLyChiTieuGiaDinh.Models.GiaoDich> ?? new();
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0 fw-bold"><i class="bi bi-door-open me-2"></i> Đối chiếu & Xử lý yêu cầu rời hộ</h4>
+                </div>
+                <div class="card-body p-4">
+
+                    <!-- THÔNG TIN THÀNH VIÊN -->
+                    <div class="mb-4">
+                        <h5 class="fw-bold text-dark">Thông tin thành viên</h5>
+                        <p class="mb-1"><strong>Họ tên:</strong> @Model.NguoiDung?.HoTen</p>
+                        <p class="mb-1"><strong>Email:</strong> @Model.NguoiDung?.Email</p>
+                        <p class="mb-1"><strong>Hộ gia đình:</strong> @Model.HoGiaDinh?.TenGiaDinh</p>
+                        <p class="mb-1"><strong>Thời gian gửi:</strong> @Model.ThoiDiemGui.ToString("dd/MM/yyyy HH:mm")</p>
+                    </div>
+
+                    <hr />
+
+                    <!-- KIỂM TRA CÔNG NỢ -->
+                    <div class="mb-4">
+                        <h5 class="fw-bold text-dark">Trạng thái tài chính & Công nợ</h5>
+                        @if (coCongNo)
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i> Thành viên này <strong>vẫn còn khoản thu/chi chưa quyết toán</strong> trong quỹ hộ gia đình!
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Mã GD</th>
+                                            <th>Ngày</th>
+                                            <th>Số tiền</th>
+                                            <th>Nội dung</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var gd in dsGiaoDich)
+                                        {
+                                            <tr>
+                                                <td>#@gd.MaGiaoDich</td>
+                                                <td>@gd.NgayGiaoDich.ToString("dd/MM/yyyy")</td>
+                                                <td class="fw-bold text-danger">@gd.SoTien.ToString("N0") VNĐ</td>
+                                                <td>@gd.GhiChu</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle-fill me-2"></i> Tài chính minh bạch. Thành viên này không có khoản công nợ nào cần thanh toán.
+                            </div>
+                        }
+                    </div>
+
+                    <!-- FORM DUYỆT / TỪ CHỐI KÈM LÝ DO -->
+                    <form asp-action="XuLyYeuCauRoiHo" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="maYeuCau" value="@Model.MaYeuCau" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Lý do phản hồi (Gửi thông báo cho thành viên)</label>
+                            <textarea name="lyDoXuLy" class="form-control" rows="3" placeholder="Nhập lý do đồng ý hoặc từ chối..."></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a asp-controller="ThongBaos" asp-action="Index" asp-route-tab="GiaDinh" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Quay lại thông báo
+                            </a>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" name="dongY" value="false" class="btn btn-outline-danger px-4" onclick="return confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?');">
+                                    ❌ Từ chối
+                                </button>
+
+                                <button type="submit" name="dongY" value="true" class="btn btn-success px-4" @(coCongNo ? "disabled title='Cần giải quyết công nợ trước khi duyệt'" : "")>
+                                    ✓ Đồng ý cho rời hộ
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
