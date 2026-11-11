@@ -1,0 +1,133 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.NganSach
+
+@{
+    ViewData["Title"] = "Xóa / Ngừng áp dụng ngân sách";
+
+    bool laChuHo = ViewBag.LaChuHo ?? false;
+    int maNguoiDungHienTai = ViewBag.MaNguoiDung ?? 0;
+
+    // Phân quyền Xóa: Chủ hộ được xóa ngân sách gia đình; Cá nhân tự xóa ngân sách riêng của mình
+    bool coQuyenXoa = (Model.IsGiaDinh && laChuHo) ||
+                      (!Model.IsGiaDinh && Model.MaNguoiTao == maNguoiDungHienTai);
+}
+
+<div class="container mt-4 mb-5" style="max-width: 800px;">
+
+    <!-- TIÊU ĐỀ -->
+    <div class="mb-4">
+        <h2 class="fw-bold text-danger">
+            🗑️ Xóa hoặc Ngừng áp dụng ngân sách
+        </h2>
+        <p class="text-muted mb-0">
+            Xác nhận thông tin ngân sách trước khi tiến hành xóa hoặc ngưng áp dụng.
+        </p>
+    </div>
+
+    <!-- THÔNG BÁO BẢO MẬT VÀ BẢO TOÀN DỮ LIỆU -->
+    <div class="alert alert-warning shadow-sm border-0 mb-4">
+        <div class="d-flex align-items-center mb-1">
+            <i class="bi bi-shield-exclamation fs-4 me-2 text-warning"></i>
+            <strong class="fs-6">Quy tắc xử lý ngân sách:</strong>
+        </div>
+        <ul class="mb-0 ps-3 fs-7 text-muted">
+            <li>Nếu ngân sách <strong>chưa có giao dịch liên quan</strong>: Hệ thống sẽ xóa hoàn toàn bản ghi khỏi CSDL.</li>
+            <li>Nếu ngân sách <strong>đã phát sinh giao dịch</strong>: Hệ thống sẽ chuyển trạng thái sang <strong>Ngừng áp dụng</strong> để đảm bảo dữ liệu báo cáo lịch sử không bị sai sót.</li>
+        </ul>
+    </div>
+
+    <!-- THÔNG TIN CHI TIẾT NGÂN SÁCH -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold text-dark mb-0">@Model.TenNganSach</h4>
+                @if (Model.IsGiaDinh)
+                {
+                    <span class="badge bg-primary">🏢 Chung gia đình</span>
+                }
+                else
+                {
+                    <span class="badge bg-info text-dark">👤 Cá nhân (@(Model.NguoiTao?.HoTen ?? "Tôi"))</span>
+                }
+            </div>
+
+            <hr class="text-muted my-3" />
+
+            <div class="row g-3 mb-4">
+                <!-- DANH MỤC -->
+                <div class="col-md-6">
+                    <span class="text-muted fs-7 d-block">Danh mục áp dụng</span>
+                    <span class="fw-semibold">
+                        @if (Model.DanhMuc != null)
+                        {
+                            <span>@(!string.IsNullOrEmpty(Model.DanhMuc.BieuTuong) ? Model.DanhMuc.BieuTuong + " " : "") @Model.DanhMuc.TenDanhMuc</span>
+                        }
+                        else
+                        {
+                            <span class="text-primary">🌐 Tất cả danh mục chi tiêu</span>
+                        }
+                    </span>
+                </div>
+
+                <!-- CHU KỲ & THỜI GIAN -->
+                <div class="col-md-6">
+                    <span class="text-muted fs-7 d-block">Chu kỳ & Thời gian</span>
+                    <span class="fw-semibold">
+                        Tháng @Model.Thang/@Model.Nam
+                        <small class="text-muted">(@Model.NgayBatDau.ToString("dd/MM") - @Model.NgayKetThuc.ToString("dd/MM/yyyy"))</small>
+                    </span>
+                </div>
+
+                <!-- HẠN MỨC -->
+                <div class="col-md-6">
+                    <span class="text-muted fs-7 d-block">Số tiền hạn mức</span>
+                    <span class="fw-bold text-danger fs-5">
+                        @Model.SoTienHanMuc.ToString("N0") ₫
+                    </span>
+                </div>
+
+                <!-- NGƯỠNG CẢNH BÁO -->
+                <div class="col-md-6">
+                    <span class="text-muted fs-7 d-block">Ngưỡng cảnh báo</span>
+                    <span class="fw-semibold text-warning">
+                        @Model.NguongCanhBaoPhanTram% hạn mức
+                    </span>
+                </div>
+            </div>
+
+            <!-- NÚT THAO TÁC -->
+            @if (coQuyenXoa)
+            {
+                <form asp-action="Delete" asp-route-id="@Model.MaNganSach" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="MaNganSach" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger px-4" onclick="return confirm('Bạn có chắc chắn muốn xóa hoặc ngưng áp dụng ngân sách này?');">
+                            <i class="bi bi-trash"></i> Xác nhận xóa / Ngừng áp dụng
+                        </button>
+                        <a asp-action="Index" asp-route-thang="@Model.Thang" asp-route-nam="@Model.Nam" asp-route-isGiaDinhTab="@Model.IsGiaDinh" class="btn btn-secondary px-4">
+                            <i class="bi bi-x-circle"></i> Hủy bỏ
+                        </a>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="alert alert-secondary mb-3">
+                    <i class="bi bi-lock-fill me-1"></i> Bạn không có quyền xóa ngân sách này.
+                </div>
+                <div class="d-flex gap-2">
+                    <a asp-action="Details" asp-route-id="@Model.MaNganSach" class="btn btn-info text-white">
+                        <i class="bi bi-eye"></i> Xem chi tiết
+                    </a>
+                    <a asp-action="Index" asp-route-thang="@Model.Thang" asp-route-nam="@Model.Nam" asp-route-isGiaDinhTab="@Model.IsGiaDinh" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Quay lại
+                    </a>
+                </div>
+            }
+
+        </div>
+    </div>
+
+</div>
