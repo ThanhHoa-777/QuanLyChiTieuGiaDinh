@@ -1,0 +1,152 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.NganSach
+
+@{
+    ViewData["Title"] = "Chi tiết giao dịch ngân sách cá nhân";
+
+    var danhSachGiaoDich = ViewBag.DanhSachGiaoDich as IEnumerable<QuanLyChiTieuGiaDinh.Models.GiaoDich> ?? new List<QuanLyChiTieuGiaDinh.Models.GiaoDich>();
+    decimal tongDaChi = ViewBag.TongDaChi ?? 0m;
+    decimal conLai = Model.SoTienHanMuc - tongDaChi;
+    decimal phanTram = Model.SoTienHanMuc > 0 ? (tongDaChi / Model.SoTienHanMuc) * 100 : 0;
+    var phanTramHienThi = Math.Min(phanTram, 100);
+
+    // Xác định class màu Bootstrap cho thanh tiến độ
+    string progressColorClass = "bg-success";
+    if (phanTram >= 100) progressColorClass = "bg-danger";
+    else if (phanTram >= Model.NguongCanhBaoPhanTram) progressColorClass = "bg-warning";
+}
+
+<div class="container mt-4 mb-5 mx-auto" style="max-width: 900px;">
+
+    <!-- TIÊU ĐỀ & ĐIỀU HƯỚNG -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold text-success mb-1">
+                📊 Chi tiết giao dịch ngân sách
+            </h3>
+            <p class="text-muted mb-0 small">
+                Theo dõi các khoản chi thực tế thuộc ngân sách cá nhân này.
+            </p>
+        </div>
+        <a asp-action="Index" asp-route-thang="@Model.Thang" asp-route-nam="@Model.Nam" class="btn btn-outline-secondary rounded-3 px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
+
+    <!-- CARD TỔNG QUAN TIẾN ĐỘ NGÂN SÁCH -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
+                <div>
+                    <h4 class="fw-bold text-dark mb-2">@Model.TenNganSach</h4>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-1">
+                            <i class="bi bi-tag me-1"></i> @(Model.DanhMuc?.TenDanhMuc ?? "Tất cả danh mục")
+                        </span>
+
+                        <span class="text-muted small ms-1">
+                            <i class="bi bi-calendar3 me-1"></i> Tháng @Model.Thang/@Model.Nam
+                            (@Model.NgayBatDau.ToString("dd/MM") - @Model.NgayKetThuc.ToString("dd/MM/yyyy"))
+                        </span>
+                    </div>
+                </div>
+                <div class="text-end bg-light rounded-3 p-3 border" style="min-width: 160px;">
+                    <span class="text-secondary small d-block mb-1">Hạn mức ngân sách</span>
+                    <span class="fw-bold fs-4 text-dark">@Model.SoTienHanMuc.ToString("N0") ₫</span>
+                </div>
+            </div>
+
+            <!-- THANH TIẾN ĐỘ -->
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small mb-2">
+                    <span>Đã chi: <strong class="text-danger">@tongDaChi.ToString("N0") ₫</strong> <span class="text-muted">(@phanTram.ToString("0.##")%)</span></span>
+                    <span>
+                        Còn lại:
+                        @if (conLai >= 0)
+                        {
+                            <strong class="text-success">@conLai.ToString("N0") ₫</strong>
+                        }
+                        else
+                        {
+                            <strong class="text-danger">@Math.Abs(conLai).ToString("N0") ₫ (Vượt)</strong>
+                        }
+                    </span>
+                </div>
+                <div class="progress rounded-pill bg-light border" style="height: 14px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated @progressColorClass"
+                         role="progressbar"
+                         style="width: @phanTramHienThi.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG DANH SÁCH GIAO DỊCH THỰC TẾ -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-bottom pt-4 pb-3 px-4 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-receipt me-2 text-success"></i> Lịch sử giao dịch chi tiêu
+            </h5>
+            <span class="badge bg-secondary rounded-pill px-3 py-1">@danhSachGiaoDich.Count() khoản chi</span>
+        </div>
+        <div class="card-body p-0">
+            @if (!danhSachGiaoDich.Any())
+            {
+                <div class="text-center py-5">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-light text-secondary rounded-circle mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <h6 class="text-muted fw-normal">Chưa có khoản chi nào phát sinh cho ngân sách này.</h6>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4 py-3 fw-medium border-bottom-0">Ngày giao dịch</th>
+                                <th class="py-3 fw-medium border-bottom-0">Danh mục</th>
+                                <th class="py-3 fw-medium border-bottom-0">Nội dung</th>
+                                <th class="py-3 fw-medium border-bottom-0">Nguồn tiền</th>
+                                <th class="text-end pe-4 py-3 fw-medium border-bottom-0">Số tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var gd in danhSachGiaoDich)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-3">
+                                        <div class="fw-bold text-dark">@gd.NgayGiaoDich.ToString("dd/MM/yyyy")</div>
+                                        <div class="text-muted small"><i class="bi bi-clock me-1"></i>@gd.NgayGiaoDich.ToString("HH:mm")</div>
+                                    </td>
+                                    <td class="py-3">
+                                        @if (gd.DanhMuc != null)
+                                        {
+                                            <span class="fw-medium text-dark">@(!string.IsNullOrEmpty(gd.DanhMuc.BieuTuong) ? gd.DanhMuc.BieuTuong + " " : "")@gd.DanhMuc.TenDanhMuc</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted fst-italic">Chưa phân loại</span>
+                                        }
+                                    </td>
+                                    <td class="py-3">
+                                        <span class="text-secondary">@(string.IsNullOrEmpty(gd.GhiChu) ? "---" : gd.GhiChu)</span>
+                                    </td>
+                                    <td class="py-3">
+                                        <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-normal">
+                                            <i class="bi bi-wallet2 text-secondary me-1"></i> @(gd.TaiKhoanTien?.TenTaiKhoan ?? "Ví cá nhân")
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4 py-3">
+                                        <span class="fw-bold text-danger fs-5">-@gd.SoTien.ToString("N0") ₫</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

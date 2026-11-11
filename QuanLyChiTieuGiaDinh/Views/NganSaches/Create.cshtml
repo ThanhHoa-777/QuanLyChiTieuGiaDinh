@@ -1,0 +1,92 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.NganSach
+
+@{
+    ViewData["Title"] = "Tạo ngân sách cá nhân";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 700px;">
+    <!-- FORM CARD CHÍNH -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-body p-4 p-md-5">
+
+            <!-- TIÊU ĐỀ & NÚT QUAY LẠI -->
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                <div>
+                    <h4 class="fw-bold text-success mb-1">
+                        <i class="bi bi-plus-circle me-2"></i>Tạo ngân sách cá nhân
+                    </h4>
+                    <p class="text-muted small mb-0">Thiết lập hạn mức chi tiêu theo danh mục cho chu kỳ mới</p>
+                </div>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-3 px-3">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại
+                </a>
+            </div>
+
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+
+                <div class="mb-3">
+                    <label asp-for="TenNganSach" class="form-label fw-medium text-secondary small">Tên ngân sách <span class="text-danger">*</span></label>
+                    <input asp-for="TenNganSach" class="form-control rounded-3" placeholder="VD: Ngân sách ăn uống tháng này" required />
+                    <span asp-validation-for="TenNganSach" class="text-danger small"></span>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label asp-for="SoTienHanMuc" class="form-label fw-medium text-secondary small">Số tiền hạn mức (₫) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light rounded-start-3 border-end-0"><i class="bi bi-cash text-success"></i></span>
+                            <input asp-for="SoTienHanMuc" type="number" class="form-control rounded-end-3 border-start-0 ps-2" placeholder="0" min="0" step="1000" required />
+                        </div>
+                        <span asp-validation-for="SoTienHanMuc" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="MaDanhMuc" class="form-label fw-medium text-secondary small">Áp dụng cho Danh mục <span class="text-danger">*</span></label>
+                        <select asp-for="MaDanhMuc" class="form-select rounded-3" asp-items="ViewBag.MaDanhMuc" required>
+                            <option value="">-- Chọn danh mục chi tiêu --</option>
+                        </select>
+                        <span asp-validation-for="MaDanhMuc" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <label asp-for="Thang" class="form-label fw-medium text-secondary small">Tháng <span class="text-danger">*</span></label>
+                        <select asp-for="Thang" class="form-select rounded-3">
+                            @for (int i = 1; i <= 12; i++)
+                            {
+                                <option value="@i">Tháng @i</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <label asp-for="Nam" class="form-label fw-medium text-secondary small">Năm <span class="text-danger">*</span></label>
+                        <input asp-for="Nam" type="number" class="form-control rounded-3" min="2020" max="2100" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="NguongCanhBaoPhanTram" class="form-label fw-medium text-secondary small">Ngưỡng cảnh báo (%)</label>
+                        <input asp-for="NguongCanhBaoPhanTram" type="number" class="form-control rounded-3" min="1" max="100" />
+                        <div class="form-text text-muted" style="font-size: 0.75rem;">Báo đỏ khi đạt ngưỡng này</div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label asp-for="NgayBatDau" class="form-label fw-medium text-secondary small">Ngày bắt đầu</label>
+                        <input asp-for="NgayBatDau" type="date" class="form-control rounded-3" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="NgayKetThuc" class="form-label fw-medium text-secondary small">Ngày kết thúc</label>
+                        <input asp-for="NgayKetThuc" type="date" class="form-control rounded-3" />
+                    </div>
+                </div>
+
+                <div class="d-grid mt-3">
+                    <button type="submit" class="btn btn-success btn-lg rounded-3 shadow-sm py-3 fw-medium">
+                        <i class="bi bi-check2-circle me-2"></i> Lưu ngân sách cá nhân
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
