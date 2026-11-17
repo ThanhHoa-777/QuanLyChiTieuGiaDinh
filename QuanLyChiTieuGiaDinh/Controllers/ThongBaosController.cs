@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuanLyChiTieuGiaDinh.Data;
 using QuanLyChiTieuGiaDinh.Models;
-using QuanLyChiTieuGiaDinh.Services;
 using System.Security.Claims;
 
 namespace QuanLyChiTieuGiaDinh.Controllers
@@ -12,22 +11,10 @@ namespace QuanLyChiTieuGiaDinh.Controllers
     public class ThongBaosController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly NhatKyHeThongService _nhatKyService;
 
-        public ThongBaosController(
-            ApplicationDbContext context,
-            NhatKyHeThongService nhatKyService)
+        public ThongBaosController(ApplicationDbContext context)
         {
             _context = context;
-            _nhatKyService = nhatKyService;
-        }
-
-        private string TaoNoiDungThongBao(ThongBao thongBao)
-        {
-            return $"Tiêu đề: {thongBao.TieuDe}; Nội dung: {thongBao.NoiDung}; " +
-                   $"Phạm vi: {thongBao.PhamVi}; Loại: {thongBao.LoaiThongBao}; " +
-                   $"Trạng thái: {(thongBao.DaDoc ? "Đã đọc" : "Chưa đọc")}; " +
-                   $"Ngày tạo: {thongBao.NgayTao:dd/MM/yyyy HH:mm}";
         }
 
         private async Task<NguoiDung?> LayNguoiDungDangNhapAsync()
@@ -81,10 +68,8 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             if (!thongBao.DaDoc)
             {
-                string noiDungCu = TaoNoiDungThongBao(thongBao);
                 thongBao.DaDoc = true;
                 await _context.SaveChangesAsync();
-                await _nhatKyService.GhiSuaAsync(nguoiDung.MaNguoiDung, "ThongBao", thongBao.MaThongBao, noiDungCu, TaoNoiDungThongBao(thongBao));
             }
             return View(thongBao);
         }
@@ -103,7 +88,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             {
                 foreach (var thongBao in thongBaos) thongBao.DaDoc = true;
                 await _context.SaveChangesAsync();
-                await _nhatKyService.GhiThemAsync(nguoiDung.MaNguoiDung, "ThongBao", 0, $"Đã đánh dấu {thongBaos.Count} thông báo [{tab}] là đã đọc.");
             }
             return RedirectToAction(nameof(Index), new { tab });
         }
@@ -162,7 +146,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 thongBao.IsThaoTacXong = true;
                 thongBao.DaDoc = true;
                 await _context.SaveChangesAsync();
-                await _nhatKyService.GhiThemAsync(nguoiDung.MaNguoiDung, "ThanhVienGiaDinh", loiMoi.MaGiaDinh, $"Đã chấp nhận lời mời hộ #{loiMoi.MaGiaDinh}");
                 await transaction.CommitAsync();
 
                 TempData["SuccessMessage"] = "Đã chấp nhận lời mời gia nhập hộ gia đình thành công!";
@@ -180,9 +163,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DanhDauDaDoc(int id)
         {
-            // Lấy thông tin người dùng đang đăng nhập (nếu bạn có hàm LayNguoiDungDangNhap giống các controller khác)
-            // Hoặc kiểm tra quyền sở hữu thông báo nếu cần thiết.
-
             var thongBao = await _context.ThongBaos.FindAsync(id);
             if (thongBao == null)
             {
@@ -239,12 +219,10 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var thongBao = await _context.ThongBaos.FirstOrDefaultAsync(x => x.MaThongBao == id && x.MaNguoiDung == nguoiDung.MaNguoiDung);
             if (thongBao == null) return NotFound();
 
-            string noiDungCu = TaoNoiDungThongBao(thongBao);
             var phamVi = thongBao.PhamVi.ToString();
 
             _context.ThongBaos.Remove(thongBao);
             await _context.SaveChangesAsync();
-            await _nhatKyService.GhiXoaAsync(nguoiDung.MaNguoiDung, "ThongBao", id, noiDungCu);
 
             return RedirectToAction(nameof(Index), new { tab = phamVi });
         }

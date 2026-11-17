@@ -29,7 +29,9 @@ namespace QuanLyChiTieuGiaDinh.Models
         // CHU KỲ & NGÀY LẮP (GD-01, GD-02)
         // =========================================================
         // ChuKy: "HangThang", "HangNam"
-        // NgayLapTrongChuKy: Ngày lặp lại trong tháng (1 - 31)
+        // NgayLapTrongChuKy: Ngày lặp lại trong tháng (1 - 31).
+        //             Nếu tháng không có ngày này (VD 31/2) thì tự lấy ngày cuối tháng.
+        // ThangLapTrongNam: Tháng lặp lại trong năm (1 - 12), chỉ dùng cho chu kỳ "HangNam"
         // IsBienDong: true = Khoản chi biến động (điện, nước...)
         //             false = Khoản chi cố định (tiền nhà, internet...)
         // =========================================================
@@ -42,6 +44,10 @@ namespace QuanLyChiTieuGiaDinh.Models
         [Display(Name = "Ngày lặp trong chu kỳ")]
         [Range(1, 31, ErrorMessage = "Ngày lặp phải từ 1 đến 31.")]
         public int NgayLapTrongChuKy { get; set; } = 1;
+
+        [Display(Name = "Tháng lặp trong năm")]
+        [Range(1, 12, ErrorMessage = "Tháng lặp phải từ 1 đến 12.")]
+        public int ThangLapTrongNam { get; set; } = 1;
 
         [Display(Name = "Số tiền biến động")]
         public bool IsBienDong { get; set; } = false;
@@ -64,6 +70,7 @@ namespace QuanLyChiTieuGiaDinh.Models
         // =========================================================
         // HoatDong : Đang hoạt động (Active)
         // TamDung  : Tạm dừng nhắc nhở (Paused)
+        // DaXoa    : Đã xóa mềm (không hiển thị, không cho thanh toán)
         // =========================================================
 
         [Required]

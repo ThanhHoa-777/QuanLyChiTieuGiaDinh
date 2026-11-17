@@ -1,0 +1,87 @@
+﻿@{
+    ViewData["Title"] = "Nạp tiền quỹ gia đình";
+    var taiKhoanNguons = ViewBag.TaiKhoanNguons as List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien> ?? new List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>();
+    var taiKhoanDichs = ViewBag.TaiKhoanDichs as List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien> ?? new List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>();
+}
+
+<div class="container py-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                <!-- TIÊU ĐỀ -->
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center">
+                    <div class="bg-primary-subtle text-primary-emphasis p-2 rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="bi bi-piggy-bank fs-5"></i>
+                    </div>
+                    <h4 class="mb-0 fw-bold text-dark">Nạp tiền vào quỹ gia đình</h4>
+                </div>
+
+                <div class="card-body p-4 bg-light">
+                    <!-- Báo lỗi nếu có -->
+                    @if (TempData["Loi"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible shadow-sm">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Loi"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="NapTienGiaDinh" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="bg-white p-4 rounded-4 shadow-sm mb-4 border">
+
+                            <!-- TỪ TÀI KHOẢN CÁ NHÂN -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Từ quỹ cá nhân (Nguồn)</label>
+                                <select name="MaTaiKhoanNguon" class="form-select" required>
+                                    <option value="">-- Chọn quỹ cá nhân --</option>
+                                    @foreach (var tk in taiKhoanNguons)
+                                    {
+                                        <option value="@tk.MaTaiKhoan">👤 @tk.TenTaiKhoan (Số dư: @tk.SoDuHienTai.ToString("N0") ₫)</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- ĐẾN TÀI KHOẢN GIA ĐÌNH -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Vào quỹ gia đình (Đích)</label>
+                                <select name="MaTaiKhoanDich" class="form-select" required>
+                                    <option value="">-- Chọn quỹ gia đình --</option>
+                                    @foreach (var tk in taiKhoanDichs)
+                                    {
+                                        <option value="@tk.MaTaiKhoan">🏠 @tk.TenTaiKhoan (Số dư: @tk.SoDuHienTai.ToString("N0") ₫)</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- SỐ TIỀN -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Số tiền nạp</label>
+                                <div class="input-group input-group-lg shadow-sm">
+                                    <input name="SoTien" class="form-control fw-bold text-primary" type="number" min="1" step="1" placeholder="Nhập số tiền..." required />
+                                    <span class="input-group-text bg-white text-muted fw-bold">₫</span>
+                                </div>
+                            </div>
+
+                            <!-- GHI CHÚ -->
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold text-dark">Ghi chú</label>
+                                <textarea name="GhiChu" class="form-control bg-light" rows="2" placeholder="Ví dụ: Đóng góp tiền sinh hoạt tháng 11"></textarea>
+                            </div>
+                               <!-- NÚT GỬI -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm fw-semibold">
+                                <i class="bi bi-arrow-right-circle me-1"></i> Thực hiện nạp tiền
+                            </button>
+                            <a asp-action="Index" class="btn btn-light border rounded-pill px-4 shadow-sm">Hủy bỏ</a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

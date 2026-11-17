@@ -1,0 +1,315 @@
+﻿@using QuanLyChiTieuGiaDinh.Models
+@using System.Text.RegularExpressions
+@model IEnumerable<GiaoDich>
+
+@{
+    ViewData["Title"] = "Quản lý giao dịch";
+
+    bool laChuHo = ViewBag.LaChuHo ?? false;
+    int maNguoiDung = ViewBag.MaNguoiDung ?? 0;
+    string loai = ViewBag.Loai ?? "";
+    var danhSachDinhKy = ViewBag.DanhSachDinhKy as List<GiaoDichDinhKy> ?? new List<GiaoDichDinhKy>();
+
+    var tenDanhMucChuyen = new[] { "Chuyển tiền cá nhân", "Chuyển tiền quỹ" };
+
+    bool LaChuyenTien(GiaoDich g) => g.DanhMuc != null && tenDanhMucChuyen.Contains(g.DanhMuc.TenDanhMuc);
+
+    string LamSachGhiChu(string? ghiChu) =>
+        Regex.Replace(ghiChu ?? "", @"\|[A-Z_]+(:\d+)?\|", "").Trim();
+
+    decimal tongThu = Model.Where(x => x.LoaiGiaoDich == "Thu").Sum(x => x.SoTien);
+    decimal tongChi = Model.Where(x => x.LoaiGiaoDich == "Chi" && !LaChuyenTien(x)).Sum(x => x.SoTien);
+
+    // Chiều cao chung cho 2 khung để luôn bằng nhau
+    const string chieuCao = "height: 70vh;";
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <!-- TIÊU ĐỀ + NÚT -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div class="mb-2">
+            <h3 class="mb-0 text-success">💰 Quản lý giao dịch</h3>
+            <small class="text-muted">Theo dõi thu, chi và các khoản định kỳ</small>
+        </div>
+        <div class="mb-2">
+            <a asp-action="NapTienGiaDinh" class="btn btn-outline-success me-1">🏦 Nạp quỹ</a>
+            <a asp-action="ChuyenTien" class="btn btn-outline-success me-1">🔁 Chuyển tiền</a>
+            <a asp-action="Create" class="btn btn-success">➕ Thêm giao dịch</a>
+        </div>
+    </div>
+
+    <!-- THÔNG BÁO -->
+    @if (TempData["ThongBao"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            ✅ @TempData["ThongBao"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Loi"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            ⚠️ @TempData["Loi"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["CanhBaoNganSach"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show">
+            🔔 @TempData["CanhBaoNganSach"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- ================= HÀNG TRÊN: BỘ LỌC + TỔNG THU/CHI ================= -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <form asp-action="Index" method="get" class="row g-2 align-items-center">
+                        <input type="hidden" name="loai" value="@loai" />
+                        <div class="col-sm-3 col-6">
+                            <select name="thang" class="form-select">
+                                @for (int i = 1; i <= 12; i++)
+                                {
+                                    <option value="@i" selected="@(ViewBag.Thang == i)">Tháng @i</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-sm-3 col-6">
+                            <select name="nam" class="form-select">
+                                @for (int i = DateTime.Now.Year - 5; i <= DateTime.Now.Year + 1; i++)
+                                {
+                                    <option value="@i" selected="@(ViewBag.Nam == i)">@i</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-sm-3 col-6">
+                            <input type="number" name="ngay" value="@ViewBag.Ngay" min="1" max="31"
+                                   class="form-control" placeholder="Ngày" />
+                        </div>
+                        <div class="col-sm-3 col-6 d-flex">
+                            <button type="submit" class="btn btn-success flex-grow-1 me-1">🔍 Lọc</button>
+                            <a asp-action="Index" class="btn btn-outline-secondary" title="Đặt lại">✕</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="alert alert-success mb-0 h-100">
+                <div class="small">Tổng thu</div>
+                <div class="fs-5 fw-bold">+@tongThu.ToString("N0") ₫</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="alert alert-danger mb-0 h-100">
+                <div class="small">Tổng chi</div>
+                <div class="fs-5 fw-bold">-@tongChi.ToString("N0") ₫</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HÀNG DƯỚI: 2 KHUNG CÙNG CHIỀU CAO, CUỘN RIÊNG ================= -->
+    <div class="row g-3">
+
+        <!-- KHUNG TRÁI: ĐỊNH KỲ -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card border-0 shadow-sm d-flex flex-column" style="@chieuCao">
+                <div class="card-header alert-success border-0 d-flex justify-content-between align-items-center py-3">
+                    <h6 class="mb-0 fw-bold">
+                        🔄 Định kỳ
+                        <span class="badge bg-success rounded-pill ms-1">@danhSachDinhKy.Count</span>
+                    </h6>
+                    <a asp-action="ThemGDDK" class="btn btn-sm btn-success rounded-pill px-3">+ Thêm</a>
+                </div>
+
+                <div class="flex-grow-1 overflow-auto">
+                    @if (!danhSachDinhKy.Any())
+                    {
+                        <div class="text-center text-muted py-5">
+                            <div class="fs-2">📅</div>
+                            Chưa có giao dịch định kỳ
+                        </div>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var dk in danhSachDinhKy)
+                            {
+                                bool coQuyen = laChuHo || (dk.TaiKhoanTien != null && dk.TaiKhoanTien.MaNguoiSoHuu == maNguoiDung);
+                                bool dangChay = dk.TrangThai == "HoatDong";
+
+                                <li class="list-group-item py-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="me-2">
+                                            <div class="fw-semibold">
+                                                @(dk.DanhMuc?.TenDanhMuc ?? "Khác")
+                                                <span class="badge rounded-pill ms-1 @(dangChay ? "bg-success" : "bg-warning text-dark")">
+                                                    @(dangChay ? "Đang chạy" : "Tạm dừng")
+                                                </span>
+                                            </div>
+                                            <div class="small text-muted">
+                                                @(dk.TaiKhoanTien?.TenTaiKhoan ?? "N/A") · @(dk.ChuKy == "HangThang" ? "Hàng tháng" : "Hàng năm")
+                                            </div>
+                                            <div class="small text-muted">
+                                                Kế tiếp: <span class="fw-semibold text-dark">@dk.NgayChayTiepTheo.ToString("dd/MM/yyyy")</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-end flex-shrink-0">
+                                            <div class="fw-bold text-nowrap @(dk.LoaiGiaoDich == "Thu" ? "text-success" : "text-danger")">
+                                                @(dk.LoaiGiaoDich == "Thu" ? "+" : "-")@dk.SoTien.ToString("N0")
+                                            </div>
+
+                                            @if (coQuyen)
+                                            {
+                                                <div class="d-flex justify-content-end mt-2">
+                                                    <form asp-action="ChuyenTrangThaiDinhKy" method="post" class="m-0 me-1">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@dk.MaDinhKy" />
+                                                        <input type="hidden" name="hanhDong" value="@(dangChay ? "TamDung" : "KichHoat")" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                                            @(dangChay ? "⏸ Dừng" : "▶ Chạy")
+                                                        </button>
+                                                    </form>
+
+                                                    <form asp-action="ChuyenTrangThaiDinhKy" method="post" class="m-0"
+                                                          onsubmit="return confirm('Xóa thiết lập giao dịch định kỳ này?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@dk.MaDinhKy" />
+                                                        <input type="hidden" name="hanhDong" value="Xoa" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">🗑 Xóa</button>
+                                                    </form>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- KHUNG PHẢI: GIAO DỊCH -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card border-0 shadow-sm d-flex flex-column" style="@chieuCao">
+
+                <!-- HEADER: tiêu đề + nút lọc loại ví -->
+                <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center py-3">
+                    <strong class="text-success me-2">
+                        @if (ViewBag.Ngay != null)
+                        {
+                            <text>Ngày @ViewBag.Ngay/@ViewBag.Thang/@ViewBag.Nam</text>
+                        }
+                        else
+                        {
+                            <text>Tháng @ViewBag.Thang/@ViewBag.Nam</text>
+                        }
+                        <span class="text-muted fw-normal">· @Model.Count() giao dịch</span>
+                    </strong>
+
+                    <div class="d-flex align-items-center">
+                        @if (laChuHo)
+                        {
+                            <span class="badge bg-success rounded-pill me-2">👑 Chủ hộ</span>
+                        }
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a asp-action="Index" asp-route-thang="@ViewBag.Thang" asp-route-nam="@ViewBag.Nam" asp-route-ngay="@ViewBag.Ngay"
+                               class="btn @(loai == "" ? "btn-success" : "btn-outline-success")">Tất cả</a>
+                            <a asp-action="Index" asp-route-thang="@ViewBag.Thang" asp-route-nam="@ViewBag.Nam" asp-route-ngay="@ViewBag.Ngay" asp-route-loai="CaNhan"
+                               class="btn @(loai == "CaNhan" ? "btn-success" : "btn-outline-success")">👤 Cá nhân</a>
+                            <a asp-action="Index" asp-route-thang="@ViewBag.Thang" asp-route-nam="@ViewBag.Nam" asp-route-ngay="@ViewBag.Ngay" asp-route-loai="GiaDinh"
+                               class="btn @(loai == "GiaDinh" ? "btn-success" : "btn-outline-success")">🏠 Gia đình</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-grow-1 overflow-auto">
+                    @if (!Model.Any())
+                    {
+                        <div class="text-center text-muted py-5">
+                            <div class="fs-2">📭</div>
+                            Không có giao dịch nào trong thời gian đã chọn
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="table-success">
+                                    <th class="ps-3 sticky-top table-success">Thời gian</th>
+                                    <th class="sticky-top table-success">Nội dung</th>
+                                    <th class="sticky-top table-success">Ví</th>
+                                    <th class="sticky-top table-success text-end">Số tiền</th>
+                                    <th class="sticky-top table-success text-end pe-3">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    bool laNguoiTao = item.MaNguoiThucHien == maNguoiDung;
+                                    bool laViGiaDinh = item.TaiKhoanTien?.LaTaiKhoanGiaDinh == true;
+                                    bool biKhoa = item.GhiChu?.Contains("|NAP_HAN_MUC|") == true;
+                                    bool coQuyenSuaXoa = (laChuHo || laNguoiTao) && !biKhoa;
+                                    bool laThu = item.LoaiGiaoDich == "Thu";
+                                    string ghiChu = LamSachGhiChu(item.GhiChu);
+
+                                    <tr>
+                                        <td class="ps-3 text-nowrap">
+                                            <div class="fw-semibold">@item.NgayGiaoDich.ToString("dd/MM/yyyy")</div>
+                                            <small class="text-muted">@item.NgayGiaoDich.ToString("HH:mm")</small>
+                                        </td>
+
+                                        <td>
+                                            <div class="fw-semibold">
+                                                @if (LaChuyenTien(item))
+                                                {
+                                                    <span class="me-1">🔁</span>
+                                                }
+                                                @(item.DanhMuc?.TenDanhMuc ?? "Khác")
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(ghiChu))
+                                            {
+                                                <small class="text-muted">@ghiChu</small>
+                                            }
+                                        </td>
+
+                                        <td class="text-nowrap">
+                                            @if (item.TaiKhoanTien != null)
+                                            {
+                                                <div>@item.TaiKhoanTien.TenTaiKhoan</div>
+                                                <span class="badge rounded-pill @(laViGiaDinh ? "bg-success" : "bg-secondary")">
+                                                    @(laViGiaDinh ? "Gia đình" : "Cá nhân")
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td class="text-end text-nowrap fw-bold @(laThu ? "text-success" : "text-danger")">
+                                            @(laThu ? "+" : "-")@item.SoTien.ToString("N0") ₫
+                                        </td>
+
+                                        <td class="text-end text-nowrap pe-3">
+                                            <a asp-action="Details" asp-route-id="@item.MaGiaoDich"
+                                               class="btn btn-sm btn-outline-secondary">Xem</a>
+                                            @if (coQuyenSuaXoa)
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.MaGiaoDich"
+                                                   class="btn btn-sm btn-outline-warning">Sửa</a>
+                                                <a asp-action="Delete" asp-route-id="@item.MaGiaoDich"
+                                                   class="btn btn-sm btn-outline-danger">Xóa</a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
