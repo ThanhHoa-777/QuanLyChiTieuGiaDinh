@@ -34,8 +34,7 @@ namespace QuanLyChiTieuGiaDinh.Data
         public DbSet<LichSuTietKiem> LichSuTietKiems { get; set; }
         public DbSet<LoiMoiTietKiem> LoiMoiTietKiems { get; set; }
         public DbSet<ThongBao> ThongBaos { get; set; }
-        public DbSet<NhatKyHeThong> NhatKyHeThongs { get; set; }
-
+        
         public DbSet<HanMucChiTieu> HanMucChiTieus { get; set; }
         public DbSet<YeuCauHoanTien> YeuCauHoanTiens { get; set; }
 
@@ -321,11 +320,7 @@ namespace QuanLyChiTieuGiaDinh.Data
                 .HasForeignKey(t => t.MaNguoiDung)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<NhatKyHeThong>()
-                .HasOne(n => n.NguoiDung)
-                .WithMany()
-                .HasForeignKey(n => n.MaNguoiDung)
-                .OnDelete(DeleteBehavior.Restrict);
+            
         }
     }
 }

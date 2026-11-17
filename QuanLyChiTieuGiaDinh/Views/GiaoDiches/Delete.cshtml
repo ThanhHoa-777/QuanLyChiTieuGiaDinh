@@ -1,0 +1,189 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.GiaoDich
+
+@{
+    ViewData["Title"] = "Xóa giao dịch";
+
+    bool laTietKiem = Model.LoaiGiaoDich == "TietKiem";
+    bool laTaiKhoanGiaDinh = Model.TaiKhoanTien?.LaTaiKhoanGiaDinh == true;
+    bool dangChoDuyet = Model.TrangThaiDuyet == "ChoDuyet";
+    bool daDuyet = Model.TrangThaiDuyet == "DaDuyet";
+    bool tuChoi = Model.TrangThaiDuyet == "TuChoi";
+}
+
+<div class="container py-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+
+                <!-- TIÊU ĐỀ -->
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center">
+                    <div class="bg-danger-subtle text-danger-emphasis p-2 rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="bi bi-trash3 fs-5"></i>
+                    </div>
+                    <h4 class="mb-0 fw-bold text-dark">Xóa giao dịch</h4>
+                </div>
+
+                <div class="card-body p-4 bg-light">
+
+                    <!-- CÁC CẢNH BÁO TRƯỚC KHI XÓA -->
+                    @if (laTietKiem)
+                    {
+                        <div class="alert bg-warning-subtle border-0 border-start border-warning border-4 shadow-sm mb-4">
+                            <div class="fw-bold text-warning-emphasis mb-1">
+                                <i class="bi bi-shield-lock-fill me-2"></i>Giao dịch tiết kiệm tự động
+                            </div>
+                            <div class="small text-warning-emphasis">
+                                Không thể xóa giao dịch tiết kiệm tại đây. Vui lòng thao tác thông qua <strong>Lịch sử tiết kiệm</strong>.
+                            </div>
+                        </div>
+                    }
+                    else if (dangChoDuyet)
+                    {
+                        <div class="alert bg-warning-subtle border-0 border-start border-warning border-4 shadow-sm mb-4">
+                            <div class="fw-bold text-warning-emphasis mb-1">
+                                <i class="bi bi-clock-fill me-2"></i>Giao dịch đang chờ duyệt
+                            </div>
+                            <div class="small text-warning-emphasis">
+                                Giao dịch chưa làm thay đổi số dư. Nếu xóa, dữ liệu sẽ bị mất và <strong>không có khoản tiền nào được hoàn lại hay trừ đi</strong>.
+                            </div>
+                        </div>
+                    }
+                    else if (tuChoi)
+                    {
+                        <div class="alert bg-secondary-subtle border-0 border-start border-secondary border-4 shadow-sm mb-4">
+                            <div class="fw-bold text-secondary-emphasis mb-1">
+                                <i class="bi bi-x-circle-fill me-2"></i>Giao dịch đã bị từ chối
+                            </div>
+                            <div class="small text-secondary-emphasis">
+                                Giao dịch này vốn không làm thay đổi số dư tài khoản. Việc xóa chỉ làm sạch lịch sử của bạn.
+                            </div>
+                        </div>
+                    }
+                    else if (daDuyet)
+                    {
+                        <div class="alert bg-danger-subtle border-0 border-start border-danger border-4 shadow-sm mb-4">
+                            <div class="fw-bold text-danger-emphasis mb-1">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>Cảnh báo thay đổi số dư!
+                            </div>
+                            <div class="small text-danger-emphasis">
+                                Giao dịch này đã được duyệt. Khi xác nhận xóa, hệ thống sẽ <strong>tự động điều chỉnh lại số dư tài khoản</strong> tương ứng.
+                            </div>
+                        </div>
+                    }
+
+                    <!-- THÔNG TIN GIAO DỊCH (Dạng List Group cho gọn gàng) -->
+                    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                        <ul class="list-group list-group-flush">
+
+                            <!-- Số tiền -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center bg-white">
+                                <span class="text-muted fw-semibold"><i class="bi bi-cash-stack me-2"></i>Số tiền</span>
+                                <span class="fs-5 fw-bold @(Model.LoaiGiaoDich == "Thu" ? "text-success" : (Model.LoaiGiaoDich == "Chi" ? "text-danger" : "text-primary"))">
+                                    @(Model.LoaiGiaoDich == "Thu" ? "+" : (Model.LoaiGiaoDich == "Chi" ? "-" : ""))@Model.SoTien.ToString("N0") ₫
+                                </span>
+                            </li>
+
+                            <!-- Loại giao dịch -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-tags me-2"></i>Phân loại</span>
+                                <div>
+                                    @if (Model.LoaiGiaoDich == "Thu")
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3"><i class="bi bi-arrow-down-circle me-1"></i>Thu nhập</span>
+                                    }
+                                    else if (Model.LoaiGiaoDich == "Chi")
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3"><i class="bi bi-arrow-up-circle me-1"></i>Chi tiêu</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-3"><i class="bi bi-piggy-bank me-1"></i>Tiết kiệm</span>
+                                    }
+                                </div>
+                            </li>
+
+                            <!-- Danh mục -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-bookmark me-2"></i>Danh mục</span>
+                                <span class="fw-semibold text-dark">@(Model.DanhMuc?.TenDanhMuc ?? "Không xác định")</span>
+                            </li>
+
+                            <!-- Tài khoản & Phạm vi -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-wallet2 me-2"></i>Nguồn tiền</span>
+                                <div class="text-end">
+                                    <span class="d-block fw-semibold text-dark">@(Model.TaiKhoanTien?.TenTaiKhoan ?? "N/A")</span>
+                                    @if (laTaiKhoanGiaDinh)
+                                    {
+                                        <span class="badge bg-success" title="Mọi người đều thấy"><i class="bi bi-people-fill"></i> Gia đình</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary" title="Chỉ bạn thấy"><i class="bi bi-lock-fill"></i> Cá nhân</span>
+                                    }
+                                </div>
+                            </li>
+
+                            <!-- Ngày giao dịch -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-calendar-event me-2"></i>Thời gian</span>
+                                <span class="text-dark">@Model.NgayGiaoDich.ToString("dd/MM/yyyy HH:mm")</span>
+                            </li>
+
+                            <!-- Người thực hiện -->
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-person me-2"></i>Người tạo</span>
+                                <span class="text-dark fw-semibold">@(Model.NguoiThucHien?.HoTen ?? Model.NguoiThucHien?.Email ?? "Không xác định")</span>
+                            </li>
+
+                            <!-- Ghi chú -->
+                            @if (!string.IsNullOrWhiteSpace(Model.GhiChu))
+                            {
+                                <li class="list-group-item p-3">
+                                    <div class="text-muted mb-2"><i class="bi bi-card-text me-2"></i>Ghi chú</div>
+                                    <div class="bg-light p-3 rounded-3 text-dark small">
+                                        @Model.GhiChu
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <!-- NÚT HÀNH ĐỘNG -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        @if (laTietKiem)
+                        {
+                            <!-- Giao dịch tiết kiệm không cho xóa ở đây -->
+                            <a asp-action="Index" class="btn btn-secondary rounded-pill px-4 shadow-sm">
+                                <i class="bi bi-arrow-left"></i> Về danh sách
+                            </a>
+                            <a asp-action="Details" asp-route-id="@Model.MaGiaoDich" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+                                Xem chi tiết
+                            </a>
+                        }
+                        else
+                        {
+                            <!-- Giao dịch thường (Thu/Chi) -->
+                            <form asp-action="Delete" method="post" class="m-0 d-flex gap-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.MaGiaoDich" />
+
+                                <a asp-action="Index" class="btn btn-light border rounded-pill px-4 shadow-sm">
+                                    Hủy bỏ
+                                </a>
+
+                                <button type="submit" class="btn btn-danger rounded-pill px-4 shadow-sm fw-semibold">
+                                    <i class="bi bi-trash3-fill me-1"></i>
+                                    @(dangChoDuyet ? "Xóa giao dịch chờ duyệt" : "Xác nhận xóa vĩnh viễn")
+                                </button>
+                            </form>
+                        }
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

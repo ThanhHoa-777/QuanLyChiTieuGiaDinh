@@ -1,0 +1,261 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.GiaoDichDinhKy
+
+@{
+    ViewData["Title"] = "Thêm giao dịch định kỳ";
+
+    var taiKhoans = ViewBag.TaiKhoans as List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien> ?? new List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>();
+    var danhMucs = ViewBag.DanhMucs as List<QuanLyChiTieuGiaDinh.Models.DanhMuc> ?? new List<QuanLyChiTieuGiaDinh.Models.DanhMuc>();
+}
+
+<div class="container py-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+
+                <!-- TIÊU ĐỀ -->
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center">
+                    <div class="bg-success-subtle text-success-emphasis p-2 rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="bi bi-arrow-repeat fs-5"></i>
+                    </div>
+                    <h4 class="mb-0 fw-bold text-dark">Thêm giao dịch định kỳ</h4>
+                </div>
+
+                <div class="card-body p-4 bg-light">
+
+                    <form asp-action="ThemGDDK" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger shadow-sm"></div>
+
+                        <div class="bg-white p-4 rounded-4 shadow-sm mb-4 border">
+
+                            <div class="row g-3 mb-3">
+                                <!-- LOẠI GIAO DỊCH -->
+                                <div class="col-md-6">
+                                    <label asp-for="LoaiGiaoDich" class="form-label fw-semibold text-dark">Loại giao dịch</label>
+                                    <select asp-for="LoaiGiaoDich" class="form-select" id="LoaiGiaoDich">
+                                        <option value="Thu">💰 Thu nhập</option>
+                                        <option value="Chi">💸 Chi tiêu</option>
+                                    </select>
+                                    <span asp-validation-for="LoaiGiaoDich" class="text-danger small"></span>
+                                </div>
+
+                                <!-- CHU KỲ LẶP -->
+                                <div class="col-md-6">
+                                    <label asp-for="ChuKy" class="form-label fw-semibold text-dark">Tần suất lặp</label>
+                                    <select asp-for="ChuKy" class="form-select">
+                                        <option value="HangThang">📅 Hàng tháng</option>
+                                        <option value="HangNam">📆 Hàng năm</option>
+                                    </select>
+                                    <span asp-validation-for="ChuKy" class="text-danger small"></span>
+                                </div>
+                            </div>
+
+                            <!-- TÀI KHOẢN -->
+                            <div class="mb-3">
+                                <label asp-for="MaTaiKhoan" class="form-label fw-semibold text-dark">Tài khoản tiền</label>
+                                <select asp-for="MaTaiKhoan" class="form-select" id="MaTaiKhoan">
+                                    <option value="">-- Chọn tài khoản --</option>
+                                    @foreach (var taiKhoan in taiKhoans)
+                                    {
+                                        var tenHienThi = taiKhoan.LaTaiKhoanGiaDinh ? "🏠 " + taiKhoan.TenTaiKhoan : "👤 " + taiKhoan.TenTaiKhoan;
+                                        var loaiTaiKhoan = taiKhoan.LaTaiKhoanGiaDinh ? "true" : "false";
+                                        <option value="@taiKhoan.MaTaiKhoan" data-gia-dinh="@loaiTaiKhoan">
+                                            @tenHienThi - @taiKhoan.SoDuHienTai.ToString("N0") đ
+                                        </option>
+                                    }
+                                </select>
+                                <span asp-validation-for="MaTaiKhoan" class="text-danger small"></span>
+
+                                <!-- THÔNG TIN PHẠM VI -->
+                                <div id="thongTinTaiKhoan" class="bg-light p-2 rounded-3 mt-2 small border">
+                                    <span class="text-muted"><i class="bi bi-info-circle me-1"></i>Hãy chọn tài khoản.</span>
+                                </div>
+                            </div>
+
+                            <!-- DANH MỤC -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Danh mục</label>
+                                <div class="position-relative">
+                                    <input type="text" id="tenDanhMuc" name="TenDanhMuc" class="form-control" autocomplete="off" maxlength="100" placeholder="Nhập hoặc chọn danh mục..." />
+                                    <input asp-for="MaDanhMuc" type="hidden" id="MaDanhMuc" />
+
+                                    <!-- DANH SÁCH GỢI Ý -->
+                                    <div id="goiYDanhMuc" class="list-group position-absolute w-100 shadow rounded-3 border-0 mt-1" style="display:none; z-index:1050; max-height:220px; overflow-y:auto;">
+                                        @foreach (var danhMuc in danhMucs)
+                                        {
+                                            <button type="button" class="list-group-item list-group-item-action danh-muc-item py-2 border-bottom" data-id="@danhMuc.MaDanhMuc" data-ten="@danhMuc.TenDanhMuc">
+                                                @if (!string.IsNullOrWhiteSpace(danhMuc.BieuTuong))
+                                                {
+                                                    <span class="me-2">@danhMuc.BieuTuong</span>
+                                                }
+                                                @danhMuc.TenDanhMuc
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                                <span class="text-danger small" data-valmsg-for="TenDanhMuc"></span>
+                                <div id="thongTinDanhMuc" class="form-text small mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>Bạn có thể chọn có sẵn hoặc nhập tên để tạo mới.
+                                </div>
+                            </div>
+
+                            <!-- SỐ TIỀN & NGÀY CHẠY TIẾP THEO -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label asp-for="SoTien" class="form-label fw-semibold text-dark">Số tiền</label>
+                                    <div class="input-group shadow-sm">
+                                        <input asp-for="SoTien" class="form-control fw-bold text-success" type="number" min="1" step="0.01" placeholder="0" />
+                                        <span class="input-group-text bg-white text-muted fw-bold">₫</span>
+                                    </div>
+                                    <span asp-validation-for="SoTien" class="text-danger small"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="NgayChayTiepTheo" class="form-label fw-semibold text-dark">Ngày chạy tiếp theo</label>
+                                    <input asp-for="NgayChayTiepTheo" class="form-control" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                    <span asp-validation-for="NgayChayTiepTheo" class="text-danger small"></span>
+                                </div>
+                            </div>
+
+                            <!-- GHI CHÚ -->
+                            <div class="mb-2">
+                                <label asp-for="GhiChu" class="form-label fw-semibold text-dark">Ghi chú</label>
+                                <textarea asp-for="GhiChu" class="form-control bg-light" rows="2" maxlength="500" placeholder="Nhập mô tả thêm (không bắt buộc)"></textarea>
+                                <span asp-validation-for="GhiChu" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <!-- QUY TẮC -->
+                        <div class="alert bg-light border shadow-sm rounded-4 mb-4">
+                            <div class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-success me-2"></i>Quy tắc định kỳ</div>
+                            <ul class="mb-0 ps-3 small text-muted">
+                                <li class="mb-1">🔄 Hệ thống sẽ tự động tạo giao dịch phát sinh dựa theo chu kỳ đã cấu hình.</li>
+                                <li>⚙️ Bạn có thể tạm dừng hoặc kích hoạt lại giao dịch định kỳ bất cứ lúc nào từ trang quản lý chính.</li>
+                            </ul>
+                        </div>
+
+                        <!-- NÚT -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm fw-semibold">
+                                <i class="bi bi-check2-circle me-1"></i> Tạo định kỳ
+                            </button>
+                            <a asp-action="Index" class="btn btn-light border rounded-pill px-4 shadow-sm">
+                                Hủy bỏ
+                            </a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const taiKhoanSelect = document.getElementById("MaTaiKhoan");
+            const tenDanhMuc = document.getElementById("tenDanhMuc");
+            const maDanhMuc = document.getElementById("MaDanhMuc");
+            const goiYDanhMuc = document.getElementById("goiYDanhMuc");
+            const thongTinDanhMuc = document.getElementById("thongTinDanhMuc");
+            const thongTinTaiKhoan = document.getElementById("thongTinTaiKhoan");
+            const danhMucItems = document.querySelectorAll(".danh-muc-item");
+
+            function hienThiGoiYDanhMuc() {
+                const tuKhoa = tenDanhMuc.value.trim().toLowerCase();
+                let soKetQua = 0;
+
+                danhMucItems.forEach(function (item) {
+                    const ten = item.getAttribute("data-ten").toLowerCase();
+                    if (tuKhoa === "") {
+                        item.style.display = "none";
+                    } else if (ten.includes(tuKhoa)) {
+                        item.style.display = "block";
+                        soKetQua++;
+                    } else {
+                        item.style.display = "none";
+                    }
+                });
+
+                if (tuKhoa === "") {
+                    goiYDanhMuc.style.display = "none";
+                    thongTinDanhMuc.innerHTML = '<i class="bi bi-info-circle me-1"></i>Nhập tên để tìm hoặc tạo danh mục mới.';
+                    thongTinDanhMuc.className = "form-text mt-1 small text-muted";
+                    return;
+                }
+
+                if (soKetQua > 0) {
+                    goiYDanhMuc.style.display = "block";
+                    thongTinDanhMuc.innerHTML = '<i class="bi bi-search me-1"></i>Đang hiển thị các danh mục phù hợp.';
+                    thongTinDanhMuc.className = "form-text mt-1 small text-muted";
+                } else {
+                    goiYDanhMuc.style.display = "none";
+                    thongTinDanhMuc.innerHTML = '<span class="text-success"><i class="bi bi-plus-circle me-1"></i>Sẽ tạo danh mục mới.</span>';
+                    thongTinDanhMuc.className = "form-text mt-1 small";
+                }
+            }
+
+            tenDanhMuc.addEventListener("input", function () {
+                maDanhMuc.value = "";
+                hienThiGoiYDanhMuc();
+            });
+
+            tenDanhMuc.addEventListener("focus", function () {
+                hienThiGoiYDanhMuc();
+            });
+
+            danhMucItems.forEach(function (item) {
+                item.addEventListener("click", function () {
+                    const id = this.getAttribute("data-id");
+                    const ten = this.getAttribute("data-ten");
+
+                    maDanhMuc.value = id;
+                    tenDanhMuc.value = ten;
+                    goiYDanhMuc.style.display = "none";
+
+                    thongTinDanhMuc.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Đã chọn danh mục: <strong>' + ten + '</strong></span>';
+                    thongTinDanhMuc.className = "form-text mt-1 small";
+                });
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!tenDanhMuc.contains(event.target) && !goiYDanhMuc.contains(event.target)) {
+                    goiYDanhMuc.style.display = "none";
+                }
+            });
+
+            function capNhatThongTin() {
+                const selectedOption = taiKhoanSelect.options[taiKhoanSelect.selectedIndex];
+
+                if (!selectedOption || !selectedOption.value) {
+                    thongTinTaiKhoan.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Hãy chọn tài khoản để xem phạm vi.</span>';
+                    return;
+                }
+
+                const laGiaDinh = selectedOption.dataset.giaDinh === "true";
+
+                if (laGiaDinh) {
+                    thongTinTaiKhoan.innerHTML = `
+                        <div class="text-success mb-1"><strong><i class="bi bi-people-fill me-1"></i>Tài khoản gia đình</strong></div>
+                        <span class="text-muted">Giao dịch định kỳ sẽ áp dụng cho quỹ gia đình.</span>
+                    `;
+                } else {
+                    thongTinTaiKhoan.innerHTML = `
+                        <div class="text-secondary mb-1"><strong><i class="bi bi-lock-fill me-1"></i>Tài khoản cá nhân</strong></div>
+                        <span class="text-muted">Giao dịch định kỳ mang tính chất cá nhân của bạn.</span>
+                    `;
+                }
+            }
+
+            taiKhoanSelect.addEventListener("change", capNhatThongTin);
+            capNhatThongTin();
+        });
+    </script>
+}

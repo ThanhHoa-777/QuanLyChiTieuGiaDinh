@@ -1,0 +1,224 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.GiaoDich
+
+@{
+    ViewData["Title"] = "Chi tiết giao dịch";
+
+    bool laTietKiem = Model.LoaiGiaoDich == "TietKiem";
+    bool laRutTietKiem = laTietKiem && Model.GhiChu != null && Model.GhiChu.StartsWith("Rút tiết kiệm");
+    bool laChuHo = ViewBag.LaChuHo ?? false;
+    int maNguoiDung = ViewBag.MaNguoiDung ?? 0;
+    bool laNguoiTao = Model.MaNguoiThucHien == maNguoiDung;
+
+    // Phân quyền
+    bool coQuyenSuaXoa = !laTietKiem && laNguoiTao;
+    bool laTaiKhoanGiaDinh = Model.TaiKhoanTien?.LaTaiKhoanGiaDinh == true;
+
+    // Xác định màu sắc và dấu cho số tiền
+    string tienColor = "text-primary";
+    string tienSign = "";
+    if (laTietKiem && laRutTietKiem) { tienColor = "text-success"; tienSign = "+"; }
+    else if (laTietKiem) { tienColor = "text-danger"; tienSign = "-"; }
+    else if (Model.LoaiGiaoDich == "Thu") { tienColor = "text-success"; tienSign = "+"; }
+    else if (Model.LoaiGiaoDich == "Chi") { tienColor = "text-danger"; tienSign = "-"; }
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+
+            <!-- TIÊU ĐỀ & NÚT QUAY LẠI -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0 text-dark fw-bold">
+                    <i class="bi bi-receipt text-success me-2"></i>Chi tiết giao dịch
+                </h4>
+                <a asp-action="Index" class="btn btn-light border shadow-sm btn-sm">
+                    <i class="bi bi-arrow-left"></i> Quay lại
+                </a>
+            </div>
+
+            <!-- CÁC CẢNH BÁO QUAN TRỌNG (Tiết kiệm, Chờ duyệt, Từ chối) -->
+            @if (laTietKiem)
+            {
+                <div class="alert alert-info bg-info-subtle border-0 border-start border-info border-4 shadow-sm mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-lock-fill fs-4 text-info me-3"></i>
+                        <div>
+                            <strong class="d-block text-info-emphasis">Giao dịch hệ thống tự động</strong>
+                            <small class="text-info-emphasis">Chỉ được xem. Để thay đổi, vui lòng thực hiện tại phần <strong>Lịch sử tiết kiệm</strong>.</small>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.TrangThaiDuyet == "ChoDuyet")
+            {
+                <div class="alert alert-warning bg-warning-subtle border-0 border-start border-warning border-4 shadow-sm mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-clock-history fs-4 text-warning me-3"></i>
+                        <div>
+                            <strong class="d-block text-warning-emphasis">Đang chờ phê duyệt</strong>
+                            <small class="text-warning-emphasis">Giao dịch trên 3.000.000đ cần được Chủ hộ duyệt để cập nhật số dư.</small>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (Model.TrangThaiDuyet == "TuChoi")
+            {
+                <div class="alert alert-danger bg-danger-subtle border-0 border-start border-danger border-4 shadow-sm mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-x-circle fs-4 text-danger me-3"></i>
+                        <div>
+                            <strong class="d-block text-danger-emphasis">Đã bị từ chối</strong>
+                            <small class="text-danger-emphasis">Chủ hộ đã từ chối. Giao dịch này không làm thay đổi số dư.</small>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- THẺ THÔNG TIN CHÍNH -->
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+
+                <!-- HEADER: SỐ TIỀN & LOẠI -->
+                <div class="bg-light p-4 text-center border-bottom">
+                    <div class="text-muted small fw-semibold text-uppercase mb-1">Số tiền</div>
+                    <h1 class="display-5 fw-bold mb-2 @tienColor">
+                        @tienSign@Model.SoTien.ToString("N0") <span class="fs-4">₫</span>
+                    </h1>
+
+                    @if (Model.LoaiGiaoDich == "Thu")
+                    {
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill"><i class="bi bi-arrow-down-circle me-1"></i> Thu nhập</span>
+                    }
+                    else if (Model.LoaiGiaoDich == "Chi")
+                    {
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill"><i class="bi bi-arrow-up-circle me-1"></i> Chi tiêu</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill"><i class="bi bi-piggy-bank me-1"></i> Tiết kiệm</span>
+                    }
+                </div>
+
+                <!-- BODY: CHI TIẾT DỮ LIỆU -->
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        <!-- Danh mục -->
+                        <li class="list-group-item px-4 py-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="bi bi-tags me-2"></i>Danh mục</span>
+                            <span class="fw-bold text-dark">
+                                @(Model.DanhMuc != null ? $"{Model.DanhMuc.BieuTuong} {Model.DanhMuc.TenDanhMuc}" : "Khác")
+                            </span>
+                        </li>
+
+                        <!-- Tài khoản -->
+                        <li class="list-group-item px-4 py-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="bi bi-wallet2 me-2"></i>Tài khoản</span>
+                            <div class="text-end">
+                                <span class="fw-bold d-block">@(Model.TaiKhoanTien?.TenTaiKhoan ?? "N/A")</span>
+                                @if (laTaiKhoanGiaDinh)
+                                {
+                                    <span class="badge bg-success" title="Mọi người đều thấy"><i class="bi bi-people-fill"></i> Gia đình</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary" title="Chỉ bạn thấy"><i class="bi bi-lock-fill"></i> Cá nhân</span>
+                                }
+                            </div>
+                        </li>
+
+                        <!-- Trạng thái -->
+                        <li class="list-group-item px-4 py-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="bi bi-shield-check me-2"></i>Trạng thái</span>
+                            @if (Model.TrangThaiDuyet == "DaDuyet")
+                            {
+                                <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Đã duyệt</span>
+                            }
+                            else if (Model.TrangThaiDuyet == "ChoDuyet")
+                            {
+
+                                <span class="text-warning text-dark fw-bold"><i class="bi bi-clock-fill"></i> Chờ duyệt</span>
+                            }
+                            else if (Model.TrangThaiDuyet == "TuChoi")
+                            {
+
+                                <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> Từ chối</span>
+                            }
+                        </li>
+
+                        <!-- Ngày & Người thực hiện -->
+                        <li class="list-group-item px-4 py-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="bi bi-calendar-event me-2"></i>Thời gian</span>
+                            <span class="text-dark">@Model.NgayGiaoDich.ToString("dd/MM/yyyy - HH:mm")</span>
+                        </li>
+
+                        <li class="list-group-item px-4 py-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="bi bi-person me-2"></i>Người tạo</span>
+                            <span>
+                                <strong>@(Model.NguoiThucHien?.HoTen ?? "N/A")</strong>
+                                @if (laNguoiTao)
+                                {
+                                    <span class="badge bg-light text-dark border ms-1">Bạn</span>
+                                }
+                            </span>
+                        </li>
+
+                        <!-- Ghi chú -->
+                        <li class="list-group-item px-4 py-3">
+                            <div class="text-muted mb-1"><i class="bi bi-card-text me-2"></i>Ghi chú</div>
+                            <div class="bg-light p-3 rounded-3 text-dark small">
+                                @(string.IsNullOrWhiteSpace(Model.GhiChu) ? "Không có ghi chú." : Model.GhiChu)
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- FOOTER: NÚT THAO TÁC -->
+                <div class="card-footer bg-white px-4 py-3">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+
+                        @if (laTietKiem)
+                        {
+                            <a asp-controller="LichSuTietKiems" asp-action="Index" class="btn btn-outline-primary rounded-pill px-4">
+                                <i class="bi bi-clock-history"></i> Lịch sử tiết kiệm
+                            </a>
+                        }
+
+                        @if (laChuHo && Model.TrangThaiDuyet == "ChoDuyet")
+                        {
+                            <form asp-action="TuChoi" asp-route-id="@Model.MaGiaoDich" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger rounded-pill px-4"><i class="bi bi-x-lg"></i> Từ chối</button>
+                            </form>
+                            <form asp-action="Duyet" asp-route-id="@Model.MaGiaoDich" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success rounded-pill px-4"><i class="bi bi-check-lg"></i> Duyệt ngay</button>
+                            </form>
+                        }
+
+                        @if (coQuyenSuaXoa)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.MaGiaoDich" class="btn btn-warning rounded-pill px-4">
+                                <i class="bi bi-pencil"></i> Sửa
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@Model.MaGiaoDich" class="btn btn-danger rounded-pill px-4">
+                                <i class="bi bi-trash"></i> Xóa
+                            </a>
+                        }
+
+                        @if (!laTietKiem && !coQuyenSuaXoa && !(laChuHo && Model.TrangThaiDuyet == "ChoDuyet"))
+                        {
+                            <span class="btn btn-light text-muted rounded-pill px-4" style="pointer-events: none;">
+                                <i class="bi bi-eye"></i> Chế độ chỉ xem
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center text-muted small">
+                Mã tham chiếu: #@Model.MaGiaoDich
+            </div>
+
+        </div>
+    </div>
+</div>

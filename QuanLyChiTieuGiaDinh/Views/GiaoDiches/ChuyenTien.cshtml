@@ -1,0 +1,56 @@
+﻿@{
+    ViewData["Title"] = "Chuyển tiền cho thành viên";
+    var taiKhoanNguons = ViewBag.TaiKhoanNguons as List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>;
+    var nguoiNhans = ViewBag.NguoiNhans as List<QuanLyChiTieuGiaDinh.Models.NguoiDung>;
+}
+
+<h2>Chuyển tiền cho thành viên</h2>
+
+@if (TempData["Loi"] != null)
+{
+    <div class="alert alert-danger">@TempData["Loi"]</div>
+}
+
+<form asp-action="ChuyenTien" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label class="form-label">Chuyển từ ví của bạn</label>
+        <select name="MaTaiKhoanNguon" class="form-select" required>
+            @foreach (var tk in taiKhoanNguons!)
+            {
+                <option value="@tk.MaTaiKhoan">@tk.TenTaiKhoan (@tk.SoDuHienTai.ToString("N0")đ)</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Người nhận</label>
+        <select name="MaNguoiNhan" class="form-select" required>
+            <option value="">-- Chọn người nhận --</option>
+            @foreach (var nd in nguoiNhans!)
+            {
+                <option value="@nd.MaNguoiDung">@nd.HoTen</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Tên ví của người nhận</label>
+        <input type="text" name="TenViNhan" class="form-control" required
+               placeholder="Nhập chính xác tên ví của người đó" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Số tiền</label>
+        <input type="number" name="SoTien" class="form-control" min="1" step="1" required />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Ghi chú</label>
+        <input type="text" name="GhiChu" class="form-control" maxlength="300" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Chuyển tiền</button>
+    <a asp-action="Index" class="btn btn-secondary">Hủy</a>
+</form>

@@ -1,0 +1,478 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.GiaoDich
+
+@{
+    ViewData["Title"] = "Thêm giao dịch";
+
+    var taiKhoans = ViewBag.TaiKhoans
+        as List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>
+        ?? new List<QuanLyChiTieuGiaDinh.Models.TaiKhoanTien>();
+
+    var danhMucs = ViewBag.DanhMucs
+        as List<QuanLyChiTieuGiaDinh.Models.DanhMuc>
+        ?? new List<QuanLyChiTieuGiaDinh.Models.DanhMuc>();
+}
+
+<div class="container mt-4 mb-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-8">
+
+            <!-- KHUNG QUÉT HÓA ĐƠN TỰ ĐỘNG -->
+            <div class="card shadow-sm border-primary mb-4">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-camera me-2"></i> Quét hóa đơn tự động (OCR bằng Gemini)
+                    </h5>
+                    <p class="card-text text-muted small">
+                        Chọn ảnh hóa đơn để hệ thống tự động trích xuất thông tin điền vào form bên dưới.
+                    </p>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <input type="file" id="fileHoaDon" class="form-control" accept="image/*" />
+                        <button type="button" id="btnQuetHoaDon" class="btn btn-primary text-nowrap">
+                            <i class="bi bi-upc-scan me-1"></i> Quét ngay
+                        </button>
+                    </div>
+
+                    <!-- Trạng thái loading -->
+                    <div id="ocrLoading" class="mt-2 text-warning d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Đang đọc dữ liệu hóa đơn, vui lòng đợi...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+
+                <!-- TIÊU ĐỀ -->
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Thêm giao dịch
+                    </h4>
+                </div>
+
+                <div class="card-body p-4">
+
+                    <form asp-action="Create" method="post">
+
+                        @Html.AntiForgeryToken()
+
+                        <!-- LỖI MODEL -->
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <!-- LOẠI GIAO DỊCH -->
+                        <div class="mb-3">
+                            <label asp-for="LoaiGiaoDich" class="form-label fw-semibold">
+                                Loại giao dịch
+                            </label>
+                            <select asp-for="LoaiGiaoDich" class="form-select" id="loaiGiaoDich">
+                                <option value="Thu">💰 Thu</option>
+                                <option value="Chi" selected>💸 Chi</option>
+                            </select>
+                            <span asp-validation-for="LoaiGiaoDich" class="text-danger"></span>
+                        </div>
+
+                        <!-- TÀI KHOẢN -->
+                        <div class="mb-3">
+                            <label asp-for="MaTaiKhoan" class="form-label fw-semibold">
+                                Tài khoản
+                            </label>
+                            <select asp-for="MaTaiKhoan" class="form-select" id="maTaiKhoan">
+                                <option value="">-- Chọn tài khoản --</option>
+                                @foreach (var taiKhoan in taiKhoans)
+                                {
+                                    <option value="@taiKhoan.MaTaiKhoan" data-gia-dinh="@taiKhoan.LaTaiKhoanGiaDinh.ToString().ToLower()">
+                                        @if (taiKhoan.LaTaiKhoanGiaDinh)
+                                        {
+                                            @:🏠 @taiKhoan.TenTaiKhoan
+                                        }
+                                        else
+                                        {
+                                            @:👤 @taiKhoan.TenTaiKhoan
+                                        }
+                                    </option>
+                                }
+                            </select>
+                            <span asp-validation-for="MaTaiKhoan" class="text-danger"></span>
+                            <div id="thongTinTaiKhoan" class="form-text mt-2">
+                                <i class="bi bi-info-circle"></i> Vui lòng chọn tài khoản.
+                            </div>
+                        </div>
+
+                        <!-- DANH MỤC -->
+                        <div class="form-group mb-3">
+                            <label class="control-label fw-bold">Danh mục</label>
+
+                            <input type="hidden" id="MaDanhMuc" name="MaDanhMuc" />
+
+                            <input type="text" name="TenDanhMuc" id="tenDanhMuc" class="form-control" list="danhMucList"
+                                   value="@ViewBag.TenDanhMuc" placeholder="Chọn hoặc nhập danh mục mới..." autocomplete="off" />
+
+                            <datalist id="danhMucList">
+                                @if (ViewBag.DanhMucs != null)
+                                {
+                                    foreach (var item in (List<QuanLyChiTieuGiaDinh.Models.DanhMuc>)ViewBag.DanhMucs)
+                                    {
+                                        <option value="@item.TenDanhMuc"></option>
+                                    }
+                                }
+                            </datalist>
+
+                            <span class="text-danger">@Html.ValidationMessage("TenDanhMuc")</span>
+                            <div id="thongTinDanhMuc" class="form-text mt-2">
+                                <i class="bi bi-info-circle"></i> Nhập tên danh mục để tìm hoặc tạo danh mục mới.
+                            </div>
+                        </div>
+
+                        <!-- SỐ TIỀN -->
+                        <div class="mb-3">
+                            <label asp-for="SoTien" class="form-label fw-semibold">
+                                Số tiền
+                            </label>
+                            <div class="input-group">
+                                <input asp-for="SoTien"
+                                       id="SoTien"
+                                       class="form-control"
+                                       type="number"
+                                       min="0.01"
+                                       step="0.01"
+                                       placeholder="Nhập số tiền..." />
+                                <span class="input-group-text">VNĐ</span>
+                            </div>
+                            <span asp-validation-for="SoTien" class="text-danger"></span>
+                        </div>
+
+                        <!-- NGÀY GIAO DỊCH -->
+                        <div class="mb-3">
+                            <label asp-for="NgayGiaoDich" class="form-label fw-semibold">
+                                Ngày giao dịch
+                            </label>
+                            <input asp-for="NgayGiaoDich"
+                                   id="NgayGiaoDich"
+                                   class="form-control"
+                                   type="datetime-local" />
+                            <span asp-validation-for="NgayGiaoDich" class="text-danger"></span>
+                        </div>
+
+                        <!-- GHI CHÚ -->
+                        <div class="mb-3">
+                            <label asp-for="GhiChu" class="form-label fw-semibold">
+                                Ghi chú
+                            </label>
+                            <textarea asp-for="GhiChu"
+                                      id="GhiChu"
+                                      class="form-control"
+                                      rows="2"
+                                      maxlength="500"
+                                      placeholder="Nhập ghi chú nếu cần..."></textarea>
+                            <span asp-validation-for="GhiChu" class="text-danger"></span>
+                        </div>
+
+                        <!-- THIẾT LẬP GIAO DỊCH ĐỊNH KỲ (INLINE EXPANSION) -->
+                        <div class="card bg-light border-0 mb-4">
+                            <div class="card-body">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="isDinhKy" name="isDinhKy" value="true">
+                                    <label class="form-check-label fw-semibold text-primary" for="isDinhKy">
+                                        <i class="bi bi-arrow-repeat me-1"></i> Đặt làm giao dịch định kỳ (Lặp lại)
+                                    </label>
+                                </div>
+
+                                <!-- Khối mở rộng cài đặt định kỳ (Mặc định ẩn) -->
+                                <div id="khungDinhKy" class="mt-3 pt-3 border-top d-none">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Tần suất lặp</label>
+                                            <select name="chuKyDinhKy" id="chuKyDinhKy" class="form-select">
+                                                <option value="HangThang" selected>🗓️ Hàng tháng</option>
+                                                <option value="HangNam">📅 Hàng năm</option>
+                                            </select>
+                                        </div>
+                                        <!-- Tháng lặp: chỉ hiện khi chọn chu kỳ Hàng năm -->
+                                        <div class="col-md-6 d-none" id="khungThangLap">
+                                            <label class="form-label fw-semibold">Tháng lặp trong năm</label>
+                                            <select name="thangLapDinhKy" id="thangLapDinhKy" class="form-select">
+                                                @for (int m = 1; m <= 12; m++)
+                                                {
+                                                    <option value="@m" selected="@(m == DateTime.Now.Month)">Tháng @m</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Ngày lặp trong chu kỳ</label>
+                                            <input type="number" name="ngayLapDinhKy" id="ngayLapTrongChuKy" class="form-control" min="1" max="31" value="@DateTime.Now.Day" placeholder="Ví dụ: 15" />
+                                            <div class="form-text">Ngày (1-31) thực hiện giao dịch ở các chu kỳ tiếp theo. Tháng không có ngày này (ví dụ 31) sẽ tự lấy ngày cuối tháng.</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="isBienDong" name="isBienDong" value="true">
+                                                <label class="form-check-label text-secondary" for="isBienDong">
+                                                    <i class="bi bi-graph-up-arrow me-1"></i> Số tiền biến động theo từng kỳ (ví dụ: tiền điện, nước, internet...)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- THÔNG TIN PHÊ DUYỆT -->
+                        <div id="thongTinPheDuyet" class="alert alert-info">
+                            <div class="d-flex">
+                                <div class="me-2">
+                                    <i class="bi bi-info-circle-fill"></i>
+                                </div>
+                                <div>
+                                    <strong>Thông tin phê duyệt</strong>
+                                    <div id="noiDungPheDuyet" class="mt-1">
+                                        Vui lòng chọn tài khoản và số tiền.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- QUY TẮC -->
+                        <div class="alert alert-light border mb-4">
+                            <div class="fw-semibold mb-2">
+                                <i class="bi bi-shield-check me-1"></i> Quy tắc giao dịch
+                            </div>
+                            <ul class="mb-0 ps-3">
+                                <li>Giao dịch trên tài khoản cá nhân được duyệt ngay.</li>
+                                <li>Giao dịch trên tài khoản gia đình từ <strong>3.000.000 VNĐ</strong> trở xuống được duyệt ngay.</li>
+                                <li>Giao dịch trên tài khoản gia đình trên <strong>3.000.000 VNĐ</strong> có thể cần chủ hộ phê duyệt.</li>
+                                <li>Giao dịch đang chờ duyệt chưa làm thay đổi số dư tài khoản.</li>
+                            </ul>
+                        </div>
+
+                        <!-- NÚT HÀNH ĐỘNG -->
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Quay lại
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Tạo giao dịch
+                            </button>
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            // ELEMENTS
+            const loaiGiaoDich = document.getElementById("loaiGiaoDich");
+            const maTaiKhoan = document.getElementById("maTaiKhoan");
+            const tenDanhMuc = document.getElementById("tenDanhMuc");
+            const maDanhMuc = document.getElementById("MaDanhMuc");
+            const thongTinDanhMuc = document.getElementById("thongTinDanhMuc");
+            const thongTinTaiKhoan = document.getElementById("thongTinTaiKhoan");
+            const soTien = document.getElementById("SoTien");
+            const ngayGiaoDich = document.getElementById("NgayGiaoDich");
+            const ghiChu = document.getElementById("GhiChu");
+            const thongTinPheDuyet = document.getElementById("thongTinPheDuyet");
+            const noiDungPheDuyet = document.getElementById("noiDungPheDuyet");
+
+            // ELEMENTS ĐỊNH KỲ
+            const isDinhKy = document.getElementById("isDinhKy");
+            const khungDinhKy = document.getElementById("khungDinhKy");
+            const ngayLapTrongChuKy = document.getElementById("ngayLapTrongChuKy");
+            const chuKyDinhKy = document.getElementById("chuKyDinhKy");
+            const khungThangLap = document.getElementById("khungThangLap");
+            const thangLapDinhKy = document.getElementById("thangLapDinhKy");
+
+            // Chu kỳ Hàng năm mới cần chọn tháng
+            function capNhatHienThiThangLap() {
+                if (!chuKyDinhKy || !khungThangLap) return;
+                khungThangLap.classList.toggle("d-none", chuKyDinhKy.value !== "HangNam");
+            }
+
+            if (chuKyDinhKy) {
+                chuKyDinhKy.addEventListener("change", capNhatHienThiThangLap);
+            }
+            capNhatHienThiThangLap();
+
+            // XỬ LÝ ẨN / HIỆN CẤU HÌNH ĐỊNH KỲ
+            if (isDinhKy && khungDinhKy) {
+                isDinhKy.addEventListener("change", function () {
+                    if (this.checked) {
+                        khungDinhKy.classList.remove("d-none");
+                        // Tự động đồng bộ Ngày lặp theo Ngày giao dịch đã chọn
+                        capNhatNgayLapTuNgayGiaoDich();
+                    } else {
+                        khungDinhKy.classList.add("d-none");
+                    }
+                });
+            }
+
+            function capNhatNgayLapTuNgayGiaoDich() {
+                if (ngayGiaoDich && ngayGiaoDich.value) {
+                    const d = new Date(ngayGiaoDich.value);
+                    if (!isNaN(d.getDate())) {
+                        if (ngayLapTrongChuKy) ngayLapTrongChuKy.value = d.getDate();
+                        if (thangLapDinhKy) thangLapDinhKy.value = d.getMonth() + 1;
+                    }
+                }
+            }
+
+            if (ngayGiaoDich) {
+                ngayGiaoDich.addEventListener("change", capNhatNgayLapTuNgayGiaoDich);
+            }
+
+            // XỬ LÝ QUÉT HÓA ĐƠN OCR BẰNG GEMINI
+            const btnQuetHoaDon = document.getElementById("btnQuetHoaDon");
+            const fileHoaDon = document.getElementById("fileHoaDon");
+            const ocrLoading = document.getElementById("ocrLoading");
+
+            if (btnQuetHoaDon) {
+                btnQuetHoaDon.addEventListener("click", async function () {
+                    if (fileHoaDon.files.length === 0) {
+                        alert("Vui lòng chọn ảnh hóa đơn trước khi quét!");
+                        return;
+                    }
+
+                    ocrLoading.classList.remove("d-none");
+                    btnQuetHoaDon.disabled = true;
+
+                    const formData = new FormData();
+                    formData.append("anhHoaDon", fileHoaDon.files[0]);
+
+                    try {
+                        const response = await fetch('/GiaoDiches/QuetHoaDonGemini', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            const parsedSoTien = parseFloat(data.soTien || 0);
+
+                            if (parsedSoTien > 0) {
+                                soTien.value = parsedSoTien;
+                                soTien.dispatchEvent(new Event('input'));
+                            } else {
+                                alert("Đã đọc xong hóa đơn nhưng không tìm thấy số tiền hợp lệ. Vui lòng nhập tay số tiền!");
+                            }
+
+                            if (data.ghiChu && ghiChu) {
+                                ghiChu.value = data.ghiChu;
+                            }
+
+                            if (data.ngayGiaoDich && ngayGiaoDich) {
+                                if (ngayGiaoDich.type === "datetime-local" && !data.ngayGiaoDich.includes("T")) {
+                                    ngayGiaoDich.value = data.ngayGiaoDich + "T00:00";
+                                } else {
+                                    ngayGiaoDich.value = data.ngayGiaoDich;
+                                }
+                                capNhatNgayLapTuNgayGiaoDich();
+                            }
+
+                            if (parsedSoTien > 0) {
+                                alert("Quét hóa đơn bằng AI thành công! Số tiền bóc tách được: " + parsedSoTien.toLocaleString('vi-VN') + " VNĐ");
+                            }
+                        } else {
+                            alert("Không thể đọc được hóa đơn: " + data.message);
+                        }
+                    } catch (error) {
+                        console.error("Lỗi:", error);
+                        alert("Đã xảy ra lỗi trong quá trình kết nối tới server quét hóa đơn AI.");
+                    } finally {
+                        ocrLoading.classList.add("d-none");
+                        btnQuetHoaDon.disabled = false;
+                    }
+                });
+            }
+
+            // GỢI Ý DANH MỤC
+            tenDanhMuc.addEventListener("input", function () {
+                const tuKhoa = this.value.trim();
+                if (tuKhoa === "") {
+                    thongTinDanhMuc.innerHTML = '<i class="bi bi-info-circle"></i> Nhập tên danh mục để tìm hoặc tạo danh mục mới.';
+                    thongTinDanhMuc.className = "form-text mt-2";
+                } else {
+                    thongTinDanhMuc.innerHTML = '<i class="bi bi-check-circle text-success"></i> <span class="text-success">Hệ thống sẽ lưu với danh mục: <strong>' + tuKhoa + '</strong></span>';
+                    thongTinDanhMuc.className = "form-text mt-2";
+                }
+            });
+
+            // THÔNG TIN TÀI KHOẢN & PHÊ DUYỆT
+            function capNhatThongTinTaiKhoan() {
+                const option = maTaiKhoan.options[maTaiKhoan.selectedIndex];
+                if (!option || !option.value) {
+                    thongTinTaiKhoan.innerHTML = '<i class="bi bi-info-circle"></i> Vui lòng chọn tài khoản.';
+                    return;
+                }
+
+                const laTaiKhoanGiaDinh = option.getAttribute("data-gia-dinh") === "true";
+                if (laTaiKhoanGiaDinh) {
+                    thongTinTaiKhoan.innerHTML = '<i class="bi bi-house-fill text-primary"></i> <span class="text-primary">Đây là tài khoản gia đình. Các thành viên được phép sử dụng.</span>';
+                } else {
+                    thongTinTaiKhoan.innerHTML = '<i class="bi bi-person-fill text-secondary"></i> <span>Đây là tài khoản cá nhân.</span>';
+                }
+
+                capNhatThongTinPheDuyet();
+            }
+
+            function capNhatThongTinPheDuyet() {
+                const option = maTaiKhoan.options[maTaiKhoan.selectedIndex];
+                if (!option || !option.value) {
+                    thongTinPheDuyet.className = "alert alert-info";
+                    noiDungPheDuyet.innerHTML = "Vui lòng chọn tài khoản và số tiền.";
+                    return;
+                }
+
+                const laTaiKhoanGiaDinh = option.getAttribute("data-gia-dinh") === "true";
+                const soTienValue = parseFloat(soTien.value || 0);
+                const nguong = 3000000;
+
+                if (!laTaiKhoanGiaDinh) {
+                    thongTinPheDuyet.className = "alert alert-success";
+                    noiDungPheDuyet.innerHTML = '<i class="bi bi-check-circle me-1"></i> Giao dịch trên tài khoản cá nhân được duyệt ngay.';
+                    return;
+                }
+
+                if (soTienValue <= 0) {
+                    thongTinPheDuyet.className = "alert alert-info";
+                    noiDungPheDuyet.innerHTML = 'Tài khoản gia đình: giao dịch trên <strong>3.000.000 VNĐ</strong> có thể cần chủ hộ phê duyệt.';
+                    return;
+                }
+
+                if (soTienValue <= nguong) {
+                    thongTinPheDuyet.className = "alert alert-success";
+                    noiDungPheDuyet.innerHTML = '<i class="bi bi-check-circle me-1"></i> Giao dịch này không vượt quá <strong>3.000.000 VNĐ</strong> và được duyệt ngay.';
+                } else {
+                    thongTinPheDuyet.className = "alert alert-warning";
+                    noiDungPheDuyet.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Giao dịch này trên <strong>3.000.000 VNĐ</strong> có thể chuyển sang trạng thái <strong>Chờ duyệt</strong>.';
+                }
+            }
+
+            // LISTENERS
+            maTaiKhoan.addEventListener("change", capNhatThongTinTaiKhoan);
+            soTien.addEventListener("input", capNhatThongTinPheDuyet);
+
+            // INIT
+            capNhatThongTinTaiKhoan();
+            capNhatThongTinPheDuyet();
+        });
+    </script>
+}
