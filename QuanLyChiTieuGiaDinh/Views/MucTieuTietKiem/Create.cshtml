@@ -1,0 +1,242 @@
+@model QuanLyChiTieuGiaDinh.Models.MucTieuTietKiem
+@using QuanLyChiTieuGiaDinh.Models
+
+@{
+    ViewData["Title"] = "Tạo mục tiêu tiết kiệm";
+
+    bool coHo = ViewBag.CoHoGiaDinh != null && (bool)ViewBag.CoHoGiaDinh;
+    string? tenHo = ViewBag.TenHoGiaDinh as string;
+    var thanhVienHo = ViewBag.ThanhVienHo as List<string> ?? new List<string>();
+    string danhSachEmail = ViewBag.DanhSachEmail as string ?? "";
+}
+
+<div class="container py-4" style="max-width: 760px;">
+    <div class="card shadow-sm border-success-subtle rounded-4 overflow-hidden">
+        <div class="card-header bg-success-subtle border-success-subtle py-3 px-4">
+            <h4 class="mb-0 fw-bold text-success-emphasis"><i class="bi bi-piggy-bank me-2"></i>Tạo mục tiêu tiết kiệm</h4>
+            <small class="text-success-emphasis">Chỉ cần 3 bước, hệ thống sẽ tự lo phần còn lại.</small>
+        </div>
+
+        <div class="card-body bg-success-subtle bg-opacity-25 p-4">
+            <form asp-action="Create">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+
+                <!-- BƯỚC 1: LOẠI MỤC TIÊU -->
+                <h6 class="fw-bold text-success-emphasis mb-3">
+                    <span class="badge rounded-circle text-bg-success me-2">1</span>Bạn tiết kiệm cho ai?
+                </h6>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <input type="radio" class="btn-check" asp-for="LoaiMucTieu" id="loai1"
+                               value="@((int)LoaiMucTieuTietKiem.CaNhan)" autocomplete="off" />
+                        <label class="btn btn-outline-success w-100 py-3 rounded-3" for="loai1">
+                            <i class="bi bi-person-heart fs-3 d-block"></i>
+                            <span class="fw-bold">Cá nhân</span>
+                            <small class="d-block">Chỉ mình tôi</small>
+                        </label>
+                    </div>
+                    <div class="col-4">
+                        <input type="radio" class="btn-check" asp-for="LoaiMucTieu" id="loai2"
+                               value="@((int)LoaiMucTieuTietKiem.HoGiaDinh)" autocomplete="off" />
+                        <label class="btn btn-outline-success w-100 py-3 rounded-3" for="loai2">
+                            <i class="bi bi-house-heart fs-3 d-block"></i>
+                            <span class="fw-bold">Hộ gia đình</span>
+                            <small class="d-block">Cả nhà cùng góp</small>
+                        </label>
+                    </div>
+                    <div class="col-4">
+                        <input type="radio" class="btn-check" asp-for="LoaiMucTieu" id="loai3"
+                               value="@((int)LoaiMucTieuTietKiem.NhomTuDo)" autocomplete="off" />
+                        <label class="btn btn-outline-success w-100 py-3 rounded-3" for="loai3">
+                            <i class="bi bi-people fs-3 d-block"></i>
+                            <span class="fw-bold">Nhóm tự do</span>
+                            <small class="d-block">Mời cả người ngoài</small>
+                        </label>
+                    </div>
+                </div>
+                <span asp-validation-for="LoaiMucTieu" class="text-danger"></span>
+                <div class="alert alert-success py-2 small mt-3 mb-0" id="loaiHint"></div>
+
+                <!-- Chỉ hiện khi chọn Hộ gia đình: hệ thống tự lấy hộ của bạn -->
+                <div class="mt-3 d-none" id="boxGiaDinh">
+                    @if (coHo)
+                    {
+                        <div class="card border-success-subtle">
+                            <div class="card-body py-3">
+                                <div class="fw-semibold text-success-emphasis mb-2">
+                                    <i class="bi bi-house-heart me-1"></i>
+                                    Hộ gia đình: @(tenHo ?? "Hộ của bạn")
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    @thanhVienHo.Count thành viên sẽ tự động được thêm vào mục tiêu và chia đều số tiền:
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var ten in thanhVienHo)
+                                    {
+                                        <span class="badge rounded-pill text-bg-success">@ten</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning py-2 small mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Bạn chưa thuộc hộ gia đình nào đang hoạt động nên chưa thể tạo mục tiêu hộ gia đình.
+                        </div>
+                    }
+                </div>
+
+                <!-- Chỉ hiện khi chọn Nhóm tự do -->
+                <div class="mt-3 d-none" id="boxEmail">
+                    <label for="danhSachEmail" class="form-label fw-semibold text-success-emphasis">
+                        Mời thành viên bằng email <span class="fw-normal text-muted">(không bắt buộc)</span>
+                    </label>
+                    <textarea id="danhSachEmail" name="danhSachEmail" rows="2"
+                              class="form-control border-success-subtle"
+                              placeholder="a@gmail.com, b@gmail.com (cách nhau bằng dấu phẩy)">@danhSachEmail</textarea>
+                    <small class="text-muted">
+                        Người được mời phải có tài khoản trong hệ thống và cần đồng ý thì mới được tính chỉ tiêu.
+                        Bạn cũng có thể mời thêm sau trong trang chi tiết.
+                    </small>
+                </div>
+
+                <!-- BƯỚC 2: TÊN + SỐ TIỀN -->
+                <h6 class="fw-bold text-success-emphasis mt-4 mb-3">
+                    <span class="badge rounded-circle text-bg-success me-2">2</span>Mục tiêu của bạn là gì?
+                </h6>
+                <div class="mb-3">
+                    <label asp-for="TenMucTieu" class="form-label fw-semibold text-success-emphasis">Tên mục tiêu</label>
+                    <input asp-for="TenMucTieu" class="form-control border-success-subtle" placeholder="Ví dụ: Du lịch Đà Lạt, Mua xe máy, Quỹ dự phòng..." />
+                    <span asp-validation-for="TenMucTieu" class="text-danger"></span>
+                </div>
+
+                <label asp-for="SoTienMucTieu" class="form-label fw-semibold text-success-emphasis">Cần tiết kiệm bao nhiêu?</label>
+                <div class="input-group">
+                    <input asp-for="SoTienMucTieu" id="soTien" class="form-control border-success-subtle" type="number" min="0" step="1000" placeholder="0" />
+                    <span class="input-group-text bg-success-subtle border-success-subtle text-success-emphasis">₫</span>
+                </div>
+                <span asp-validation-for="SoTienMucTieu" class="text-danger"></span>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-v="5000000">5 triệu</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-v="10000000">10 triệu</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-v="20000000">20 triệu</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-v="50000000">50 triệu</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-v="100000000">100 triệu</button>
+                </div>
+                <div class="fw-semibold text-success-emphasis small mt-1" id="moneyPreview"></div>
+                <div class="small text-muted" id="chiaPreview"></div>
+
+                <!-- BƯỚC 3: THỜI GIAN -->
+                <h6 class="fw-bold text-success-emphasis mt-4 mb-3">
+                    <span class="badge rounded-circle text-bg-success me-2">3</span>Khi nào cần hoàn thành?
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="NgayBatDau" class="form-label fw-semibold text-success-emphasis">Ngày bắt đầu</label>
+                        <input asp-for="NgayBatDau" class="form-control border-success-subtle" type="date" />
+                        <span asp-validation-for="NgayBatDau" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="NgayHan" class="form-label fw-semibold text-success-emphasis">Hạn hoàn thành</label>
+                        <input asp-for="NgayHan" class="form-control border-success-subtle" type="date" />
+                        <span asp-validation-for="NgayHan" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-m="3">+3 tháng</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-m="6">+6 tháng</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-m="12">+1 năm</button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-m="24">+2 năm</button>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top border-success-subtle mt-4 pt-3">
+                    <a asp-action="Index" class="btn btn-light border">Hủy</a>
+                    <button type="submit" class="btn btn-success px-4"><i class="bi bi-check2-circle me-1"></i>Tạo mục tiêu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        (function () {
+            const CA_NHAN = "@((int)LoaiMucTieuTietKiem.CaNhan)";
+            const HO = "@((int)LoaiMucTieuTietKiem.HoGiaDinh)";
+            const NHOM = "@((int)LoaiMucTieuTietKiem.NhomTuDo)";
+            const soThanhVienHo = @thanhVienHo.Count;
+
+            const hints = {};
+            hints[CA_NHAN] = "Chỉ mình bạn đóng góp. Toàn bộ số tiền là chỉ tiêu của bạn.";
+            hints[HO] = "Hệ thống tự thêm tất cả thành viên trong hộ và chia đều số tiền cho mọi người.";
+            hints[NHOM] = "Bạn là trưởng nhóm và có thể mời bất kỳ ai, kể cả người ngoài hộ. Số tiền chia đều cho những người đã đồng ý tham gia.";
+
+            const boxGiaDinh = document.getElementById("boxGiaDinh");
+            const boxEmail = document.getElementById("boxEmail");
+            const emailInput = document.getElementById("danhSachEmail");
+            const hint = document.getElementById("loaiHint");
+            const soTien = document.getElementById("soTien");
+            const preview = document.getElementById("moneyPreview");
+            const chiaPreview = document.getElementById("chiaPreview");
+
+            function loaiHienTai() {
+                const checked = document.querySelector('input[name="LoaiMucTieu"]:checked');
+                return checked ? checked.value : CA_NHAN;
+            }
+
+            function capNhatChia() {
+                const n = parseFloat(soTien.value);
+                const v = loaiHienTai();
+                if (!(n > 0) || v !== HO || soThanhVienHo < 1) { chiaPreview.textContent = ""; return; }
+                chiaPreview.textContent = "Mỗi người ≈ " + Math.floor(n / soThanhVienHo).toLocaleString("vi-VN") + " ₫ (" + soThanhVienHo + " người)";
+            }
+
+            function capNhatLoai() {
+                const v = loaiHienTai();
+                hint.textContent = hints[v] || "";
+                boxGiaDinh.classList.toggle("d-none", v !== HO);
+                boxEmail.classList.toggle("d-none", v !== NHOM);
+                emailInput.disabled = v !== NHOM;   // không gửi email khi không phải nhóm tự do
+                capNhatChia();
+            }
+            document.querySelectorAll('input[name="LoaiMucTieu"]').forEach(r => r.addEventListener("change", capNhatLoai));
+
+            function capNhatTien() {
+                const n = parseFloat(soTien.value);
+                preview.textContent = n > 0 ? "= " + n.toLocaleString("vi-VN") + " ₫" : "";
+                capNhatChia();
+            }
+            soTien.addEventListener("input", capNhatTien);
+            document.querySelectorAll("[data-v]").forEach(c => c.addEventListener("click", () => {
+                soTien.value = c.dataset.v;
+                capNhatTien();
+            }));
+
+            // Ngày mặc định + nút cộng tháng
+            const ngayBD = document.getElementById("NgayBatDau");
+            const ngayHan = document.getElementById("NgayHan");
+            const fmt = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+            const rong = v => !v || v.startsWith("0001");
+
+            if (rong(ngayBD.value)) ngayBD.value = fmt(new Date());
+            if (rong(ngayHan.value)) {
+                const d = new Date(); d.setMonth(d.getMonth() + 6);
+                ngayHan.value = fmt(d);
+            }
+            document.querySelectorAll("[data-m]").forEach(c => c.addEventListener("click", () => {
+                const d = new Date(ngayBD.value || new Date());
+                d.setMonth(d.getMonth() + parseInt(c.dataset.m));
+                ngayHan.value = fmt(d);
+            }));
+
+            capNhatLoai();
+            capNhatTien();
+        })();
+    </script>
+}

@@ -3,10 +3,6 @@
 @{
     ViewData["Title"] = "Thêm danh mục";
 
-    var danhMucCha =
-        ViewBag.DanhMucCha as List<QuanLyChiTieuGiaDinh.Models.DanhMuc>
-        ?? new List<QuanLyChiTieuGiaDinh.Models.DanhMuc>();
-
     var emojis = new[]
     {
         "🍔", "🍜", "🍕", "🍚", "☕",
@@ -107,10 +103,6 @@
 
                                 <option value="ThuNhap">
                                     Thu nhập
-                                </option>
-
-                                <option value="TietKiem">
-                                    Tiết kiệm
                                 </option>
 
                             </select>
