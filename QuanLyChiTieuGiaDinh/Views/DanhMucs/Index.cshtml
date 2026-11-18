@@ -2,326 +2,270 @@
 
 @{
     ViewData["Title"] = "Danh mục";
-
     bool laChuHo = ViewBag.LaChuHo ?? false;
+    int maNguoiDung = ViewBag.MaNguoiDung ?? 0;
+    string? tuKhoa = ViewBag.TuKhoa;
+    string? loaiLoc = ViewBag.Loai;
+    bool hienDaAn = ViewBag.HienDaAn ?? false;
+    Dictionary<int, int> soGd = ViewBag.SoGiaoDich as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var danhMucDich = Model.Where(x => x.TrangThai == "Active").OrderBy(x => x.TenDanhMuc).ToList();
 }
 
-<div class="container mt-4">
+<div class="container py-4">
 
-    <!-- TIÊU ĐỀ -->
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-
+    <!-- HEADER & ACTIONS -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
-
-            <h2 class="mb-1">
-                <i class="bi bi-tags"></i>
-                Danh mục
+            <h2 class="fw-bold text-success mb-1">
+                <i class="bi bi-tags-fill me-2"></i>Danh mục tài chính
             </h2>
-
-            @if (laChuHo)
-            {
-                <small class="text-muted">
-                    Bạn đang đăng nhập với quyền
-                    <strong>Chủ hộ</strong>.
-                </small>
-            }
-            else
-            {
-                <small class="text-muted">
-                    Bạn đang đăng nhập với quyền
-                    <strong>Thành viên</strong>.
-                </small>
-            }
-
+            <p class="text-muted mb-0">
+                Quản lý các khoản thu và chi của gia đình bạn.
+            </p>
         </div>
 
-
-        <a asp-action="Create"
-           class="btn btn-primary">
-
-            <i class="bi bi-plus-circle"></i>
-            Thêm danh mục
-
-        </a>
-
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge @(laChuHo ? "bg-success" : "bg-secondary") px-3 py-2 fs-6 rounded-pill shadow-sm">
+                <i class="bi @(laChuHo ? "bi-shield-check" : "bi-person") me-1"></i>
+                @(laChuHo ? "Quyền: Chủ hộ" : "Quyền: Thành viên")
+            </span>
+            <a asp-action="Create" class="btn btn-success shadow-sm rounded-pill px-3">
+                <i class="bi bi-plus-lg me-1"></i> Thêm mới
+            </a>
+        </div>
     </div>
 
-
-    <!-- THÔNG BÁO -->
+    <!-- THÔNG BÁO TEMP DATA -->
     @if (TempData["ThongBao"] != null)
     {
-        <div class="alert alert-warning">
-
-            <i class="bi bi-exclamation-triangle"></i>
-
-            @TempData["ThongBao"]
-
+        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["ThongBao"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-
-    <!-- GIẢI THÍCH QUYỀN -->
-    @if (laChuHo)
-    {
-        <div class="alert alert-success">
-
-            <i class="bi bi-person-check"></i>
-
-            Bạn là <strong>chủ hộ</strong>.
-            Bạn có thể thêm, sửa và xóa danh mục
-            của hộ gia đình.
-
+    <!-- TÌM KIẾM & LỌC -->
+    <form method="get" asp-action="Index" class="row g-2 align-items-center mb-4">
+        <div class="col-md-5">
+            <input type="text" name="tuKhoa" value="@tuKhoa" class="form-control"
+                   placeholder="Tìm theo tên danh mục (không cần gõ dấu)..." />
         </div>
-    }
-    else
-    {
-        <div class="alert alert-info">
-
-            <i class="bi bi-eye"></i>
-
-            Bạn là <strong>thành viên</strong>.
-            Bạn có thể xem danh mục và thêm danh mục mới
-            cho hộ gia đình, nhưng không thể sửa hoặc xóa
-            danh mục.
-
+        <div class="col-md-3">
+            <select name="loai" class="form-select">
+                <option value="">Tất cả loại</option>
+                <option value="ChiTieu" selected="@(loaiLoc == "ChiTieu")">Chi tiêu</option>
+                <option value="ThuNhap" selected="@(loaiLoc == "ThuNhap")">Thu nhập</option>
+            </select>
         </div>
-    }
+        <div class="col-md-2">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="hienDaAn" name="hienDaAn" value="true" checked="@hienDaAn" />
+                <label class="form-check-label" for="hienDaAn">Hiện danh mục đã ẩn</label>
+            </div>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-outline-success"><i class="bi bi-search"></i> Lọc</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Xóa lọc</a>
+        </div>
+    </form>
 
-
-    <!-- DANH SÁCH -->
+    <!-- BẢNG DANH SÁCH -->
     @if (!Model.Any())
     {
-        <div class="alert alert-info">
-
-            <i class="bi bi-info-circle"></i>
-
-            Chưa có danh mục nào.
-
+        <div class="card border-0 shadow-sm bg-light text-center py-5">
+            <div class="card-body">
+                <i class="bi bi-folder2-open display-4 text-muted mb-3"></i>
+                <h5 class="text-secondary">Chưa có danh mục nào</h5>
+                <p class="text-muted mb-3">Hãy tạo danh mục đầu tiên để bắt đầu phân loại chi tiêu.</p>
+                <a asp-action="Create" class="btn btn-success rounded-pill px-4">
+                    <i class="bi bi-plus-lg me-1"></i> Thêm danh mục ngay
+                </a>
+            </div>
         </div>
     }
     else
     {
-        <div class="card shadow-sm">
-
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
             <div class="card-body p-0">
-
                 <div class="table-responsive">
-
                     <table class="table table-hover align-middle mb-0">
-
-                        <thead class="table-light">
-
+                        <thead class="table-success text-success">
                             <tr>
-
-                                <th>
-                                    Biểu tượng
-                                </th>
-
-                                <th>
-                                    Tên danh mục
-                                </th>
-
-                                <th>
-                                    Loại
-                                </th>
-
-                                <th>
-                                    Phạm vi
-                                </th>
-
-                            
-
-                                <th class="text-end">
-                                    Thao tác
-                                </th>
-
+                                <th class="ps-4 py-3" style="width: 100px;">Biểu tượng</th>
+                                <th class="py-3">Tên danh mục</th>
+                                <th class="py-3">Loại</th>
+                                <th class="py-3">Phạm vi</th>
+                                <th class="text-end pe-4 py-3">Thao tác</th>
                             </tr>
-
                         </thead>
-
-
-                        <tbody>
-
+                        <tbody class="border-top-0">
                             @foreach (var item in Model)
                             {
-                                <tr>
-
+                                <tr class="@(item.TrangThai != "Active" ? "table-light text-muted" : "")">
                                     <!-- BIỂU TƯỢNG -->
-
-                                    <td>
-
-                                        @if (!string.IsNullOrWhiteSpace(
-                                                                        item.BieuTuong))
+                                    <td class="ps-4 text-center">
+                                        @if (!string.IsNullOrWhiteSpace(item.BieuTuong))
                                         {
-                                            <span style="font-size: 25px;">
-                                                @item.BieuTuong
-                                            </span>
+                                            <span class="fs-4">@item.BieuTuong</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">
-                                                —
-                                            </span>
+                                            <span class="text-muted">—</span>
                                         }
-
                                     </td>
-
 
                                     <!-- TÊN -->
-
                                     <td>
-
-                                        <strong>
-                                            @item.TenDanhMuc
-                                        </strong>
-
+                                        <span class="fw-bold text-dark">@item.TenDanhMuc</span>
+                                        @if (item.TrangThai != "Active")
+                                        {
+                                            <span class="badge bg-secondary ms-1">Đã ẩn</span>
+                                        }
+                                        @if (soGd.TryGetValue(item.MaDanhMuc, out var n) && n > 0)
+                                        {
+                                            <div class="small text-muted">@n giao dịch</div>
+                                        }
                                     </td>
 
-
                                     <!-- LOẠI -->
-
                                     <td>
-
                                         @if (item.LoaiDanhMuc == "ChiTieu")
                                         {
-                                            <span class="badge bg-danger">
-                                                <i class="bi bi-arrow-down-circle"></i>
-                                                Chi tiêu
+                                            <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger px-3 py-2">
+                                                <i class="bi bi-arrow-down-circle me-1"></i> Chi tiêu
                                             </span>
                                         }
                                         else if (item.LoaiDanhMuc == "ThuNhap")
                                         {
-                                            <span class="badge bg-success">
-                                                <i class="bi bi-arrow-up-circle"></i>
-                                                Thu nhập
-                                            </span>
-                                        }
-                                        else if (item.LoaiDanhMuc == "TietKiem")
-                                        {
-                                            <span class="badge bg-primary">
-                                                <i class="bi bi-piggy-bank"></i>
-                                                Tiết kiệm
+                                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success px-3 py-2">
+                                                <i class="bi bi-arrow-up-circle me-1"></i> Thu nhập
                                             </span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-secondary">
+                                            <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary px-3 py-2">
                                                 @item.LoaiDanhMuc
                                             </span>
                                         }
-
                                     </td>
 
-
                                     <!-- PHẠM VI -->
-
                                     <td>
-
                                         @if (item.MaGiaDinh == null)
                                         {
-                                            <span class="badge bg-secondary">
-
-                                                <i class="bi bi-globe"></i>
-
-                                                Hệ thống
-
+                                            <span class="badge rounded-pill bg-light text-secondary border px-3 py-2">
+                                                <i class="bi bi-globe me-1"></i> Hệ thống
                                             </span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-primary">
-
-                                                <i class="bi bi-people"></i>
-
-                                                Gia đình
-
+                                            <span class="badge rounded-pill bg-success text-white px-3 py-2 shadow-sm">
+                                                <i class="bi bi-people me-1"></i> Gia đình
                                             </span>
                                         }
-
                                     </td>
 
                                     <!-- THAO TÁC -->
-
-                                    <td class="text-end">
-
-                                        <div class="d-flex justify-content-end gap-1 flex-wrap">
-
-                                            <!-- CHI TIẾT -->
-
-                                            <a asp-action="Details"
-                                               asp-route-id="@item.MaDanhMuc"
-                                               class="btn btn-outline-secondary btn-sm">
-
-                                                <i class="bi bi-eye"></i>
-                                                Chi tiết
-
+                                    <td class="text-end pe-4">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <a asp-action="Details" asp-route-id="@item.MaDanhMuc"
+                                               class="btn btn-outline-info btn-sm rounded-3 px-2">
+                                                <i class="bi bi-eye"></i> Xem
                                             </a>
 
-
-                                            @if (laChuHo &&
-                                                                                item.MaGiaDinh != null)
+                                            @if (item.MaGiaDinh != null && (laChuHo || item.MaNguoiTao == maNguoiDung))
                                             {
-                                                <!-- SỬA -->
-
-                                                <a asp-action="Edit"
-                                                   asp-route-id="@item.MaDanhMuc"
-                                                   class="btn btn-outline-warning btn-sm">
-
-                                                    <i class="bi bi-pencil"></i>
-                                                    Sửa
-
-                                                </a>
-
-
-                                                <!-- XÓA -->
-
-                                                <a asp-action="Delete"
-                                                   asp-route-id="@item.MaDanhMuc"
-                                                   class="btn btn-outline-danger btn-sm">
-
-                                                    <i class="bi bi-trash"></i>
-                                                    Xóa
-
-                                                </a>
+                                                @if (item.TrangThai == "Active")
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@item.MaDanhMuc"
+                                                       class="btn btn-outline-warning btn-sm rounded-3 px-2">
+                                                        <i class="bi bi-pencil"></i> Sửa
+                                                    </a>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-3 px-2"
+                                                            data-bs-toggle="modal" data-bs-target="#gopModal"
+                                                            data-nguon-id="@item.MaDanhMuc"
+                                                            data-nguon-ten="@item.TenDanhMuc"
+                                                            data-loai="@item.LoaiDanhMuc">
+                                                        <i class="bi bi-intersect"></i> Gộp
+                                                    </button>
+                                                    <form asp-action="AnDanhMuc" asp-route-id="@item.MaDanhMuc" method="post" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-3 px-2">
+                                                            <i class="bi bi-eye-slash"></i> Ẩn
+                                                        </button>
+                                                    </form>
+                                                    <a asp-action="Delete" asp-route-id="@item.MaDanhMuc"
+                                                       class="btn btn-outline-danger btn-sm rounded-3 px-2">
+                                                        <i class="bi bi-trash"></i> Xóa
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <form asp-action="KhoiPhuc" asp-route-id="@item.MaDanhMuc" method="post" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-success btn-sm rounded-3 px-2">
+                                                            <i class="bi bi-arrow-counterclockwise"></i> Khôi phục
+                                                        </button>
+                                                    </form>
+                                                }
                                             }
-                                            else if (item.MaGiaDinh != null)
-                                            {
-                                                <span class="badge bg-light text-dark border align-self-center">
-
-                                                    <i class="bi bi-eye"></i>
-
-                                                    Chỉ xem
-
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-light text-dark border align-self-center">
-
-                                                    <i class="bi bi-lock"></i>
-
-                                                    Hệ thống
-
-                                                </span>
-                                            }
-
                                         </div>
-
                                     </td>
-
                                 </tr>
                             }
-
                         </tbody>
-
                     </table>
-
                 </div>
-
             </div>
-
         </div>
     }
-
 </div>
+
+<!-- MODAL GỘP DANH MỤC -->
+<div class="modal fade" id="gopModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="Gop" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-intersect me-1"></i> Gộp danh mục</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="nguonId" id="gopNguonId" />
+                <p class="mb-2">Gộp <strong id="gopNguonTen"></strong> vào danh mục:</p>
+                <select name="dichId" id="gopDichId" class="form-select" required>
+                    <option value="">-- Chọn danh mục giữ lại --</option>
+                    @foreach (var d in danhMucDich)
+                    {
+                        <option value="@d.MaDanhMuc" data-loai="@d.LoaiDanhMuc">@d.BieuTuong @d.TenDanhMuc</option>
+                    }
+                </select>
+                <div class="form-text mt-2">
+                    Chỉ gộp được các danh mục cùng loại. Toàn bộ giao dịch sẽ chuyển sang danh mục được chọn,
+                    danh mục hiện tại sẽ được ẩn.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary">Gộp</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const gopModal = document.getElementById('gopModal');
+        gopModal.addEventListener('show.bs.modal', function (e) {
+            const btn = e.relatedTarget;
+            const id = btn.dataset.nguonId, loai = btn.dataset.loai;
+            document.getElementById('gopNguonId').value = id;
+            document.getElementById('gopNguonTen').textContent = btn.dataset.nguonTen;
+            const sel = document.getElementById('gopDichId');
+            sel.value = '';
+            Array.from(sel.options).forEach(function (o) {
+                if (!o.value) return;
+                const ok = o.dataset.loai === loai && o.value !== id;
+                o.hidden = !ok;
+                o.disabled = !ok;
+            });
+        });
+    </script>
+}

@@ -43,9 +43,9 @@
 
                         <hr />
 
-                        Nếu danh mục đã có giao dịch hoặc đang có
-                        danh mục con, hệ thống sẽ
-                        <strong>không cho phép xóa</strong>.
+                        Nếu danh mục đã có giao dịch, hệ thống sẽ
+                        <strong>không cho phép xóa</strong>
+                        (bạn có thể chọn <strong>Ẩn danh mục</strong> để không dùng nữa mà vẫn giữ báo cáo cũ).
 
                     </div>
 
@@ -155,16 +155,6 @@
 
                                 </span>
                             }
-                            else if (Model.LoaiDanhMuc == "TietKiem")
-                            {
-                                <span class="badge bg-primary">
-
-                                    <i class="bi bi-piggy-bank"></i>
-
-                                    Tiết kiệm
-
-                                </span>
-                            }
                             else
                             {
                                 <span class="badge bg-secondary">
@@ -230,69 +220,54 @@
 
                         </dd>
 
-
-                        <!-- DANH MỤC CHA -->
-
-                        <dt class="col-sm-5">
-                            Danh mục cha
-                        </dt>
-
-                        <dd class="col-sm-7">
-
-                            @if (Model.DanhMucCha != null)
-                            {
-                                <span>
-
-                                    @Model.DanhMucCha.BieuTuong
-                                    @Model.DanhMucCha.TenDanhMuc
-
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="text-muted">
-                                    Không có
-                                </span>
-                            }
-
-                        </dd>
-
                     </dl>
 
 
-                    <!-- NÚT XÓA -->
+                    <!-- NÚT XÓA / ẨN -->
                     @if (Model.MaGiaDinh != null)
                     {
-                        <form asp-action="Delete"
-                              method="post">
+                        bool coThaoTacXoa = ViewBag.CoThaoTacXoa ?? true;
+                        bool coTheAn = ViewBag.CoTheAn ?? false;
 
-                            <input type="hidden"
-                                   asp-for="MaDanhMuc" />
-
-                            <div class="mt-4 d-flex gap-2">
-
-                                <button type="submit"
-                                        class="btn btn-danger">
-
-                                    <i class="bi bi-trash"></i>
-
-                                    Xóa danh mục
-
-                                </button>
-
-                                <a asp-action="Details"
-                                   asp-route-id="@Model.MaDanhMuc"
-                                   class="btn btn-secondary">
-
-                                    <i class="bi bi-arrow-left"></i>
-
-                                    Hủy
-
-                                </a>
-
+                        @if (ViewBag.CanhBaoKhoe != null)
+                        {
+                            <div class="alert alert-warning mt-3 mb-0">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                @ViewBag.CanhBaoKhoe
                             </div>
+                        }
 
-                        </form>
+                        <div class="mt-4 d-flex gap-2 flex-wrap">
+
+                            @if (coThaoTacXoa)
+                            {
+                                <form asp-action="Delete" method="post">
+                                    <input type="hidden" asp-for="MaDanhMuc" />
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                        Xóa danh mục
+                                    </button>
+                                </form>
+                            }
+
+                            @if (coTheAn)
+                            {
+                                <form asp-action="AnDanhMuc" asp-route-id="@Model.MaDanhMuc" method="post">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="bi bi-eye-slash"></i>
+                                        Ẩn danh mục
+                                    </button>
+                                </form>
+                            }
+
+                            <a asp-action="Details"
+                               asp-route-id="@Model.MaDanhMuc"
+                               class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i>
+                                Hủy
+                            </a>
+
+                        </div>
                     }
                     else
                     {
