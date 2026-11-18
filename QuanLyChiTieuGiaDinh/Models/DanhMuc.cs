@@ -22,11 +22,13 @@ namespace QuanLyChiTieuGiaDinh.Models
         [StringLength(100)]
         public string TenDanhMucClean { get; set; } = string.Empty;
 
-        // Loại danh mục: "ThuNhap", "ChiTieu", "TietKiem"
-        [Required]
+        // Loại danh mục: "ThuNhap" hoặc "ChiTieu"
+        // Không đặt mặc định "ChiTieu" ở đây: nếu form không gửi field này thì phải báo lỗi,
+        // tránh việc âm thầm lưu sai loại. Giá trị chọn sẵn cho form đã set ở Create (GET).
+        [Required(ErrorMessage = "Vui lòng chọn loại danh mục.")]
         [StringLength(30)]
         [Display(Name = "Loại danh mục")]
-        public string LoaiDanhMuc { get; set; } = "ChiTieu";
+        public string LoaiDanhMuc { get; set; } = string.Empty;
 
         [StringLength(100)]
         [Display(Name = "Biểu tượng")]
@@ -35,8 +37,6 @@ namespace QuanLyChiTieuGiaDinh.Models
         [StringLength(20)]
         [Display(Name = "Màu sắc")]
         public string? MauSac { get; set; } = "#6c757d";
-
-        public int? MaDanhMucCha { get; set; }
 
         [StringLength(20)]
         [Display(Name = "Trạng thái")]
@@ -51,11 +51,6 @@ namespace QuanLyChiTieuGiaDinh.Models
 
         [ForeignKey(nameof(MaNguoiTao))]
         public virtual NguoiDung? NguoiTao { get; set; }
-
-        [ForeignKey(nameof(MaDanhMucCha))]
-        public virtual DanhMuc? DanhMucCha { get; set; }
-
-        public virtual ICollection<DanhMuc> DanhMucCon { get; set; } = new List<DanhMuc>();
 
         public virtual ICollection<GiaoDich> GiaoDichs { get; set; } = new List<GiaoDich>();
     }

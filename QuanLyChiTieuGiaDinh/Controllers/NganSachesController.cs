@@ -1,16 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QuanLyChiTieuGiaDinh.Data;
 using QuanLyChiTieuGiaDinh.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace QuanLyChiTieuGiaDinh.Controllers
 {
+    [Authorize]
     public class NganSachesController : Controller
     {
         private readonly ApplicationDbContext _context;
