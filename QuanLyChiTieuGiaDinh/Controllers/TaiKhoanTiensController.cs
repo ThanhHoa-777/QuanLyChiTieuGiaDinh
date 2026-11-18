@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuanLyChiTieuGiaDinh.Data;
 using QuanLyChiTieuGiaDinh.Models;
@@ -6,6 +7,7 @@ using System.Security.Claims;
 
 namespace QuanLyChiTieuGiaDinh.Controllers
 {
+    [Authorize]
     public class TaiKhoanTiensController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -53,10 +55,38 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         // Quyền sửa / xóa ví cá nhân: Chỉ người sở hữu
         private bool CoQuyenSuaXoa(TaiKhoanTien taiKhoan, NguoiDung nguoiDung)
         {
-            if (taiKhoan.LaTaiKhoanGiaDinh || taiKhoan.LoaiVi == "QuyChung")
-                return false; // Quỹ gia đình bảo tồn theo BR24
+            if (taiKhoan.LaTaiKhoanGiaDinh || taiKhoan.LoaiVi == "QuyChung" || taiKhoan.LoaiVi == "ViNhom")
+                return false; // Quỹ gia đình (BR24) và Ví nhóm do Mục tiêu tiết kiệm quản lý
 
             return taiKhoan.MaNguoiSoHuu == nguoiDung.MaNguoiDung;
+        }
+
+        // Ví nhóm: mọi thành viên ĐÃ THAM GIA mục tiêu (kể cả người ngoài hộ) đều được xem
+        private async Task<bool> LaThanhVienViNhomAsync(TaiKhoanTien taiKhoan, int maNguoiDung)
+        {
+            if (taiKhoan.LoaiVi != "ViNhom" || !taiKhoan.MaMucTieuNguon.HasValue) return false;
+
+            return await _context.ThanhVienMucTieus.AnyAsync(t =>
+                t.MaMucTieu == taiKhoan.MaMucTieuNguon.Value &&
+                t.MaNguoiDung == maNguoiDung &&
+                t.TrangThai == TrangThaiThamGia.DaThamGia);
+        }
+
+        // Số tiền thành viên ĐÃ NẠP vào ví trong kỳ hạn mức (từ NgayBatDau đến hết ngày HanChot)
+        // GIẢ ĐỊNH: GiaoDich có MaNguoiThucHien, SoTien, LoaiGiaoDich ("Thu" = tiền vào ví).
+        // Nếu tên trường khác, chỉ cần sửa đúng hàm này.
+        private async Task<decimal> TinhSoTienDaNapAsync(HanMucChiTieu hanMuc)
+        {
+            var tuNgay = hanMuc.NgayBatDau.Date;
+            var denNgay = hanMuc.HanChot.Date.AddDays(1);
+
+            return await _context.GiaoDichs
+                .Where(g => g.MaTaiKhoan == hanMuc.MaTaiKhoan
+                         && g.MaNguoiThucHien == hanMuc.MaThanhVien
+                         && g.LoaiGiaoDich == "Thu"
+                         && g.NgayGiaoDich >= tuNgay
+                         && g.NgayGiaoDich < denNgay)
+                .SumAsync(g => (decimal?)g.SoTien) ?? 0;
         }
 
         #endregion
@@ -70,15 +100,27 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (nguoiDung == null)
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
 
+            // Người ngoài hộ (được mời vào nhóm bằng email) có thể chưa thuộc hộ gia đình nào,
+            // nhưng vẫn phải thấy Ví nhóm của mình
             var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
-            if (hoGiaDinh == null)
-                return View(new List<TaiKhoanTien>());
+            int? maHo = hoGiaDinh?.MaGiaDinh;
 
-            // Lấy 1. Quỹ chung của hộ và 2. Các Ví cá nhân của chính người dùng đăng nhập
+            var mucTieuNhomIds = await _context.ThanhVienMucTieus
+                .Where(t => t.MaNguoiDung == nguoiDung.MaNguoiDung && t.TrangThai == TrangThaiThamGia.DaThamGia)
+                .Select(t => t.MaMucTieu)
+                .ToListAsync();
+
             var danhSachTaiKhoan = await _context.TaiKhoanTiens
-                .Where(x => x.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
-                            (x.LaTaiKhoanGiaDinh || x.LoaiVi == "QuyChung" || x.MaNguoiSoHuu == nguoiDung.MaNguoiDung))
+                .Where(x =>
+                    // 1. Quỹ chung của hộ + ví cá nhân của chính mình trong hộ
+                    (maHo != null && x.MaGiaDinh == maHo &&
+                        (x.LaTaiKhoanGiaDinh || x.LoaiVi == "QuyChung" || x.MaNguoiSoHuu == nguoiDung.MaNguoiDung))
+                    // 2. Ví nhóm của các mục tiêu mình đã tham gia
+                    || (x.LoaiVi == "ViNhom" && x.MaMucTieuNguon != null && mucTieuNhomIds.Contains(x.MaMucTieuNguon.Value))
+                    // 3. Ví mục tiêu cá nhân (không thuộc hộ)
+                    || (x.MaGiaDinh == null && x.LoaiVi == "ViCaNhan" && x.MaNguoiSoHuu == nguoiDung.MaNguoiDung))
                 .OrderByDescending(x => x.LaTaiKhoanGiaDinh)
+                .ThenBy(x => x.LoaiVi == "ViNhom" ? 0 : 1)
                 .ThenBy(x => x.TenTaiKhoan)
                 .ToListAsync();
 
@@ -98,80 +140,110 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
 
             var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
-            if (hoGiaDinh == null) return NotFound();
-
             var taiKhoan = await _context.TaiKhoanTiens
                 .Include(x => x.NguoiSoHuu)
-                .FirstOrDefaultAsync(x => x.MaTaiKhoan == id && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
+                .FirstOrDefaultAsync(x => x.MaTaiKhoan == id);
 
             if (taiKhoan == null) return NotFound();
 
-            // TC21: Bảo mật 100% Ví cá nhân của thành viên khác
-            if (!CoQuyenXem(taiKhoan, nguoiDung))
+            bool laViNhom = taiKhoan.LoaiVi == "ViNhom";
+
+            if (laViNhom)
             {
-                TempData["Error"] = "Bạn không có quyền truy cập Ví cá nhân của thành viên khác.";
-                return RedirectToAction(nameof(Index));
+                // Ví nhóm: kiểm tra theo tư cách thành viên của mục tiêu, không phụ thuộc hộ gia đình
+                if (!await LaThanhVienViNhomAsync(taiKhoan, nguoiDung.MaNguoiDung))
+                {
+                    TempData["Error"] = "Bạn không phải thành viên của nhóm sở hữu ví này.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            else
+            {
+                bool viCaNhanKhongHo = taiKhoan.MaGiaDinh == null && taiKhoan.MaNguoiSoHuu == nguoiDung.MaNguoiDung;
+                if (!viCaNhanKhongHo && (hoGiaDinh == null || taiKhoan.MaGiaDinh != hoGiaDinh.MaGiaDinh))
+                    return NotFound();
+
+                // TC21: Bảo mật 100% Ví cá nhân của thành viên khác
+                if (!CoQuyenXem(taiKhoan, nguoiDung))
+                {
+                    TempData["Error"] = "Bạn không có quyền truy cập Ví cá nhân của thành viên khác.";
+                    return RedirectToAction(nameof(Index));
+                }
             }
 
             // 1. LẤY DANH SÁCH GIAO DỊCH THUỘC TÀI KHOẢN NÀY
             var danhSachGiaoDich = await _context.GiaoDichs
                 .Include(g => g.NguoiThucHien)
+                .Include(g => g.DanhMuc)
                 .Where(g => g.MaTaiKhoan == id)
                 .OrderByDescending(g => g.NgayGiaoDich)
                 .ToListAsync();
 
-            // 2. TÍNH NĂNG HẠN MỨC: Lấy danh sách hạn mức và cảnh báo nếu sắp đến hạn
+            // 2. TÍNH NĂNG HẠN MỨC (chỉ Quỹ chung của hộ)
             if (taiKhoan.LaTaiKhoanGiaDinh || taiKhoan.LoaiVi == "QuyChung")
             {
-                ViewBag.DanhSachHanMuc = await _context.HanMucChiTieus
+                var dsHanMuc = await _context.HanMucChiTieus
                     .Include(h => h.ThanhVien)
                     .Where(h => h.MaTaiKhoan == id && h.TrangThai == true)
                     .ToListAsync();
 
-                // Cảnh báo hạn mức (Passive Check) trước 3 ngày
-                var hanMucGanHan = await _context.HanMucChiTieus
-                    .Where(h => h.MaTaiKhoan == id
-                             && h.MaThanhVien == nguoiDung.MaNguoiDung
-                             && h.HanChot.Date <= DateTime.Now.AddDays(3).Date
-                             && h.TrangThai == true
-                             && !h.DaThongBao)
-                    .ToListAsync();
+                // Số tiền mỗi thành viên đã nạp / hạn mức (để view hiển thị "Đã nạp đủ" hoặc "Còn thiếu")
+                var daNapTheoHanMuc = new Dictionary<int, decimal>();
+                foreach (var h in dsHanMuc)
+                    daNapTheoHanMuc[h.MaHanMuc] = await TinhSoTienDaNapAsync(h);
 
-                if (hanMucGanHan.Any())
+                ViewBag.DanhSachHanMuc = dsHanMuc;
+                ViewBag.DaNapTheoHanMuc = daNapTheoHanMuc;
+
+                // Cảnh báo (trước 3 ngày): CHỈ cho hạn mức của chính mình, tại ĐÚNG ví này, và CHƯA nạp đủ.
+                // Đã nạp đủ thì không cảnh báo nữa.
+                var canhBao = new List<string>();
+                bool coThayDoi = false;
+
+                foreach (var h in dsHanMuc.Where(h => h.MaThanhVien == nguoiDung.MaNguoiDung
+                                                   && h.HanChot.Date <= DateTime.Now.AddDays(3).Date))
                 {
-                    ViewBag.ThongBaoHanMuc = "CẢNH BÁO: Bạn sắp đến hạn chót của một số hạn mức chi tiêu trong quỹ chung. Vui lòng kiểm tra!";
+                    decimal daNap = daNapTheoHanMuc[h.MaHanMuc];
+
+                    if (daNap >= h.SoTienHanMuc)
+                    {
+                        if (!h.DaThongBao) { h.DaThongBao = true; coThayDoi = true; }
+                        continue;
+                    }
+
+                    canhBao.Add($"Ví '{taiKhoan.TenTaiKhoan}': bạn còn thiếu {(h.SoTienHanMuc - daNap):N0}đ " +
+                                $"(đã nạp {daNap:N0}/{h.SoTienHanMuc:N0}đ), hạn chót {h.HanChot:dd/MM/yyyy}.");
                 }
 
-                // 3. TÍNH NĂNG HOÀN TIÊN: Lấy danh sách yêu cầu hoàn tiền
-                if (hoGiaDinh.MaChuHo == nguoiDung.MaNguoiDung)
-                {
-                    // Chủ hộ xem tất cả yêu cầu chờ duyệt
-                    ViewBag.DanhSachYeuCauHoanTien = await _context.YeuCauHoanTiens
-                        .Include(y => y.NguoiYeuCau)
-                        .Where(y => y.MaTaiKhoan == id && y.TrangThai == "ChoDuyet")
-                        .ToListAsync();
-                }
-                else
-                {
-                    // Thành viên chỉ xem yêu cầu của chính mình
-                    ViewBag.DanhSachYeuCauHoanTien = await _context.YeuCauHoanTiens
-                        .Include(y => y.NguoiYeuCau)
-                        .Where(y => y.MaTaiKhoan == id && y.MaNguoiYeuCau == nguoiDung.MaNguoiDung)
-                        .ToListAsync();
-                }
+                if (coThayDoi) await _context.SaveChangesAsync();
+
+                if (canhBao.Any())
+                    ViewBag.ThongBaoHanMuc = "CẢNH BÁO: " + string.Join(" ", canhBao);
 
                 // Danh sách thành viên để Chủ hộ chọn khi Cài Hạn Mức
                 ViewBag.DanhSachThanhVien = await _context.ThanhVienGiaDinhs
                     .Include(tv => tv.NguoiDung)
-                    .Where(tv => tv.MaGiaDinh == hoGiaDinh.MaGiaDinh && tv.TrangThai == "DaXacNhan")
+                    .Where(tv => tv.MaGiaDinh == hoGiaDinh!.MaGiaDinh && tv.TrangThai == "DaXacNhan")
                     .Select(tv => tv.NguoiDung)
                     .ToListAsync();
             }
 
             ViewBag.MaNguoiDung = nguoiDung.MaNguoiDung;
-            ViewBag.LaChuHo = (hoGiaDinh.MaChuHo == nguoiDung.MaNguoiDung);
+            ViewBag.LaChuHo = hoGiaDinh != null && hoGiaDinh.MaChuHo == nguoiDung.MaNguoiDung;
+            ViewBag.LaViNhom = laViNhom;
+
+            if (laViNhom)
+            {
+                // Danh sách thành viên nhóm (gồm cả người ngoài hộ) để hiển thị trên trang chi tiết ví
+                ViewBag.DanhSachThanhVienNhom = await _context.ThanhVienMucTieus
+                    .Include(t => t.NguoiDung)
+                    .Where(t => t.MaMucTieu == taiKhoan.MaMucTieuNguon && t.TrangThai == TrangThaiThamGia.DaThamGia)
+                    .Select(t => t.NguoiDung)
+                    .ToListAsync();
+            }
+
             ViewBag.CoQuyenSuaXoa = CoQuyenSuaXoa(taiKhoan, nguoiDung);
-            ViewBag.CoQuyenSuDung = CoQuyenXem(taiKhoan, nguoiDung);
+            ViewBag.CoQuyenSuDung = laViNhom || CoQuyenXem(taiKhoan, nguoiDung);
             ViewBag.DanhSachGiaoDich = danhSachGiaoDich;
 
             return View(taiKhoan);
@@ -180,60 +252,92 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         // =========================================================
         // CREATE - Thêm Ví cá nhân mới (TK-05A)
         // =========================================================
+
+        [HttpGet]
         public async Task<IActionResult> Create()
         {
             var nguoiDung = await LayNguoiDungDangNhap();
+
             if (nguoiDung == null)
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(
+                nguoiDung.MaNguoiDung);
+
             if (hoGiaDinh == null)
             {
                 TempData["Error"] = "Bạn chưa thuộc hộ gia đình nào.";
                 return RedirectToAction(nameof(Index));
             }
 
-            return View(new TaiKhoanTien());
+            var taiKhoan = new TaiKhoanTien
+            {
+                LoaiTaiKhoan = "TienMat",
+                LoaiVi = "ViCaNhan",
+                LaTaiKhoanGiaDinh = false,
+                SoDuBanDau = 0,
+                SoDuHienTai = 0,
+                TrangThai = true
+            };
+
+            return View(taiKhoan);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("TenTaiKhoan,LoaiTaiKhoan,SoDuBanDau,GhiChu")] TaiKhoanTien taiKhoanInput)
+        public async Task<IActionResult> Create(
+            [Bind("TenTaiKhoan,LoaiTaiKhoan,GhiChu")]
+    TaiKhoanTien taiKhoanInput)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
+
             if (nguoiDung == null)
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(
+                nguoiDung.MaNguoiDung);
+
             if (hoGiaDinh == null)
             {
-                ModelState.AddModelError("", "Bạn chưa thuộc hộ gia đình nào.");
-                return View(taiKhoanInput);
-            }
-
-            if (taiKhoanInput.SoDuBanDau < 0)
-            {
-                ModelState.AddModelError(nameof(taiKhoanInput.SoDuBanDau), "Số dư ban đầu không được nhỏ hơn 0.");
-            }
-
-            if (ModelState.IsValid)
-            {
-                taiKhoanInput.MaGiaDinh = hoGiaDinh.MaGiaDinh;
-                taiKhoanInput.MaNguoiSoHuu = nguoiDung.MaNguoiDung;
-                taiKhoanInput.LoaiVi = "ViCaNhan";
-                taiKhoanInput.LaTaiKhoanGiaDinh = false;
-                taiKhoanInput.SoDuHienTai = taiKhoanInput.SoDuBanDau;
-                taiKhoanInput.TrangThai = true;
-
-                _context.TaiKhoanTiens.Add(taiKhoanInput);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Tạo Ví cá nhân mới thành công.";
+                TempData["Error"] = "Bạn chưa thuộc hộ gia đình nào.";
                 return RedirectToAction(nameof(Index));
             }
 
-            return View(taiKhoanInput);
+            if (!ModelState.IsValid)
+                return View(taiKhoanInput);
+
+            var taiKhoanMoi = new TaiKhoanTien
+            {
+                MaGiaDinh = hoGiaDinh.MaGiaDinh,
+
+                MaNguoiSoHuu = nguoiDung.MaNguoiDung,
+
+                TenTaiKhoan = taiKhoanInput.TenTaiKhoan.Trim(),
+
+                LoaiTaiKhoan = taiKhoanInput.LoaiTaiKhoan,
+
+                // Luôn tạo ví cá nhân
+                LoaiVi = "ViCaNhan",
+                LaTaiKhoanGiaDinh = false,
+
+                // Số dư luôn mặc định bằng 0
+                SoDuBanDau = 0,
+                SoDuHienTai = 0,
+
+                GhiChu = taiKhoanInput.GhiChu,
+
+                TrangThai = true
+            };
+
+            _context.TaiKhoanTiens.Add(taiKhoanMoi);
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Tạo Ví cá nhân thành công.";
+
+            return RedirectToAction(nameof(Index));
         }
+
 
         // =========================================================
         // EDIT - Chỉnh sửa Ví cá nhân (TK-05B)
@@ -381,22 +485,84 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        #region Tính năng mở rộng: Hạn mức & Hoàn tiền (Quỹ chung)
-        // POST: Chủ hộ Cài đặt hạn mức
+        #region Tính năng mở rộng: Hạn mức (Quỹ chung)
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CaiDatHanMuc(int maTaiKhoan, int maThanhVien, decimal soTienHanMuc, DateTime hanChot)
+        public async Task<IActionResult> CaiDatHanMuc(
+            int maTaiKhoan,
+            int maThanhVien,
+            decimal soTienHanMuc,
+            DateTime hanChot)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
-            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung!.MaNguoiDung);
 
-            if (hoGiaDinh == null || hoGiaDinh.MaChuHo != nguoiDung.MaNguoiDung)
+            if (nguoiDung == null)
+                return RedirectToPage("/Account/Login", new { area = "Identity" });
+
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(
+                nguoiDung.MaNguoiDung);
+
+            if (hoGiaDinh == null ||
+                hoGiaDinh.MaChuHo != nguoiDung.MaNguoiDung)
             {
-                TempData["Error"] = "Chỉ chủ hộ mới có quyền cài đặt hạn mức chi tiêu.";
+                TempData["Error"] = "Chỉ chủ hộ mới có quyền cài đặt hạn mức.";
                 return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
             }
 
-            // 1. Tạo bản ghi Hạn mức
+            // Kiểm tra ví có thuộc hộ gia đình và là ví chung không
+            var taiKhoan = await _context.TaiKhoanTiens
+                .FirstOrDefaultAsync(t =>
+                    t.MaTaiKhoan == maTaiKhoan &&
+                    t.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
+                    (t.LaTaiKhoanGiaDinh || t.LoaiVi == "QuyChung"));
+
+            if (taiKhoan == null)
+            {
+                TempData["Error"] = "Không tìm thấy ví gia đình hợp lệ.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Kiểm tra thành viên thuộc hộ gia đình
+            bool laThanhVien = await _context.ThanhVienGiaDinhs
+                .AnyAsync(tv =>
+                    tv.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
+                    tv.MaNguoiDung == maThanhVien &&
+                    tv.TrangThai == "DaXacNhan");
+
+            if (!laThanhVien)
+            {
+                TempData["Error"] = "Thành viên không thuộc hộ gia đình này.";
+                return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
+            }
+
+            if (soTienHanMuc <= 0)
+            {
+                TempData["Error"] = "Hạn mức phải lớn hơn 0.";
+                return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
+            }
+
+            if (hanChot.Date < DateTime.Today)
+            {
+                TempData["Error"] = "Hạn chót không được nhỏ hơn ngày hiện tại.";
+                return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
+            }
+
+            // Mỗi thành viên chỉ có 1 hạn mức đang hiệu lực trong 1 tháng (tính theo tháng của hạn chót)
+            bool daCoHanMucTrongThang = await _context.HanMucChiTieus.AnyAsync(h =>
+                h.MaTaiKhoan == maTaiKhoan &&
+                h.MaThanhVien == maThanhVien &&
+                h.TrangThai == true &&
+                h.HanChot.Year == hanChot.Year &&
+                h.HanChot.Month == hanChot.Month);
+
+            if (daCoHanMucTrongThang)
+            {
+                TempData["Error"] = $"Thành viên này đã có hạn mức trong tháng {hanChot:MM/yyyy}. " +
+                                    "Mỗi thành viên chỉ được cài 1 hạn mức mỗi tháng (hãy vô hiệu hóa hạn mức cũ nếu muốn cài lại).";
+                return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
+            }
+
             var hanMuc = new HanMucChiTieu
             {
                 MaTaiKhoan = maTaiKhoan,
@@ -407,32 +573,31 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 TrangThai = true,
                 DaThongBao = false
             };
-            _context.HanMucChiTieus.Add(hanMuc);
 
-            // 2. Tạo bản ghi Thông báo gửi đến thành viên (Khớp với cấu trúc Model ThongBao)
-            var taiKhoan = await _context.TaiKhoanTiens.FindAsync(maTaiKhoan);
-            string tenTaiKhoan = taiKhoan?.TenTaiKhoan ?? "Quỹ chung";
+            _context.HanMucChiTieus.Add(hanMuc);
 
             var thongBao = new ThongBao
             {
                 MaNguoiDung = maThanhVien,
-                PhamVi = PhamViThongBao.GiaDinh, // Gửi riêng cho cá nhân bị áp hạn mức
+                PhamVi = PhamViThongBao.GiaDinh,
                 LoaiThongBao = LoaiThongBao.HeThong,
-                TieuDe = "Cấp hạn mức chi tiêu mới",
-                NoiDung = $"Chủ hộ đã cấp cho bạn hạn mức {soTienHanMuc:N0}đ từ '{tenTaiKhoan}'. Hạn chót sử dụng: {hanChot:dd/MM/yyyy}.",
-                DuLieuLienKet = $"{{\"MaTaiKhoan\": {maTaiKhoan}}}", // Lưu vết ID tài khoản dạng JSON
+                TieuDe = "Cấp hạn mức nộp tiền mới",
+                NoiDung = $"Chủ hộ yêu cầu bạn nộp tối đa {soTienHanMuc:N0}đ vào ví gia đình '{taiKhoan.TenTaiKhoan}'. Hạn chót: {hanChot:dd/MM/yyyy}.",
+                DuLieuLienKet = $"{{\"MaTaiKhoan\":{maTaiKhoan}}}",
                 DaDoc = false,
-                IsThaoTacXong = true, // Vì đây chỉ là thông báo xem, không cần bấm duyệt
+                IsThaoTacXong = true,
                 NgayTao = DateTime.Now
             };
+
             _context.ThongBaos.Add(thongBao);
 
-            // Lưu tất cả vào Database cùng lúc
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Đã cài đặt hạn mức và gửi thông báo cho thành viên thành công.";
+            TempData["Success"] = "Đã cài đặt hạn mức và gửi thông báo cho thành viên.";
+
             return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
         }
+
 
         // POST: Chủ hộ Vô hiệu hóa (Hủy) hạn mức của thành viên
         [HttpPost]
@@ -481,83 +646,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             TempData["Success"] = "Đã vô hiệu hóa hạn mức thành công.";
             return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
         }
-        // POST: Thành viên tạo yêu cầu hoàn tiền khi nạp dư
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TaoYeuCauHoanTien(int maTaiKhoan, decimal soTien, string lyDo)
-        {
-            var nguoiDung = await LayNguoiDungDangNhap();
-
-            if (soTien <= 0)
-            {
-                TempData["Error"] = "Số tiền yêu cầu hoàn phải lớn hơn 0.";
-                return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
-            }
-
-            var yeuCau = new YeuCauHoanTien
-            {
-                MaTaiKhoan = maTaiKhoan,
-                MaNguoiYeuCau = nguoiDung!.MaNguoiDung,
-                SoTien = soTien,
-                LyDo = lyDo,
-                TrangThai = "ChoDuyet",
-                NgayYeuCau = DateTime.Now
-            };
-
-            _context.YeuCauHoanTiens.Add(yeuCau);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Đã gửi yêu cầu hoàn tiền đến Chủ hộ.";
-            return RedirectToAction(nameof(Details), new { id = maTaiKhoan });
-        }
-
-        // POST: Chủ hộ xử lý yêu cầu hoàn tiền (Duyệt / Từ chối)
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> XuLyHoanTien(int maYeuCau, string hanhDong) // "Duyet" hoặc "TuChoi"
-        {
-            var nguoiDung = await LayNguoiDungDangNhap();
-            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung!.MaNguoiDung);
-
-            var yeuCau = await _context.YeuCauHoanTiens.FindAsync(maYeuCau);
-            if (yeuCau == null) return NotFound();
-
-            if (hoGiaDinh == null || hoGiaDinh.MaChuHo != nguoiDung.MaNguoiDung)
-            {
-                TempData["Error"] = "Bạn không có quyền duyệt yêu cầu hoàn tiền.";
-                return RedirectToAction(nameof(Details), new { id = yeuCau.MaTaiKhoan });
-            }
-
-            if (yeuCau.TrangThai != "ChoDuyet")
-            {
-                TempData["Error"] = "Yêu cầu này đã được xử lý trước đó.";
-                return RedirectToAction(nameof(Details), new { id = yeuCau.MaTaiKhoan });
-            }
-
-            if (hanhDong == "Duyet")
-            {
-                var taiKhoan = await _context.TaiKhoanTiens.FindAsync(yeuCau.MaTaiKhoan);
-                if (taiKhoan == null || taiKhoan.SoDuHienTai < yeuCau.SoTien)
-                {
-                    TempData["Error"] = "Số dư quỹ chung không đủ để hoàn tiền.";
-                    return RedirectToAction(nameof(Details), new { id = yeuCau.MaTaiKhoan });
-                }
-
-                taiKhoan.SoDuHienTai -= yeuCau.SoTien;
-                yeuCau.TrangThai = "DaDuyet";
-            }
-            else
-            {
-                yeuCau.TrangThai = "TuChoi";
-            }
-
-            yeuCau.NgayXuLy = DateTime.Now;
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = $"Đã {(hanhDong == "Duyet" ? "duyệt" : "từ chối")} yêu cầu hoàn tiền.";
-            return RedirectToAction(nameof(Details), new { id = yeuCau.MaTaiKhoan });
-        }
-
         #endregion
     }
 }

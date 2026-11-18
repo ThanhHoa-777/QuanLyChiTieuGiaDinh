@@ -1,0 +1,676 @@
+﻿@model QuanLyChiTieuGiaDinh.Models.BaoCaoViewModel
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Báo cáo thống kê";
+
+    bool laChuHo = Model.LaChuHo;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    string cheDoXem = ViewBag.CheDoXem as string ?? "gia-dinh";
+    bool isCaNhan = cheDoXem == "ca-nhan";
+
+    // Số liệu so sánh với tháng trước (do BaoCaoController tính, cùng điều kiện lọc với số liệu tháng này)
+    var soSanh = ViewBag.SoSanh as QuanLyChiTieuGiaDinh.Models.BaoCaoSoSanhViewModel;
+    var dongSoSanh = soSanh == null
+        ? null
+        : new[]
+        {
+            new { Nhan = "Tổng thu", ChiSo = soSanh.Thu, TangLaXau = false },
+            new { Nhan = "Tổng chi", ChiSo = soSanh.Chi, TangLaXau = true },
+            new { Nhan = "Chênh lệch thu chi", ChiSo = soSanh.ChenhLech, TangLaXau = false }
+        };
+
+    string TienCoDau(decimal v) => (v > 0 ? "+" : v < 0 ? "-" : "") + Math.Abs(v).ToString("N0") + " đ";
+    // Tăng chi là xấu (đỏ), tăng thu / tăng chênh lệch là tốt (xanh)
+    string MauSoSanh(decimal chenhLech, bool tangLaXau) =>
+        chenhLech == 0 ? "text-muted" : ((chenhLech > 0) != tangLaXau ? "text-success" : "text-danger");
+    string TextPhanTram(QuanLyChiTieuGiaDinh.Models.ChiSoSoSanhViewModel c) =>
+        c.PhanTram.HasValue
+            ? (c.PhanTram.Value > 0 ? "▲ +" : c.PhanTram.Value < 0 ? "▼ " : "") + c.PhanTram.Value.ToString("0.#") + "%"
+            : (c.HienTai != 0 ? "Mới phát sinh" : "—");
+
+    var tuNgayBaoCao = new DateTime(Model.NamBaoCao, Model.ThangBaoCao, 1);
+    var denNgayBaoCao = tuNgayBaoCao.AddMonths(1).AddDays(-1);
+    var soSanhJson = dongSoSanh?.Select(d => new
+    {
+        ChiSo = d.Nhan,
+        HienTai = d.ChiSo.HienTai,
+        ThangTruoc = d.ChiSo.ThangTruoc,
+        ChenhLechTien = d.ChiSo.ChenhLechTien,
+        PhanTram = d.ChiSo.PhanTram
+    });
+    string NhanLoai(string loai) => loai switch
+    {
+        "Thu" => "Thu",
+        "Chi" => "Chi",
+        "TietKiem" => "Tiết kiệm",
+        _ => loai
+    };
+
+    string NhanTrangThai(string tt) => tt switch
+    {
+        "DaDuyet" => "Đã duyệt",
+        "ChoDuyet" => "Chờ duyệt",
+        "TuChoi" => "Từ chối",
+        _ => tt
+    };
+}
+
+<div class="container-fluid py-3">
+    <div class="bg-success bg-opacity-10 rounded-3 p-3 p-md-4">
+
+        @* ===== TIÊU ĐỀ + NÚT ===== *@
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h2 class="fw-bold mb-1">Báo cáo tháng @Model.ThangBaoCao/@Model.NamBaoCao</h2>
+                <div class="text-muted">
+                    @if (Model.HoGiaDinh != null)
+                    {
+                        <span>Gia đình: <strong>@Model.HoGiaDinh.TenGiaDinh</strong></span>
+                    }
+                    else
+                    {
+                        <span>Theo dõi tình hình thu chi của gia đình</span>
+                    }
+                </div>
+                <div class="text-muted small d-none d-print-block">In ngày @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+            </div>
+
+            @if (Model.HoGiaDinh != null)
+            {
+                <div class="d-flex gap-2 d-print-none">
+                    <button type="button" class="btn btn-outline-success" onclick="window.print()">🖨️ In báo cáo</button>
+                    <button type="button" class="btn btn-success" id="btnXuatExcel">📥 Xuất Excel</button>
+                    <button type="button" class="btn btn-danger" id="btnXuatPdf">📄 Xuất PDF</button>
+                </div>
+            }
+        </div>
+
+        @if (Model.HoGiaDinh != null)
+        {
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
+                <span class="small text-secondary">
+                    Đang xem: <strong class="text-success">@(isCaNhan ? "👤 Cá nhân của bạn" : "🏠 Hộ gia đình")</strong>
+                </span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a asp-controller="BaoCao" asp-action="Index"
+                       asp-route-thang="@Model.ThangBaoCao" asp-route-nam="@Model.NamBaoCao" asp-route-cheDo="gia-dinh"
+                       class="btn @(!isCaNhan ? "btn-success" : "btn-outline-success")">🏠 Hộ gia đình</a>
+                    <a asp-controller="BaoCao" asp-action="Index"
+                       asp-route-thang="@Model.ThangBaoCao" asp-route-nam="@Model.NamBaoCao" asp-route-cheDo="ca-nhan"
+                       class="btn @(isCaNhan ? "btn-success" : "btn-outline-success")">👤 Cá nhân</a>
+                </div>
+            </div>
+        }
+
+        @* ===== BỘ LỌC ===== *@
+        <form asp-controller="BaoCao" asp-action="Index" method="get" class="card border-0 shadow-sm mb-3 d-print-none">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-4">
+                        <label class="form-label fw-semibold mb-1" for="thang">Tháng</label>
+                        <select id="thang" name="thang" class="form-select">
+                            @for (int i = 1; i <= 12; i++)
+                            {
+                                <option value="@i" selected="@(i == Model.ThangBaoCao)">Tháng @i</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label fw-semibold mb-1" for="nam">Năm</label>
+                        <select id="nam" name="nam" class="form-select">
+                            @for (int i = DateTime.Now.Year - 5; i <= DateTime.Now.Year + 1; i++)
+                            {
+                                <option value="@i" selected="@(i == Model.NamBaoCao)">@i</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <button type="submit" class="btn btn-success w-100">🔍 Xem báo cáo</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        @if (Model.HoGiaDinh == null)
+        {
+            <div class="alert alert-warning shadow-sm">
+                <h5 class="fw-bold">Bạn chưa có hộ gia đình</h5>
+                <p class="mb-3">Hãy tạo hoặc tham gia một hộ gia đình để xem báo cáo thống kê.</p>
+                <a asp-controller="HoGiaDinhs" asp-action="Index" class="btn btn-warning">🏠 Quản lý hộ gia đình</a>
+            </div>
+        }
+        else
+        {
+            @* ===== PHẠM VI ===== *@
+            <div class="alert alert-success py-2 mb-3">
+                @if (laChuHo)
+                {
+                    <span>👑 <strong>Chủ hộ:</strong> báo cáo gồm toàn bộ giao dịch của gia đình.</span>
+                }
+                else
+                {
+                    <span>👤 <strong>Thành viên:</strong> báo cáo gồm giao dịch của bạn và giao dịch dùng tài khoản gia đình.</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.PhamViBaoCao))
+                {
+                    <div class="small text-muted mt-1">@Model.PhamViBaoCao</div>
+                }
+            </div>
+
+            @* ===== TỔNG QUAN ===== *@
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Tổng thu</div>
+                            <div class="fs-4 fw-bold text-success">+@Model.TongThu.ToString("N0") đ</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Tổng chi</div>
+                            <div class="fs-4 fw-bold text-danger">-@Model.TongChi.ToString("N0") đ</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Còn lại</div>
+                            <div class="fs-4 fw-bold @(Model.ChenhLech >= 0 ? "text-success" : "text-danger")">
+                                @Model.ChenhLech.ToString("N0") đ
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Số giao dịch</div>
+                            <div class="fs-4 fw-bold">@Model.SoGiaoDich</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ===== SO SÁNH VỚI THÁNG TRƯỚC ===== *@
+            @if (soSanh != null && dongSoSanh != null)
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">
+                            🔁 So sánh với tháng trước
+                            <span class="text-muted fs-6">(tháng @Model.ThangBaoCao/@Model.NamBaoCao so với tháng @soSanh.ThangTruoc/@soSanh.NamTruoc)</span>
+                        </h5>
+
+                        @if (!soSanh.CoDuLieuThangTruoc)
+                        {
+                            <div class="alert alert-secondary py-2 small">
+                                Tháng @soSanh.ThangTruoc/@soSanh.NamTruoc chưa có giao dịch nào thuộc phạm vi báo cáo,
+                                nên chưa tính được tỷ lệ tăng/giảm.
+                            </div>
+                        }
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th>Chỉ số</th>
+                                        <th class="text-end">Tháng @Model.ThangBaoCao/@Model.NamBaoCao</th>
+                                        <th class="text-end">Tháng @soSanh.ThangTruoc/@soSanh.NamTruoc</th>
+                                        <th class="text-end">Tăng/giảm (đ)</th>
+                                        <th class="text-end">Tăng/giảm (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var d in dongSoSanh)
+                                    {
+                                        string mau = MauSoSanh(d.ChiSo.ChenhLechTien, d.TangLaXau);
+                                        <tr>
+                                            <td class="fw-semibold">@d.Nhan</td>
+                                            <td class="text-end">@d.ChiSo.HienTai.ToString("N0") đ</td>
+                                            <td class="text-end">@d.ChiSo.ThangTruoc.ToString("N0") đ</td>
+                                            <td class="text-end fw-semibold @mau">@TienCoDau(d.ChiSo.ChenhLechTien)</td>
+                                            <td class="text-end fw-semibold @mau">@TextPhanTram(d.ChiSo)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            ▲ tăng, ▼ giảm so với tháng trước. Tăng thu là tốt (xanh), tăng chi là cần lưu ý (đỏ).
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ===== BIỂU ĐỒ ===== *@
+            <div class="row g-3 mb-3">
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-3">Chi tiêu theo danh mục</h5>
+                            @if (Model.ChiTheoDanhMuc.Any())
+                            {
+                                <div style="height:300px;"><canvas id="bieuDoChiDanhMuc"></canvas></div>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center py-5 mb-0">Chưa có dữ liệu chi tiêu.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-3">Tổng thu và tổng chi</h5>
+                            <div style="height:300px;"><canvas id="bieuDoThuChi"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ===== THU / CHI THEO DANH MỤC ===== *@
+            <div class="row g-3 mb-3">
+
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-3">💸 Chi theo danh mục</h5>
+                            @if (Model.ChiTheoDanhMuc.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-success">
+                                            <tr>
+                                                <th>Danh mục</th>
+                                                <th class="text-end">Số tiền</th>
+                                                <th class="text-end">Tỷ lệ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in Model.ChiTheoDanhMuc)
+                                            {
+                                                decimal tyLe = Model.TongChi > 0 ? (item.SoTien / Model.TongChi) * 100 : 0;
+                                                <tr>
+                                                    <td class="fw-semibold">@item.TenDanhMuc</td>
+                                                    <td class="text-end text-danger fw-semibold">@item.SoTien.ToString("N0") đ</td>
+                                                    <td class="text-end" style="min-width:100px;">
+                                                        <div class="small">@tyLe.ToString("0.#")%</div>
+                                                        <div class="progress" style="height:6px;">
+                                                            <div class="progress-bar bg-danger bg-opacity-50" style="width:@(tyLe.ToString("0.##", inv))%"></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                        <tfoot class="table-success">
+                                            <tr>
+                                                <th>Tổng chi</th>
+                                                <th class="text-end text-danger">@Model.TongChi.ToString("N0") đ</th>
+                                                <th class="text-end">100%</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong tháng này.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-3">💰 Thu theo danh mục</h5>
+                            @if (Model.ThuTheoDanhMuc.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-success">
+                                            <tr>
+                                                <th>Danh mục</th>
+                                                <th class="text-end">Số tiền</th>
+                                                <th class="text-end">Tỷ lệ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in Model.ThuTheoDanhMuc)
+                                            {
+                                                decimal tyLe = Model.TongThu > 0 ? (item.SoTien / Model.TongThu) * 100 : 0;
+                                                <tr>
+                                                    <td class="fw-semibold">@item.TenDanhMuc</td>
+                                                    <td class="text-end text-success fw-semibold">@item.SoTien.ToString("N0") đ</td>
+                                                    <td class="text-end" style="min-width:100px;">
+                                                        <div class="small">@tyLe.ToString("0.#")%</div>
+                                                        <div class="progress" style="height:6px;">
+                                                            <div class="progress-bar bg-success bg-opacity-50" style="width:@(tyLe.ToString("0.##", inv))%"></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                        <tfoot class="table-success">
+                                            <tr>
+                                                <th>Tổng thu</th>
+                                                <th class="text-end text-success">@Model.TongThu.ToString("N0") đ</th>
+                                                <th class="text-end">100%</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản thu nào trong tháng này.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            @* ===== CHI THEO NGÀY ===== *@
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">📅 Chi tiêu theo ngày</h5>
+                    @if (Model.ChiTheoNgay.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th class="text-end">Số tiền chi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.ChiTheoNgay)
+                                    {
+                                        <tr>
+                                            <td>@item.Ngay.ToString("dd/MM/yyyy")</td>
+                                            <td class="text-end text-danger fw-semibold">@item.SoTien.ToString("N0") đ</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong tháng này.</p>
+                    }
+                </div>
+            </div>
+
+            @* ===== DANH SÁCH GIAO DỊCH ===== *@
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">📋 Các giao dịch trong tháng</h5>
+                        <a asp-controller="GiaoDiches" asp-action="Index" class="btn btn-outline-success btn-sm d-print-none">Xem giao dịch</a>
+                    </div>
+
+                    @if (Model.GiaoDichs.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Người thực hiện</th>
+                                        <th>Loại</th>
+                                        <th>Tài khoản</th>
+                                        <th>Danh mục</th>
+                                        <th>Trạng thái</th>
+                                        <th class="text-end">Số tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var gd in Model.GiaoDichs)
+                                    {
+                                        bool laTkGiaDinh = gd.TaiKhoanTien != null && gd.TaiKhoanTien.LaTaiKhoanGiaDinh;
+                                        bool laThu = gd.LoaiGiaoDich == "Thu";
+
+                                        <tr>
+                                            <td class="text-nowrap">@gd.NgayGiaoDich.ToString("dd/MM/yyyy")</td>
+                                            <td>@(gd.NguoiThucHien?.HoTen ?? "Không xác định")</td>
+                                            <td>
+                                                <span class="badge @(laThu ? "bg-success" : gd.LoaiGiaoDich == "Chi" ? "bg-danger" : "bg-info text-dark")">
+                                                    @NhanLoai(gd.LoaiGiaoDich)
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div>@(gd.TaiKhoanTien?.TenTaiKhoan ?? "Không có")</div>
+                                                <span class="badge @(laTkGiaDinh ? "bg-success bg-opacity-25 text-dark" : "bg-light text-dark border")">
+                                                    @(laTkGiaDinh ? "🏠 Gia đình" : "👤 Cá nhân")
+                                                </span>
+                                            </td>
+                                            <td>@(gd.DanhMuc?.TenDanhMuc ?? "Không có")</td>
+                                            <td>
+                                                <span class="badge @(gd.TrangThaiDuyet == "DaDuyet" ? "bg-success" : gd.TrangThaiDuyet == "TuChoi" ? "bg-danger" : "bg-warning text-dark")">
+                                                    @NhanTrangThai(gd.TrangThaiDuyet)
+                                                </span>
+                                            </td>
+                                            <td class="text-end text-nowrap fw-bold @(laThu ? "text-success" : "text-danger")">
+                                                @(laThu ? "+" : "-")@gd.SoTien.ToString("N0") đ
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center py-4 mb-0">
+                            Không có giao dịch nào trong tháng này thuộc phạm vi báo cáo của bạn.
+                        </p>
+                    }
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+
+    @if (Model.HoGiaDinh != null)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+        <script>
+            // =====================================================
+            // DỮ LIỆU TỪ SERVER
+            // =====================================================
+            const duLieuChi = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                        Model.ChiTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
+
+    const duLieuThu = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.ThuTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
+
+    const duLieuNgay = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.ChiTheoNgay.Select(x => new { Ngay = x.Ngay.ToString("dd/MM/yyyy"), x.SoTien })));
+
+    const duLieuGiaoDich = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.GiaoDichs.Select(g => new
+                {
+                        Ngay = g.NgayGiaoDich.ToString("dd/MM/yyyy"),
+                        NguoiThucHien = g.NguoiThucHien?.HoTen ?? "Không xác định",
+                        Loai = NhanLoai(g.LoaiGiaoDich),
+                        TaiKhoan = g.TaiKhoanTien?.TenTaiKhoan ?? "Không có",
+                        PhamVi = (g.TaiKhoanTien != null && g.TaiKhoanTien.LaTaiKhoanGiaDinh) ? "Gia đình" : "Cá nhân",
+                        DanhMuc = g.DanhMuc?.TenDanhMuc ?? "Không có",
+                        TrangThai = NhanTrangThai(g.TrangThaiDuyet),
+                        SoTien = g.LoaiGiaoDich == "Thu" ? g.SoTien : -g.SoTien
+                })));
+
+    const tongThu = @Model.TongThu.ToString(inv);
+    const tongChi = @Model.TongChi.ToString(inv);
+    const chenhLech = @Model.ChenhLech.ToString(inv);
+    const soGiaoDich = @Model.SoGiaoDich;
+    const tieuDe = "Báo cáo tháng @Model.ThangBaoCao/@Model.NamBaoCao";
+    const tenGiaDinh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.HoGiaDinh.TenGiaDinh ?? ""));
+    const tenFile = "BaoCao_@(Model.NamBaoCao)_@(Model.ThangBaoCao.ToString("00")).xlsx";
+    const tenFilePdf = "BaoCao_@(Model.NamBaoCao)_@(Model.ThangBaoCao.ToString("00"))";
+    const thoiGianBaoCao = "Tháng @Model.ThangBaoCao/@Model.NamBaoCao (@tuNgayBaoCao.ToString("dd/MM/yyyy") - @denNgayBaoCao.ToString("dd/MM/yyyy"))";
+    const phamViBaoCao = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PhamViBaoCao ?? ""));
+    const ngayXuat = "@DateTime.Now.ToString("dd/MM/yyyy HH:mm")";
+    const tieuDeThangTruoc = "@(soSanh != null ? $"tháng {soSanh.ThangTruoc}/{soSanh.NamTruoc}" : "")";
+    const duLieuSoSanh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(soSanhJson));
+
+            // =====================================================
+            // BIỂU ĐỒ (tông xanh lá pastel)
+            // =====================================================
+            Chart.defaults.animation = false;   // để in ra đủ hình
+
+            const mauPastel = ["#64b57d", "#aedfba", "#8fd0a2", "#cfeed6", "#3f9a62",
+                               "#b7e4c1", "#7cc592", "#d9786c", "#f0b7ad", "#9fd6ae"];
+
+            const canvasChi = document.getElementById("bieuDoChiDanhMuc");
+            if (canvasChi) {
+                new Chart(canvasChi, {
+                    type: "doughnut",
+                    data: {
+                        labels: duLieuChi.map(x => x.TenDanhMuc),
+                        datasets: [{
+                            data: duLieuChi.map(x => x.SoTien),
+                            backgroundColor: duLieuChi.map((_, i) => mauPastel[i % mauPastel.length]),
+                            borderColor: "#fff",
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: "bottom" } }
+                    }
+                });
+            }
+
+            const canvasThuChi = document.getElementById("bieuDoThuChi");
+            if (canvasThuChi) {
+                new Chart(canvasThuChi, {
+                    type: "bar",
+                    data: {
+                        labels: ["Tổng thu", "Tổng chi"],
+                        datasets: [{
+                            label: "Số tiền (đ)",
+                            data: [tongThu, tongChi],
+                            backgroundColor: ["#64b57d", "#e9a79d"],
+                            borderRadius: 8,
+                            maxBarThickness: 90
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            // =====================================================
+            // XUẤT EXCEL
+            // =====================================================
+            function taoSheet(duLieu, doRong) {
+                const ws = XLSX.utils.aoa_to_sheet(duLieu);
+                ws["!cols"] = doRong.map(w => ({ wch: w }));
+                // Định dạng số có dấu phân cách hàng nghìn cho dễ đọc
+                Object.keys(ws).forEach(k => {
+                    if (k[0] !== "!" && ws[k].t === "n") ws[k].z = "#,##0.##";
+                });
+                return ws;
+            }
+
+            document.getElementById("btnXuatExcel").addEventListener("click", function () {
+                if (typeof XLSX === "undefined") {
+                    alert("Không tải được thư viện xuất Excel. Vui lòng kiểm tra kết nối mạng.");
+                    return;
+                }
+
+                const wb = XLSX.utils.book_new();
+
+                XLSX.utils.book_append_sheet(wb, taoSheet([
+                    [tieuDe],
+                    ["Gia đình", tenGiaDinh],
+                    ["Thời gian báo cáo", thoiGianBaoCao],
+                    ["Phạm vi", phamViBaoCao],
+                    ["Ngày xuất", ngayXuat],
+                    [],
+                    ["Chỉ tiêu", "Giá trị"],
+                    ["Tổng thu (đ)", tongThu],
+                    ["Tổng chi (đ)", tongChi],
+                    ["Còn lại (đ)", chenhLech],
+                    ["Số giao dịch", soGiaoDich]
+                ], [24, 60]), "Tổng quan");
+
+                if (duLieuSoSanh) {
+                    XLSX.utils.book_append_sheet(wb, taoSheet([
+                        ["So sánh " + tieuDe + " với " + tieuDeThangTruoc],
+                        [],
+                        ["Chỉ số", tieuDe.replace("Báo cáo ", ""), tieuDeThangTruoc, "Tăng/giảm (đ)", "Tăng/giảm (%)"],
+                        ...duLieuSoSanh.map(x => [
+                            x.ChiSo, x.HienTai, x.ThangTruoc, x.ChenhLechTien,
+                            x.PhanTram === null ? "Không có số liệu tháng trước" : x.PhanTram
+                        ]),
+                        [],
+                        ["Ghi chú: số dương = tăng, số âm = giảm so với tháng trước."]
+                    ], [26, 22, 22, 18, 30]), "So sánh tháng trước");
+                }
+
+                XLSX.utils.book_append_sheet(wb, taoSheet([
+                    ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
+                    ...duLieuChi.map(x => [x.TenDanhMuc, x.SoTien, tongChi > 0 ? Math.round(x.SoTien / tongChi * 10000) / 100 : 0]),
+                    ["Tổng chi", tongChi, 100]
+                ], [28, 18, 12]), "Chi theo danh mục");
+
+                XLSX.utils.book_append_sheet(wb, taoSheet([
+                    ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
+                    ...duLieuThu.map(x => [x.TenDanhMuc, x.SoTien, tongThu > 0 ? Math.round(x.SoTien / tongThu * 10000) / 100 : 0]),
+                    ["Tổng thu", tongThu, 100]
+                ], [28, 18, 12]), "Thu theo danh mục");
+
+                XLSX.utils.book_append_sheet(wb, taoSheet([
+                    ["Ngày", "Số tiền chi (đ)"],
+                    ...duLieuNgay.map(x => [x.Ngay, x.SoTien])
+                ], [14, 18]), "Chi theo ngày");
+
+                XLSX.utils.book_append_sheet(wb, taoSheet([
+                    ["Ngày", "Người thực hiện", "Loại", "Tài khoản", "Phạm vi", "Danh mục", "Trạng thái", "Số tiền (đ)"],
+                    ...duLieuGiaoDich.map(g => [g.Ngay, g.NguoiThucHien, g.Loai, g.TaiKhoan, g.PhamVi, g.DanhMuc, g.TrangThai, g.SoTien])
+                ], [12, 22, 12, 22, 12, 22, 14, 16]), "Giao dịch");
+
+                XLSX.writeFile(wb, tenFile);
+            });
+
+            // =====================================================
+            // XUẤT PDF (dùng "Lưu dưới dạng PDF" của trình duyệt, nội dung = đúng giao diện báo cáo)
+            // =====================================================
+            const btnXuatPdf = document.getElementById("btnXuatPdf");
+            if (btnXuatPdf) {
+                btnXuatPdf.addEventListener("click", function () {
+                    const tieuDeCu = document.title;
+                    document.title = tenFilePdf;   // tên file gợi ý khi lưu
+                    window.addEventListener("afterprint", function khoiPhuc() {
+                        document.title = tieuDeCu;
+                        window.removeEventListener("afterprint", khoiPhuc);
+                    });
+                    alert("Trong hộp thoại in, hãy chọn máy in \"Lưu dưới dạng PDF\" (Save as PDF) rồi bấm Lưu.");
+                    window.print();
+                });
+            }
+        </script>
+    }
+}
