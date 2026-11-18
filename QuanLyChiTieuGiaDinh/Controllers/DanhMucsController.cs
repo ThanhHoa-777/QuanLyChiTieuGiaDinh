@@ -1,4 +1,4 @@
-﻿
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuanLyChiTieuGiaDinh.Data;
@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace QuanLyChiTieuGiaDinh.Controllers
 {
+    [Authorize]
     public class DanhMucsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -19,36 +20,35 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             _context = context;
         }
 
+        private const string Active = "Active";
+        private const string Inactive = "Inactive";
+
+        private static readonly string[] CacLoaiHopLe = { "ThuNhap", "ChiTieu" };
+
+        private enum KetQuaTao { Moi, DaCoSan, KhoiPhuc }
+
         #region Helpers & Phân quyền
 
-        // BR34: Hàm làm sạch chuỗi loại bỏ dấu và chuyển về chữ thường để kiểm tra so sánh trùng lặp
-        private static string LamSachChuoi(string text)
+        private static bool LoaiHopLe(string? loai) => loai != null && CacLoaiHopLe.Contains(loai);
+
+        // BR34: Làm sạch chuỗi: bỏ dấu (kể cả đ/Đ), chữ thường, gộp khoảng trắng
+        private static string LamSachChuoi(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return string.Empty;
 
-            string normalizedString = text.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
-            var stringBuilder = new StringBuilder();
+            // 'đ' không bị tách dấu bởi FormD nên phải thay tay, nếu không "Đi chợ" != "di cho"
+            string s = text.Trim().ToLowerInvariant().Replace('đ', 'd');
+            string normalized = s.Normalize(NormalizationForm.FormD);
 
-            foreach (var c in normalizedString)
+            var sb = new StringBuilder();
+            foreach (var c in normalized)
             {
-                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
-                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
-                {
-                    stringBuilder.Append(c);
-                }
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
             }
 
-            string result = stringBuilder.ToString().Normalize(NormalizationForm.FormC);
-            return Regex.Replace(result, @"\s+", " ");
-        }
-
-        private string TaoNoiDungDanhMuc(DanhMuc danhMuc)
-        {
-            return $"Tên: {danhMuc.TenDanhMuc}; " +
-                   $"Loại: {danhMuc.LoaiDanhMuc}; " +
-                   $"Biểu tượng: {danhMuc.BieuTuong ?? "Không có"}; " +
-                   $"Màu sắc: {danhMuc.MauSac ?? "Đen"}; " +
-                   $"Phạm vi: {(danhMuc.MaGiaDinh.HasValue ? $"Gia đình {danhMuc.MaGiaDinh}" : "Hệ thống")}";
+            string result = sb.ToString().Normalize(NormalizationForm.FormC);
+            return Regex.Replace(result, @"\s+", " ").Trim();
         }
 
         private async Task<NguoiDung?> LayNguoiDungDangNhap()
@@ -75,41 +75,105 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return thanhVien?.HoGiaDinh;
         }
 
-        private bool LaChuHo(NguoiDung nguoiDung, HoGiaDinh hoGiaDinh)
-        {
-            return hoGiaDinh.MaChuHo == nguoiDung.MaNguoiDung;
-        }
+        private static bool LaChuHo(NguoiDung nguoiDung, HoGiaDinh hoGiaDinh)
+            => hoGiaDinh.MaChuHo == nguoiDung.MaNguoiDung;
 
-        // Ma trận phân quyền: Kiểm tra xem người dùng có quyền Sửa / Xóa danh mục hay không
-        private bool CoQuyenSuaXoa(DanhMuc danhMuc, NguoiDung nguoiDung, HoGiaDinh hoGiaDinh)
+        // Chủ hộ sửa/xóa mọi danh mục của hộ; thành viên chỉ sửa/xóa danh mục mình tạo. Danh mục hệ thống: không ai được sửa.
+        private static bool CoQuyenSuaXoa(DanhMuc danhMuc, NguoiDung nguoiDung, HoGiaDinh hoGiaDinh)
         {
             if (danhMuc.MaGiaDinh == null) return false;
-
             if (LaChuHo(nguoiDung, hoGiaDinh)) return true;
-
-            // Thành viên chỉ được phép sửa/xóa danh mục do chính mình tạo ra
             return danhMuc.MaNguoiTao == nguoiDung.MaNguoiDung;
         }
 
-        private async Task NapDanhMucCha(int maGiaDinh, int? maDanhMucDangSua = null)
+        private async Task<bool> CoGiaoDichAsync(int maDanhMuc)
         {
-            var danhSach = await _context.DanhMucs
-                .Where(x => (x.MaGiaDinh == maGiaDinh || x.MaGiaDinh == null) &&
-                            x.MaDanhMuc != maDanhMucDangSua &&
-                            x.TrangThai == "Active")
-                .OrderBy(x => x.LoaiDanhMuc)
-                .ThenBy(x => x.TenDanhMuc)
+            return await _context.GiaoDichs.AnyAsync(x => x.MaDanhMuc == maDanhMuc) ||
+                   await _context.GiaoDichDinhKys.AnyAsync(x => x.MaDanhMuc == maDanhMuc);
+        }
+
+        /// <summary>
+        /// Tìm danh mục trùng tên (không phân biệt hoa/thường/dấu) trong cùng loại, gồm danh mục của hộ
+        /// và danh mục hệ thống đang hoạt động. So sánh tên ở bộ nhớ (danh sách nhỏ) nên không phụ thuộc
+        /// cột TenDanhMucClean cũ (dữ liệu seed có thể để trống hoặc làm sạch theo công thức cũ).
+        /// Ưu tiên bản đang hoạt động, rồi danh mục hệ thống.
+        /// </summary>
+        private async Task<DanhMuc?> TimDanhMucTrungAsync(int maGiaDinh, string loai, string tenDaLamSach, int? boQuaId = null)
+        {
+            var ungVien = await _context.DanhMucs
+                .Where(x => x.LoaiDanhMuc == loai &&
+                            (x.MaGiaDinh == maGiaDinh || (x.MaGiaDinh == null && x.TrangThai == Active)) &&
+                            (boQuaId == null || x.MaDanhMuc != boQuaId))
                 .ToListAsync();
 
-            ViewBag.DanhMucCha = danhSach;
+            return ungVien
+                .Where(x => LamSachChuoi(x.TenDanhMuc) == tenDaLamSach)
+                .OrderBy(x => x.TrangThai == Active ? 0 : 1)
+                .ThenBy(x => x.MaGiaDinh == null ? 0 : 1)
+                .ThenBy(x => x.MaDanhMuc)
+                .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Điểm vào DUY NHẤT để tạo danh mục (form chính và tạo nhanh đều dùng).
+        /// Trùng => dùng lại bản có sẵn (không tạo thêm, không coi là lỗi). Bản của hộ đã ẩn => khôi phục.
+        /// </summary>
+        private async Task<(DanhMuc DanhMuc, KetQuaTao KetQua)> TaoHoacLayDanhMucAsync(
+            NguoiDung nguoiDung, int maGiaDinh, string ten, string loai,
+            string? bieuTuong, string? mauSac)
+        {
+            ten = ten.Trim();
+            string tenClean = LamSachChuoi(ten);
+
+            var trung = await TimDanhMucTrungAsync(maGiaDinh, loai, tenClean);
+            if (trung != null)
+                return await DungDanhMucCoSanAsync(trung, maGiaDinh);
+
+            var moi = new DanhMuc
+            {
+                TenDanhMuc = ten,
+                TenDanhMucClean = tenClean,
+                LoaiDanhMuc = loai,
+                MaGiaDinh = maGiaDinh,
+                MaNguoiTao = nguoiDung.MaNguoiDung,
+                BieuTuong = bieuTuong,
+                MauSac = mauSac,
+                TrangThai = Active
+            };
+
+            _context.DanhMucs.Add(moi);
+            try
+            {
+                await _context.SaveChangesAsync();
+                return (moi, KetQuaTao.Moi);
+            }
+            catch (DbUpdateException)
+            {
+                // Hai yêu cầu tạo cùng lúc: nếu có unique index thì bản thứ 2 bị từ chối, ta lấy bản đã lưu.
+                _context.Entry(moi).State = EntityState.Detached;
+                var daCo = await TimDanhMucTrungAsync(maGiaDinh, loai, tenClean);
+                if (daCo == null) throw;
+                return (daCo, KetQuaTao.DaCoSan);
+            }
+        }
+
+        private async Task<(DanhMuc, KetQuaTao)> DungDanhMucCoSanAsync(DanhMuc trung, int maGiaDinh)
+        {
+            if (trung.TrangThai != Active && trung.MaGiaDinh == maGiaDinh)
+            {
+                trung.TrangThai = Active;
+                await _context.SaveChangesAsync();
+                return (trung, KetQuaTao.KhoiPhuc);
+            }
+            return (trung, KetQuaTao.DaCoSan);
         }
 
         #endregion
 
         // =========================================================
-        // INDEX - Danh sách Danh mục (BR33)
+        // INDEX - Danh sách, tìm kiếm, lọc (BR33)
         // =========================================================
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? tuKhoa, string? loai, bool hienDaAn = false)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null)
@@ -119,24 +183,47 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (hoGiaDinh == null)
                 return View(new List<DanhMuc>());
 
-            // BR33: Lấy toàn bộ danh mục dùng chung của Hộ gia đình và hệ thống
-            var danhSachDanhMuc = await _context.DanhMucs
-                .Include(x => x.DanhMucCha)
+            int maHo = hoGiaDinh.MaGiaDinh;
+
+            var query = _context.DanhMucs
                 .Include(x => x.NguoiTao)
-                .Where(x => (x.MaGiaDinh == null || x.MaGiaDinh == hoGiaDinh.MaGiaDinh) && x.TrangThai == "Active")
+                .Where(x => (x.MaGiaDinh == null && x.TrangThai == Active) ||
+                            (x.MaGiaDinh == maHo && (hienDaAn || x.TrangThai == Active)));
+
+            if (LoaiHopLe(loai))
+                query = query.Where(x => x.LoaiDanhMuc == loai);
+
+            var ds = await query
                 .OrderBy(x => x.LoaiDanhMuc)
                 .ThenBy(x => x.TenDanhMuc)
                 .ToListAsync();
 
+            if (!string.IsNullOrWhiteSpace(tuKhoa))
+            {
+                string k = LamSachChuoi(tuKhoa);
+                ds = ds.Where(x => LamSachChuoi(x.TenDanhMuc).Contains(k)).ToList();
+            }
+
+            // Số giao dịch của từng danh mục thuộc hộ (view dùng để hiện nút Xóa hay Ẩn)
+            var dem = await _context.GiaoDichs
+                .Where(g => g.DanhMuc != null && g.DanhMuc.MaGiaDinh == maHo)
+                .GroupBy(g => g.MaDanhMuc)
+                .Select(g => new { Ma = g.Key, So = g.Count() })
+                .ToListAsync();
+
+            ViewBag.SoGiaoDich = dem.ToDictionary(a => Convert.ToInt32(a.Ma), a => a.So);
             ViewBag.MaNguoiDung = nguoiDung.MaNguoiDung;
             ViewBag.LaChuHo = LaChuHo(nguoiDung, hoGiaDinh);
             ViewBag.HoGiaDinh = hoGiaDinh;
+            ViewBag.TuKhoa = tuKhoa;
+            ViewBag.Loai = loai;
+            ViewBag.HienDaAn = hienDaAn;
 
-            return View(danhSachDanhMuc);
+            return View(ds);
         }
 
         // =========================================================
-        // DETAILS - Chi tiết danh mục
+        // DETAILS
         // =========================================================
         public async Task<IActionResult> Details(int? id)
         {
@@ -150,7 +237,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (hoGiaDinh == null) return NotFound();
 
             var danhMuc = await _context.DanhMucs
-                .Include(x => x.DanhMucCha)
                 .Include(x => x.NguoiTao)
                 .FirstOrDefaultAsync(x => x.MaDanhMuc == id &&
                     (x.MaGiaDinh == null || x.MaGiaDinh == hoGiaDinh.MaGiaDinh));
@@ -158,11 +244,17 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (danhMuc == null) return NotFound();
 
             ViewBag.CoQuyenSuaXoa = CoQuyenSuaXoa(danhMuc, nguoiDung, hoGiaDinh);
+
+            if (danhMuc.MaGiaDinh != null)
+            {
+                ViewBag.SoGiaoDich = await _context.GiaoDichs.CountAsync(x => x.MaDanhMuc == id);
+            }
+
             return View(danhMuc);
         }
 
         // =========================================================
-        // CREATE - Thêm Danh mục (Màn hình chính)
+        // CREATE
         // =========================================================
         public async Task<IActionResult> Create()
         {
@@ -177,13 +269,12 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            await NapDanhMucCha(hoGiaDinh.MaGiaDinh);
             return View(new DanhMuc { LoaiDanhMuc = "ChiTieu", MauSac = "#0d6efd" });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("TenDanhMuc,LoaiDanhMuc,BieuTuong,MauSac,MaDanhMucCha")] DanhMuc danhMuc)
+        public async Task<IActionResult> Create([Bind("TenDanhMuc,LoaiDanhMuc,BieuTuong,MauSac")] DanhMuc danhMuc)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null)
@@ -197,43 +288,32 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             }
 
             danhMuc.TenDanhMuc = danhMuc.TenDanhMuc?.Trim() ?? string.Empty;
-            string tenClean = LamSachChuoi(danhMuc.TenDanhMuc);
 
-            // BR34 & BR35: Kiểm tra trùng lặp không phân biệt hoa thường và dấu
-            bool daTonTai = await _context.DanhMucs.AnyAsync(x =>
-                x.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
-                x.LoaiDanhMuc == danhMuc.LoaiDanhMuc &&
-                x.TenDanhMucClean == tenClean &&
-                x.TrangThai == "Active");
-
-            if (daTonTai)
-            {
-                ModelState.AddModelError("TenDanhMuc", "Danh mục này đã tồn tại trong hệ thống hộ gia đình.");
-            }
+            if (!LoaiHopLe(danhMuc.LoaiDanhMuc))
+                ModelState.AddModelError(nameof(danhMuc.LoaiDanhMuc), "Loại danh mục không hợp lệ.");
 
             if (!ModelState.IsValid)
-            {
-                await NapDanhMucCha(hoGiaDinh.MaGiaDinh);
                 return View(danhMuc);
-            }
 
-            danhMuc.MaGiaDinh = hoGiaDinh.MaGiaDinh;
-            danhMuc.MaNguoiTao = nguoiDung.MaNguoiDung;
-            danhMuc.TenDanhMucClean = tenClean;
-            danhMuc.TrangThai = "Active";
+            // BR34/BR35: trùng => dùng lại danh mục có sẵn, chỉ lưu MỘT bản và không báo lỗi
+            var (kq, ketQua) = await TaoHoacLayDanhMucAsync(nguoiDung, hoGiaDinh.MaGiaDinh,
+                danhMuc.TenDanhMuc, danhMuc.LoaiDanhMuc, danhMuc.BieuTuong, danhMuc.MauSac);
 
-            _context.DanhMucs.Add(danhMuc);
-            await _context.SaveChangesAsync();
-
-            TempData["ThongBao"] = $"Thêm danh mục \"{danhMuc.TenDanhMuc}\" thành công.";
+            TempData["ThongBao"] = ketQua switch
+            {
+                KetQuaTao.Moi => $"Thêm danh mục \"{kq.TenDanhMuc}\" thành công.",
+                KetQuaTao.KhoiPhuc => $"Danh mục \"{kq.TenDanhMuc}\" đã từng có nên được khôi phục, không tạo thêm bản mới.",
+                _ => $"Danh mục \"{kq.TenDanhMuc}\" đã có sẵn nên không tạo thêm."
+            };
             return RedirectToAction(nameof(Index));
         }
 
         // =========================================================
-        // BR36: TẠO NHANH INLINE TỪ FORM GIAO DỊCH (API/AJAX)
+        // BR36: TẠO NHANH TỪ FORM GIAO DỊCH (AJAX)
+        // Luôn trả success=true kèm danh mục để form chọn luôn. daTonTai=true nếu dùng lại bản có sẵn.
         // =========================================================
         [HttpPost]
-        public async Task<IActionResult> TaoNhanhInline(string tenDanhMuc, string loaiDanhMuc)
+        public async Task<IActionResult> TaoNhanhInline(string? tenDanhMuc, string? loaiDanhMuc)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null)
@@ -247,51 +327,65 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return Json(new { success = false, message = "Tên danh mục không được để trống." });
 
             tenDanhMuc = tenDanhMuc.Trim();
-            string tenClean = LamSachChuoi(tenDanhMuc);
+            if (tenDanhMuc.Length > 100)
+                return Json(new { success = false, message = "Tên danh mục không được vượt quá 100 ký tự." });
 
-            // BR34, BR35: Kiểm tra nếu đã tồn tại thì tự động chọn danh mục hiện có đó
-            var danhMucDaCo = await _context.DanhMucs.FirstOrDefaultAsync(x =>
-                x.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
-                x.LoaiDanhMuc == loaiDanhMuc &&
-                x.TenDanhMucClean == tenClean &&
-                x.TrangThai == "Active");
+            // Bắt buộc client gửi loại; không tự đoán "ChiTieu" để tránh lưu sai khi người dùng chọn Thu nhập
+            string loai = loaiDanhMuc?.Trim() ?? string.Empty;
+            if (!LoaiHopLe(loai))
+                return Json(new { success = false, message = "Vui lòng chọn loại danh mục (Thu nhập / Chi tiêu)." });
 
-            if (danhMucDaCo != null)
-            {
-                return Json(new
-                {
-                    success = true,
-                    maDanhMuc = danhMucDaCo.MaDanhMuc,
-                    tenDanhMuc = danhMucDaCo.TenDanhMuc,
-                    message = "Danh mục đã tồn tại và được chọn tự động."
-                });
-            }
-
-            var danhMucMoi = new DanhMuc
-            {
-                TenDanhMuc = tenDanhMuc,
-                TenDanhMucClean = tenClean,
-                LoaiDanhMuc = string.IsNullOrWhiteSpace(loaiDanhMuc) ? "ChiTieu" : loaiDanhMuc,
-                MaGiaDinh = hoGiaDinh.MaGiaDinh,
-                MaNguoiTao = nguoiDung.MaNguoiDung,
-                BieuTuong = "🏷️",
-                MauSac = "#0d6efd",
-                TrangThai = "Active"
-            };
-
-            _context.DanhMucs.Add(danhMucMoi);
-            await _context.SaveChangesAsync();
+            var (kq, ketQua) = await TaoHoacLayDanhMucAsync(nguoiDung, hoGiaDinh.MaGiaDinh,
+                tenDanhMuc, loai, "🏷️", "#0d6efd");
 
             return Json(new
             {
                 success = true,
-                maDanhMuc = danhMucMoi.MaDanhMuc,
-                tenDanhMuc = danhMucMoi.TenDanhMuc
+                daTonTai = ketQua != KetQuaTao.Moi,
+                maDanhMuc = kq.MaDanhMuc,
+                tenDanhMuc = kq.TenDanhMuc,
+                loaiDanhMuc = kq.LoaiDanhMuc,
+                bieuTuong = kq.BieuTuong,
+                mauSac = kq.MauSac,
+                message = ketQua switch
+                {
+                    KetQuaTao.Moi => "Đã tạo danh mục mới.",
+                    KetQuaTao.KhoiPhuc => "Danh mục đã từng có, đã được khôi phục và chọn tự động.",
+                    _ => "Danh mục đã tồn tại và được chọn tự động."
+                }
             });
         }
 
         // =========================================================
-        // EDIT - Sửa Danh mục
+        // KIỂM TRA TRÙNG khi đang gõ (AJAX GET). Trùng không phải lỗi, chỉ gợi ý dùng danh mục có sẵn.
+        // =========================================================
+        [HttpGet]
+        public async Task<IActionResult> KiemTraTrung(string? ten, string? loai, int? maDangSua)
+        {
+            var nguoiDung = await LayNguoiDungDangNhap();
+            if (nguoiDung == null) return Json(new { trung = false });
+
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            if (hoGiaDinh == null || string.IsNullOrWhiteSpace(ten)) return Json(new { trung = false });
+
+            string loaiChuan = loai?.Trim() ?? string.Empty;
+            if (!LoaiHopLe(loaiChuan)) return Json(new { trung = false });
+
+            var trung = await TimDanhMucTrungAsync(hoGiaDinh.MaGiaDinh, loaiChuan, LamSachChuoi(ten), maDangSua);
+            if (trung == null) return Json(new { trung = false });
+
+            return Json(new
+            {
+                trung = true,
+                maDanhMuc = trung.MaDanhMuc,
+                tenDanhMuc = trung.TenDanhMuc,
+                laHeThong = trung.MaGiaDinh == null,
+                daAn = trung.TrangThai != Active
+            });
+        }
+
+        // =========================================================
+        // EDIT
         // =========================================================
         public async Task<IActionResult> Edit(int? id)
         {
@@ -309,20 +403,20 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             if (danhMuc == null) return NotFound();
 
-            // Phân quyền Sửa
             if (!CoQuyenSuaXoa(danhMuc, nguoiDung, hoGiaDinh))
             {
                 TempData["ThongBao"] = "Bạn không có quyền chỉnh sửa danh mục này.";
                 return RedirectToAction(nameof(Index));
             }
 
-            await NapDanhMucCha(hoGiaDinh.MaGiaDinh, danhMuc.MaDanhMuc);
+            ViewBag.KhoaLoai = await CoGiaoDichAsync(danhMuc.MaDanhMuc);
+
             return View(danhMuc);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("MaDanhMuc,TenDanhMuc,LoaiDanhMuc,BieuTuong,MauSac,MaDanhMucCha")] DanhMuc danhMuc)
+        public async Task<IActionResult> Edit(int id, [Bind("MaDanhMuc,TenDanhMuc,LoaiDanhMuc,BieuTuong,MauSac")] DanhMuc danhMuc)
         {
             if (id != danhMuc.MaDanhMuc) return NotFound();
 
@@ -347,27 +441,30 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             danhMuc.TenDanhMuc = danhMuc.TenDanhMuc?.Trim() ?? string.Empty;
             string tenClean = LamSachChuoi(danhMuc.TenDanhMuc);
 
-            // BR34: Kiểm tra trùng tên với danh mục khác trong hộ
-            var daTonTai = await _context.DanhMucs.AnyAsync(x =>
-                x.MaGiaDinh == hoGiaDinh.MaGiaDinh &&
-                x.MaDanhMuc != id &&
-                x.LoaiDanhMuc == danhMuc.LoaiDanhMuc &&
-                x.TenDanhMucClean == tenClean &&
-                x.TrangThai == "Active");
+            bool khoaLoai = await CoGiaoDichAsync(id);
 
-            if (daTonTai)
+            if (!LoaiHopLe(danhMuc.LoaiDanhMuc))
             {
-                ModelState.AddModelError("TenDanhMuc", "Tên danh mục này đã trùng với một danh mục khác trong hệ thống.");
+                ModelState.AddModelError(nameof(danhMuc.LoaiDanhMuc), "Loại danh mục không hợp lệ.");
             }
-
-            if (danhMuc.MaDanhMucCha == id)
+            else
             {
-                ModelState.AddModelError("MaDanhMucCha", "Không thể chọn chính danh mục này làm danh mục cha.");
+                // Đổi loại sẽ làm sai lệch báo cáo của các giao dịch cũ
+                if (danhMuc.LoaiDanhMuc != danhMucCu.LoaiDanhMuc && khoaLoai)
+                    ModelState.AddModelError(nameof(danhMuc.LoaiDanhMuc),
+                        "Danh mục đã phát sinh giao dịch nên không thể đổi loại.");
+
+                // Đổi tên thành tên của danh mục khác thì không thể lưu 2 bản giống nhau.
+                // Gợi ý người dùng dùng danh mục có sẵn hoặc Gộp.
+                var trung = await TimDanhMucTrungAsync(hoGiaDinh.MaGiaDinh, danhMuc.LoaiDanhMuc, tenClean, id);
+                if (trung != null && trung.TrangThai == Active)
+                    ModelState.AddModelError(nameof(danhMuc.TenDanhMuc),
+                        $"Đã có danh mục \"{trung.TenDanhMuc}\" cùng loại. Hãy dùng danh mục đó hoặc dùng chức năng Gộp danh mục.");
             }
 
             if (!ModelState.IsValid)
             {
-                await NapDanhMucCha(hoGiaDinh.MaGiaDinh, id);
+                ViewBag.KhoaLoai = khoaLoai;
                 return View(danhMuc);
             }
 
@@ -376,7 +473,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             danhMucCu.LoaiDanhMuc = danhMuc.LoaiDanhMuc;
             danhMucCu.BieuTuong = danhMuc.BieuTuong;
             danhMucCu.MauSac = danhMuc.MauSac;
-            danhMucCu.MaDanhMucCha = danhMuc.MaDanhMucCha;
 
             await _context.SaveChangesAsync();
 
@@ -385,7 +481,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         }
 
         // =========================================================
-        // DELETE - Xóa Danh mục (Ràng buộc bảo toàn dữ liệu BR37)
+        // DELETE (BR37: đã có giao dịch thì chặn xóa, cho Ẩn)
         // =========================================================
         public async Task<IActionResult> Delete(int? id)
         {
@@ -399,7 +495,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (hoGiaDinh == null) return NotFound();
 
             var danhMuc = await _context.DanhMucs
-                .Include(x => x.DanhMucCha)
                 .FirstOrDefaultAsync(x => x.MaDanhMuc == id && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
 
             if (danhMuc == null) return NotFound();
@@ -410,20 +505,16 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // BR37: Đếm số lượng giao dịch thực tế & giao dịch định kỳ liên kết
             int soGiaoDich = await _context.GiaoDichs.CountAsync(x => x.MaDanhMuc == id);
             int soGiaoDichDinhKy = await _context.GiaoDichDinhKys.CountAsync(x => x.MaDanhMuc == id);
             int tongSoGiaoDich = soGiaoDich + soGiaoDichDinhKy;
+            ViewBag.CoThaoTacXoa = tongSoGiaoDich == 0;
+            // View nên hiện nút "Ẩn danh mục" (POST AnDanhMuc) khi không xóa được
+            ViewBag.CoTheAn = danhMuc.TrangThai == Active && tongSoGiaoDich > 0;
 
             if (tongSoGiaoDich > 0)
-            {
-                ViewBag.CanhBaoKhoe = $"Không thể xóa danh mục [{danhMuc.TenDanhMuc}] vì đã có {tongSoGiaoDich} giao dịch phát sinh. Việc xóa sẽ làm sai lệch báo cáo tài chính.";
-                ViewBag.CoThaoTacXoa = false;
-            }
-            else
-            {
-                ViewBag.CoThaoTacXoa = true;
-            }
+                ViewBag.CanhBaoKhoe = $"Không thể xóa danh mục [{danhMuc.TenDanhMuc}] vì đã có {tongSoGiaoDich} giao dịch phát sinh. " +
+                                      "Bạn có thể Ẩn danh mục (không dùng cho giao dịch mới, báo cáo cũ vẫn đúng) hoặc Gộp vào danh mục khác.";
 
             return View(danhMuc);
         }
@@ -450,27 +541,160 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // BR37 Backend Enforcement: Tuyệt đối chặn xóa nếu đã có giao dịch phát sinh
-            bool coGiaoDich = await _context.GiaoDichs.AnyAsync(x => x.MaDanhMuc == id);
-            bool coGiaoDichDinhKy = await _context.GiaoDichDinhKys.AnyAsync(x => x.MaDanhMuc == id);
-
-            if (coGiaoDich || coGiaoDichDinhKy)
+            if (await CoGiaoDichAsync(id))
             {
-                TempData["ThongBao"] = $"Không thể xóa danh mục [{danhMuc.TenDanhMuc}] vì đã có giao dịch phát sinh trong lịch sử.";
+                TempData["ThongBao"] = $"Không thể xóa danh mục [{danhMuc.TenDanhMuc}] vì đã có giao dịch phát sinh. Hãy dùng chức năng Ẩn.";
                 return RedirectToAction(nameof(Index));
             }
 
-            bool coDanhMucCon = await _context.DanhMucs.AnyAsync(x => x.MaDanhMucCha == id && x.TrangThai == "Active");
-            if (coDanhMucCon)
+            try
             {
-                TempData["ThongBao"] = "Không thể xóa danh mục đang có chứa danh mục con.";
+                _context.DanhMucs.Remove(danhMuc);
+                await _context.SaveChangesAsync();
+                TempData["ThongBao"] = "Đã xóa danh mục thành công.";
+            }
+            catch (DbUpdateException)
+            {
+                // Còn bảng khác (ví dụ ngân sách) đang tham chiếu danh mục này
+                _context.Entry(danhMuc).State = EntityState.Unchanged;
+                TempData["ThongBao"] = "Danh mục đang được dùng ở chức năng khác (ví dụ ngân sách) nên không thể xóa. Hãy dùng chức năng Ẩn.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // =========================================================
+        // ẨN / KHÔI PHỤC (xóa mềm, giữ nguyên dữ liệu giao dịch cũ)
+        // =========================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AnDanhMuc(int id)
+        {
+            var nguoiDung = await LayNguoiDungDangNhap();
+            if (nguoiDung == null)
+                return RedirectToPage("/Account/Login", new { area = "Identity" });
+
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            if (hoGiaDinh == null) return NotFound();
+
+            var danhMuc = await _context.DanhMucs
+                .FirstOrDefaultAsync(x => x.MaDanhMuc == id && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
+            if (danhMuc == null) return NotFound();
+
+            if (!CoQuyenSuaXoa(danhMuc, nguoiDung, hoGiaDinh))
+            {
+                TempData["ThongBao"] = "Bạn không có quyền ẩn danh mục này.";
                 return RedirectToAction(nameof(Index));
             }
 
-            _context.DanhMucs.Remove(danhMuc);
+            danhMuc.TrangThai = Inactive;
             await _context.SaveChangesAsync();
 
-            TempData["ThongBao"] = "Đã xóa danh mục thành công.";
+            TempData["ThongBao"] = $"Đã ẩn danh mục \"{danhMuc.TenDanhMuc}\". Các giao dịch cũ vẫn giữ nguyên.";
+            return RedirectToAction(nameof(Index), new { hienDaAn = true });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> KhoiPhuc(int id)
+        {
+            var nguoiDung = await LayNguoiDungDangNhap();
+            if (nguoiDung == null)
+                return RedirectToPage("/Account/Login", new { area = "Identity" });
+
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            if (hoGiaDinh == null) return NotFound();
+
+            var danhMuc = await _context.DanhMucs
+                .FirstOrDefaultAsync(x => x.MaDanhMuc == id && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
+            if (danhMuc == null) return NotFound();
+
+            if (!CoQuyenSuaXoa(danhMuc, nguoiDung, hoGiaDinh))
+            {
+                TempData["ThongBao"] = "Bạn không có quyền khôi phục danh mục này.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Không để có 2 danh mục hoạt động trùng tên
+            var trung = await TimDanhMucTrungAsync(hoGiaDinh.MaGiaDinh, danhMuc.LoaiDanhMuc, LamSachChuoi(danhMuc.TenDanhMuc), id);
+            if (trung != null && trung.TrangThai == Active)
+            {
+                TempData["ThongBao"] = $"Đã có danh mục \"{trung.TenDanhMuc}\" đang hoạt động. Hãy dùng chức năng Gộp danh mục.";
+                return RedirectToAction(nameof(Index), new { hienDaAn = true });
+            }
+
+            danhMuc.TrangThai = Active;
+            await _context.SaveChangesAsync();
+
+            TempData["ThongBao"] = $"Đã khôi phục danh mục \"{danhMuc.TenDanhMuc}\".";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // =========================================================
+        // GỘP DANH MỤC: dồn mọi giao dịch của nguồn vào đích, rồi ẩn nguồn.
+        // Dùng để dọn các danh mục đã bị trùng từ trước.
+        // =========================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Gop(int nguonId, int dichId)
+        {
+            var nguoiDung = await LayNguoiDungDangNhap();
+            if (nguoiDung == null)
+                return RedirectToPage("/Account/Login", new { area = "Identity" });
+
+            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
+            if (hoGiaDinh == null) return NotFound();
+
+            if (nguonId == dichId)
+            {
+                TempData["ThongBao"] = "Danh mục nguồn và danh mục đích phải khác nhau.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var nguon = await _context.DanhMucs
+                .FirstOrDefaultAsync(x => x.MaDanhMuc == nguonId && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
+            var dich = await _context.DanhMucs
+                .FirstOrDefaultAsync(x => x.MaDanhMuc == dichId &&
+                                          (x.MaGiaDinh == hoGiaDinh.MaGiaDinh || x.MaGiaDinh == null) &&
+                                          x.TrangThai == Active);
+
+            if (nguon == null || dich == null) return NotFound();
+
+            if (!CoQuyenSuaXoa(nguon, nguoiDung, hoGiaDinh))
+            {
+                TempData["ThongBao"] = "Bạn không có quyền gộp danh mục này.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (nguon.LoaiDanhMuc != dich.LoaiDanhMuc)
+            {
+                TempData["ThongBao"] = "Chỉ gộp được hai danh mục cùng loại.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var giaoDichs = await _context.GiaoDichs.Where(x => x.MaDanhMuc == nguonId).ToListAsync();
+                foreach (var g in giaoDichs) g.MaDanhMuc = dich.MaDanhMuc;
+
+                var dinhKys = await _context.GiaoDichDinhKys.Where(x => x.MaDanhMuc == nguonId).ToListAsync();
+                foreach (var g in dinhKys) g.MaDanhMuc = dich.MaDanhMuc;
+
+                nguon.TrangThai = Inactive;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                TempData["ThongBao"] = $"Đã gộp \"{nguon.TenDanhMuc}\" vào \"{dich.TenDanhMuc}\" " +
+                                       $"({giaoDichs.Count + dinhKys.Count} giao dịch được chuyển).";
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                TempData["ThongBao"] = "Có lỗi xảy ra khi gộp danh mục, dữ liệu không bị thay đổi.";
+            }
+
             return RedirectToAction(nameof(Index));
         }
     }
