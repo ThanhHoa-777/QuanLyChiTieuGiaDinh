@@ -1,5 +1,6 @@
 ﻿@model IEnumerable<QuanLyChiTieuGiaDinh.Models.ThongBao>
 @using QuanLyChiTieuGiaDinh.Models
+@using QuanLyChiTieuGiaDinh.Helpers
 
 @{
     ViewData["Title"] = "Trung tâm thông báo";
@@ -7,6 +8,10 @@
     string filterCurrent = ViewBag.FilterCurrent ?? "tat-ca";
     int countCaNhan = ViewBag.CountChuaDocCaNhan ?? 0;
     int countGiaDinh = ViewBag.CountChuaDocGiaDinh ?? 0;
+
+    var thanhCong = (TempData["SuccessMessage"] ?? TempData["Success"])?.ToString();
+    var loi = (TempData["ErrorMessage"] ?? TempData["Error"])?.ToString();
+    var canhBao = TempData["Warning"]?.ToString();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -26,17 +31,24 @@
     }
 </div>
 
-@if (TempData["SuccessMessage"] != null)
+@if (thanhCong != null)
 {
     <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-        @TempData["SuccessMessage"]
+        @thanhCong
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
-@if (TempData["ErrorMessage"] != null)
+@if (loi != null)
 {
     <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-        @TempData["ErrorMessage"]
+        @loi
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (canhBao != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+        @canhBao
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
@@ -100,6 +112,8 @@ else
             bool isUrgent = thongBao.LoaiThongBao == LoaiThongBao.CanhBaoNganSach;
             string borderClass = isUrgent ? "border-danger border-2" : (!thongBao.DaDoc ? "border-primary" : "");
             string bgClass = !thongBao.DaDoc ? "bg-light" : "bg-white";
+            var maMucTieu = thongBao.LayMaMucTieu();
+            var returnUrl = Context.Request.Path + Context.Request.QueryString;
 
             <div class="list-group-item list-group-item-action @bgClass @borderClass p-3">
                 <div class="d-flex justify-content-between align-items-start">
@@ -156,8 +170,22 @@ else
                                 {
                                     <span class="text-success fw-bold small"><i class="bi bi-check-circle me-1"></i> Đã xử lý lời mời</span>
                                 }
+                                else if (maMucTieu != null)
+                                {
+                                    @* Lời mời mục tiêu tiết kiệm: gọi MucTieuTietKiem, xong quay lại trang thông báo *@
+                                    <form asp-controller="MucTieuTietKiem" asp-action="DongYThamGia"
+                                          asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-success btn-sm fw-bold me-2">✓ Tham gia</button>
+                                    </form>
+                                    <form asp-controller="MucTieuTietKiem" asp-action="TuChoiThamGia"
+                                          asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post" class="d-inline"
+                                          onsubmit="return confirm('Bạn có chắc chắn muốn từ chối lời mời này không?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">❌ Từ chối</button>
+                                    </form>
+                                }
                                 else
                                 {
+                                    @* Lời mời hộ gia đình *@
                                     <form asp-action="ChapNhanLoiMoi" asp-route-id="@thongBao.MaThongBao" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-success btn-sm fw-bold me-2">
@@ -186,7 +214,7 @@ else
 
                         @if (thongBao.LoaiThongBao == LoaiThongBao.YeuCauThoatHo && !string.IsNullOrEmpty(thongBao.DuLieuLienKet))
                         {
-                            @* KIỂM TRA: Nếu đã thao tác xong HOẶC đã đọc thì chỉ hiện nút Xem *@
+                            @* Nếu đã thao tác xong HOẶC đã đọc thì chỉ hiện nút Xem *@
                             @if (thongBao.IsThaoTacXong || thongBao.DaDoc)
                             {
                                 <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-secondary btn-sm">Xem chi tiết</a>
@@ -200,7 +228,9 @@ else
                         }
                         else
                         {
-                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-primary btn-sm">Xem</a>
+                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-primary btn-sm">
+                                @(maMucTieu != null ? "Xem mục tiêu" : "Xem")
+                            </a>
                         }
 
                         @if (!thongBao.DaDoc)

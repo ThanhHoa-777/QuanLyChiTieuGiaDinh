@@ -8,7 +8,12 @@ namespace QuanLyChiTieuGiaDinh.Models
         [Key]
         public int MaTaiKhoan { get; set; }
 
-        public int MaGiaDinh { get; set; }
+        // null nếu là Ví nhóm (nhóm tự do có thể gồm cả người ngoài hộ) hoặc ví mục tiêu cá nhân.
+        // LƯU Ý: đổi int -> int? cần tạo migration mới.
+        public int? MaGiaDinh { get; set; }
+
+        // Ví sinh ra từ Mục tiêu tiết kiệm nào (dùng để tìm thành viên của Ví nhóm và để xóa/hoàn tiền)
+        public int? MaMucTieuNguon { get; set; }
 
         // MaNguoiSoHuu = null nếu đây là Quỹ gia đình chung (BR17, BR18)
         public int? MaNguoiSoHuu { get; set; }
@@ -23,7 +28,7 @@ namespace QuanLyChiTieuGiaDinh.Models
         [Display(Name = "Hình thức tài khoản")]
         public string LoaiTaiKhoan { get; set; } = "TienMat"; // TienMat, NganHang, ViDienTu...
 
-        // Phân loại ví theo đặc tả: "QuyChung" hoặc "ViCaNhan" (BR17, BR20)
+        // Phân loại ví: "QuyChung" (hộ gia đình), "ViNhom" (nhóm tự do, có người ngoài hộ) hoặc "ViCaNhan" (BR17, BR20)
         [Required]
         [StringLength(30)]
         [Display(Name = "Loại ví")]

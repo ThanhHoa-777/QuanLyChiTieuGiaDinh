@@ -36,7 +36,7 @@ namespace QuanLyChiTieuGiaDinh.Data
         public DbSet<ThongBao> ThongBaos { get; set; }
         
         public DbSet<HanMucChiTieu> HanMucChiTieus { get; set; }
-        public DbSet<YeuCauHoanTien> YeuCauHoanTiens { get; set; }
+        
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -167,11 +167,6 @@ namespace QuanLyChiTieuGiaDinh.Data
                 .HasForeignKey(d => d.MaNguoiTao)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<DanhMuc>()
-                .HasOne(d => d.DanhMucCha)
-                .WithMany(d => d.DanhMucCon)
-                .HasForeignKey(d => d.MaDanhMucCha)
-                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<GiaoDich>()
                 .HasOne(g => g.TaiKhoanTien)
