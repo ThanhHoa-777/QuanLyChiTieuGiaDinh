@@ -40,14 +40,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             ViewBag.CountChuaDocGiaDinh = await query.CountAsync(x => x.PhamVi == PhamViThongBao.GiaDinh && !x.DaDoc);
 
             var filteredQuery = query.Where(x => x.PhamVi == phamViCurrent);
-            switch (filter.ToLower())
+            if (filter.Equals("chua-doc", StringComparison.OrdinalIgnoreCase))
             {
-                case "chua-doc":
-                    filteredQuery = filteredQuery.Where(x => !x.DaDoc);
-                    break;
-                case "canh-bao":
-                    filteredQuery = filteredQuery.Where(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach || x.LoaiThongBao == LoaiThongBao.PheDuyet || x.LoaiThongBao == LoaiThongBao.YeuCauThoatHo);
-                    break;
+                filteredQuery = filteredQuery.Where(x => !x.DaDoc);
             }
 
             var thongBaos = await filteredQuery.OrderBy(x => x.DaDoc).ThenByDescending(x => x.NgayTao).ToListAsync();

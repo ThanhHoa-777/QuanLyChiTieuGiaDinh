@@ -1,8 +1,11 @@
 ﻿@model QuanLyChiTieuGiaDinh.Models.ThongBao
 @using QuanLyChiTieuGiaDinh.Models
+@using QuanLyChiTieuGiaDinh.Helpers
 
 @{
     ViewData["Title"] = "Chi tiết thông báo";
+    var maMucTieu = Model.LayMaMucTieu();
+    var returnUrl = Url.Action("Details", "ThongBaos", new { id = Model.MaThongBao });
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -23,26 +26,7 @@
 
         <div class="d-flex align-items-center mb-3">
             <div style="font-size: 40px;" class="me-3">
-                @switch (Model.LoaiThongBao)
-                {
-                    case LoaiThongBao.CanhBaoNganSach:
-                        <span>⚠️</span>
-                        break;
-                    case LoaiThongBao.PheDuyet:
-                    case LoaiThongBao.YeuCauThoatHo:
-                        <span>📋</span>
-                        break;
-                    case LoaiThongBao.LoiMoi:
-                        <span>✉️</span>
-                        break;
-                    case LoaiThongBao.BienDongSoDu:
-                    case LoaiThongBao.SplitExpense:
-                        <span>💰</span>
-                        break;
-                    default:
-                        <span>🔔</span>
-                        break;
-                }
+                <span>🔔</span>
             </div>
 
             <div class="flex-grow-1">
@@ -83,6 +67,26 @@
                 {
                     <span class="text-success fw-bold">✓ Đã thực hiện thao tác cho lời mời này.</span>
                 }
+                else if (maMucTieu != null)
+                {
+                    <div class="d-flex gap-2">
+                        <form asp-controller="MucTieuTietKiem" asp-action="DongYThamGia"
+                              asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-success fw-bold">
+                                ✓ Tham gia mục tiêu
+                            </button>
+                        </form>
+                        <form asp-controller="MucTieuTietKiem" asp-action="TuChoiThamGia"
+                              asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post"
+                              onsubmit="return confirm('Bạn có chắc chắn muốn từ chối lời mời này không?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger fw-bold">
+                                ❌ Từ chối
+                            </button>
+                        </form>
+                    </div>
+                }
                 else
                 {
                     <div class="d-flex gap-2">
@@ -92,25 +96,23 @@
                                 ✓ Chấp nhận lời mời
                             </button>
                         </form>
+                        <form asp-action="TuChoiLoiMoi" asp-route-id="@Model.MaThongBao" method="post"
+                              onsubmit="return confirm('Bạn có chắc chắn muốn từ chối lời mời này không?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger fw-bold">
+                                ❌ Từ chối
+                            </button>
+                        </form>
                     </div>
                 }
             </div>
         }
 
-        <div class="row bg-light p-3 rounded mx-0 mb-4">
-            <div class="col-md-6 mb-2 mb-md-0">
-                <strong>Loại thông báo:</strong>
-                <span class="ms-1 text-dark fw-bold">
-                    @Model.LoaiThongBao.ToString()
-                </span>
-            </div>
-
-            <div class="col-md-6">
-                <strong>Thời gian tạo:</strong>
-                <span class="ms-1 text-muted">
-                    @Model.NgayTao.ToString("dd/MM/yyyy HH:mm")
-                </span>
-            </div>
+        <div class="bg-light p-3 rounded mb-4">
+            <strong>Thời gian tạo:</strong>
+            <span class="ms-1 text-muted">
+                @Model.NgayTao.ToString("dd/MM/yyyy HH:mm")
+            </span>
         </div>
 
         <hr />
