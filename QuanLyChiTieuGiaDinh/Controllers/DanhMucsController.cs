@@ -170,9 +170,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
         #endregion
 
-        // =========================================================
         // INDEX - Danh sách, tìm kiếm, lọc (BR33)
-        // =========================================================
         public async Task<IActionResult> Index(string? tuKhoa, string? loai, bool hienDaAn = false)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
@@ -222,9 +220,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(ds);
         }
 
-        // =========================================================
         // DETAILS
-        // =========================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -253,9 +249,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(danhMuc);
         }
 
-        // =========================================================
         // CREATE
-        // =========================================================
         public async Task<IActionResult> Create()
         {
             var nguoiDung = await LayNguoiDungDangNhap();
@@ -308,10 +302,8 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // =========================================================
         // BR36: TẠO NHANH TỪ FORM GIAO DỊCH (AJAX)
         // Luôn trả success=true kèm danh mục để form chọn luôn. daTonTai=true nếu dùng lại bản có sẵn.
-        // =========================================================
         [HttpPost]
         public async Task<IActionResult> TaoNhanhInline(string? tenDanhMuc, string? loaiDanhMuc)
         {
@@ -356,9 +348,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             });
         }
 
-        // =========================================================
         // KIỂM TRA TRÙNG khi đang gõ (AJAX GET). Trùng không phải lỗi, chỉ gợi ý dùng danh mục có sẵn.
-        // =========================================================
         [HttpGet]
         public async Task<IActionResult> KiemTraTrung(string? ten, string? loai, int? maDangSua)
         {
@@ -384,9 +374,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             });
         }
 
-        // =========================================================
         // EDIT
-        // =========================================================
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -455,11 +443,10 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                         "Danh mục đã phát sinh giao dịch nên không thể đổi loại.");
 
                 // Đổi tên thành tên của danh mục khác thì không thể lưu 2 bản giống nhau.
-                // Gợi ý người dùng dùng danh mục có sẵn hoặc Gộp.
                 var trung = await TimDanhMucTrungAsync(hoGiaDinh.MaGiaDinh, danhMuc.LoaiDanhMuc, tenClean, id);
                 if (trung != null && trung.TrangThai == Active)
                     ModelState.AddModelError(nameof(danhMuc.TenDanhMuc),
-                        $"Đã có danh mục \"{trung.TenDanhMuc}\" cùng loại. Hãy dùng danh mục đó hoặc dùng chức năng Gộp danh mục.");
+                        $"Đã có danh mục \"{trung.TenDanhMuc}\" cùng loại. Hãy dùng danh mục đó hoặc đặt tên khác.");
             }
 
             if (!ModelState.IsValid)
@@ -480,9 +467,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // =========================================================
         // DELETE (BR37: đã có giao dịch thì chặn xóa, cho Ẩn)
-        // =========================================================
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -514,7 +499,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             if (tongSoGiaoDich > 0)
                 ViewBag.CanhBaoKhoe = $"Không thể xóa danh mục [{danhMuc.TenDanhMuc}] vì đã có {tongSoGiaoDich} giao dịch phát sinh. " +
-                                      "Bạn có thể Ẩn danh mục (không dùng cho giao dịch mới, báo cáo cũ vẫn đúng) hoặc Gộp vào danh mục khác.";
+                                      "Bạn có thể Ẩn danh mục (không dùng cho giao dịch mới, báo cáo cũ vẫn đúng).";
 
             return View(danhMuc);
         }
@@ -563,9 +548,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // =========================================================
         // ẨN / KHÔI PHỤC (xóa mềm, giữ nguyên dữ liệu giao dịch cũ)
-        // =========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AnDanhMuc(int id)
@@ -619,7 +602,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var trung = await TimDanhMucTrungAsync(hoGiaDinh.MaGiaDinh, danhMuc.LoaiDanhMuc, LamSachChuoi(danhMuc.TenDanhMuc), id);
             if (trung != null && trung.TrangThai == Active)
             {
-                TempData["ThongBao"] = $"Đã có danh mục \"{trung.TenDanhMuc}\" đang hoạt động. Hãy dùng chức năng Gộp danh mục.";
+                TempData["ThongBao"] = $"Đã có danh mục \"{trung.TenDanhMuc}\" đang hoạt động nên không thể khôi phục bản này. Hãy dùng danh mục đó.";
                 return RedirectToAction(nameof(Index), new { hienDaAn = true });
             }
 
@@ -627,74 +610,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             await _context.SaveChangesAsync();
 
             TempData["ThongBao"] = $"Đã khôi phục danh mục \"{danhMuc.TenDanhMuc}\".";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // =========================================================
-        // GỘP DANH MỤC: dồn mọi giao dịch của nguồn vào đích, rồi ẩn nguồn.
-        // Dùng để dọn các danh mục đã bị trùng từ trước.
-        // =========================================================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Gop(int nguonId, int dichId)
-        {
-            var nguoiDung = await LayNguoiDungDangNhap();
-            if (nguoiDung == null)
-                return RedirectToPage("/Account/Login", new { area = "Identity" });
-
-            var hoGiaDinh = await LayHoGiaDinhCuaNguoiDung(nguoiDung.MaNguoiDung);
-            if (hoGiaDinh == null) return NotFound();
-
-            if (nguonId == dichId)
-            {
-                TempData["ThongBao"] = "Danh mục nguồn và danh mục đích phải khác nhau.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var nguon = await _context.DanhMucs
-                .FirstOrDefaultAsync(x => x.MaDanhMuc == nguonId && x.MaGiaDinh == hoGiaDinh.MaGiaDinh);
-            var dich = await _context.DanhMucs
-                .FirstOrDefaultAsync(x => x.MaDanhMuc == dichId &&
-                                          (x.MaGiaDinh == hoGiaDinh.MaGiaDinh || x.MaGiaDinh == null) &&
-                                          x.TrangThai == Active);
-
-            if (nguon == null || dich == null) return NotFound();
-
-            if (!CoQuyenSuaXoa(nguon, nguoiDung, hoGiaDinh))
-            {
-                TempData["ThongBao"] = "Bạn không có quyền gộp danh mục này.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            if (nguon.LoaiDanhMuc != dich.LoaiDanhMuc)
-            {
-                TempData["ThongBao"] = "Chỉ gộp được hai danh mục cùng loại.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var giaoDichs = await _context.GiaoDichs.Where(x => x.MaDanhMuc == nguonId).ToListAsync();
-                foreach (var g in giaoDichs) g.MaDanhMuc = dich.MaDanhMuc;
-
-                var dinhKys = await _context.GiaoDichDinhKys.Where(x => x.MaDanhMuc == nguonId).ToListAsync();
-                foreach (var g in dinhKys) g.MaDanhMuc = dich.MaDanhMuc;
-
-                nguon.TrangThai = Inactive;
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                TempData["ThongBao"] = $"Đã gộp \"{nguon.TenDanhMuc}\" vào \"{dich.TenDanhMuc}\" " +
-                                       $"({giaoDichs.Count + dinhKys.Count} giao dịch được chuyển).";
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                TempData["ThongBao"] = "Có lỗi xảy ra khi gộp danh mục, dữ liệu không bị thay đổi.";
-            }
-
             return RedirectToAction(nameof(Index));
         }
     }

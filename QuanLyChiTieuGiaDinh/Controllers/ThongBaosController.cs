@@ -50,8 +50,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             else if (filter.Equals("canh-bao", StringComparison.OrdinalIgnoreCase))
             {
                 filteredQuery = filteredQuery.Where(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach);
-            {
-                filteredQuery = filteredQuery.Where(x => !x.DaDoc);
             }
 
             // Ưu tiên: cảnh báo chưa đọc -> chưa đọc -> mới nhất
@@ -189,7 +187,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             return RedirectToAction(nameof(Index), new { tab = tab });
         }
-        // XỬ LÝ TỪ CHỐI LỜI MỜI DIRECTLY (TỪ THÔNG BÁO)
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -218,7 +215,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             TempData["SuccessMessage"] = "Đã từ chối lời mời gia nhập hộ gia đình.";
             return RedirectToAction(nameof(Index), new { tab = thongBao.PhamVi.ToString() });
         }
-        // hàm xóa thông báo
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)

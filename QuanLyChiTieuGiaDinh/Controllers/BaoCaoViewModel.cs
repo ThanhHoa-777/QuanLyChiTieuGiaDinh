@@ -5,9 +5,7 @@ namespace QuanLyChiTieuGiaDinh.Models
 {
     public class BaoCaoViewModel
     {
-        // ============================================
         // THÔNG TIN CHUNG
-        // ============================================
 
         public NguoiDung? NguoiDung { get; set; }
 
@@ -18,9 +16,7 @@ namespace QuanLyChiTieuGiaDinh.Models
         public int NamBaoCao { get; set; }
 
 
-        // ============================================
         // THÔNG TIN QUYỀN
-        // ============================================
 
         // Mã người dùng đang xem báo cáo
         public int? MaNguoiDung { get; set; }
@@ -32,22 +28,17 @@ namespace QuanLyChiTieuGiaDinh.Models
         public bool LaChuHo { get; set; }
 
 
-        // ============================================
         // PHẠM VI BÁO CÁO
-        // ============================================
 
         // Chủ hộ:
         //   Toàn bộ giao dịch gia đình
-        //
         // Thành viên:
         //   Giao dịch của mình + giao dịch dùng chung
         public string PhamViBaoCao { get; set; }
             = string.Empty;
 
 
-        // ============================================
         // TỔNG QUAN
-        // ============================================
 
         public decimal TongThu { get; set; }
 
@@ -58,9 +49,7 @@ namespace QuanLyChiTieuGiaDinh.Models
         public int SoGiaoDich { get; set; }
 
 
-        // ============================================
         // CHI THEO DANH MỤC
-        // ============================================
 
         public List<BaoCaoDanhMucViewModel> ChiTheoDanhMuc
         {
@@ -70,9 +59,7 @@ namespace QuanLyChiTieuGiaDinh.Models
             = new List<BaoCaoDanhMucViewModel>();
 
 
-        // ============================================
         // THU THEO DANH MỤC
-        // ============================================
 
         public List<BaoCaoDanhMucViewModel> ThuTheoDanhMuc
         {
@@ -82,9 +69,7 @@ namespace QuanLyChiTieuGiaDinh.Models
             = new List<BaoCaoDanhMucViewModel>();
 
 
-        // ============================================
         // CHI THEO NGÀY
-        // ============================================
 
         public List<BaoCaoNgayViewModel> ChiTheoNgay
         {
@@ -94,9 +79,7 @@ namespace QuanLyChiTieuGiaDinh.Models
             = new List<BaoCaoNgayViewModel>();
 
 
-        // ============================================
         // DANH SÁCH GIAO DỊCH
-        // ============================================
 
         public List<GiaoDich> GiaoDichs
         {
@@ -107,9 +90,7 @@ namespace QuanLyChiTieuGiaDinh.Models
     }
 
 
-    // ================================================
     // THỐNG KÊ THEO DANH MỤC
-    // ================================================
 
     public class BaoCaoDanhMucViewModel
     {
@@ -120,9 +101,7 @@ namespace QuanLyChiTieuGiaDinh.Models
     }
 
 
-    // ================================================
     // THỐNG KÊ THEO NGÀY
-    // ================================================
 
     public class BaoCaoNgayViewModel
     {
