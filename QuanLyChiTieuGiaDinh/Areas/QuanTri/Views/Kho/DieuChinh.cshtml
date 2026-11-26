@@ -1,0 +1,93 @@
+﻿@using Shopson.Areas.QuanTri.Controllers
+@model DieuChinhKhoVM
+@{
+    ViewData["Title"] = "Điều chỉnh kho";
+    var spChon = Model.DsSanPham.FirstOrDefault(s => s.MaSanPham == Model.MaSanPhamChon);
+}
+<h3 class="mb-1"><i class="bi bi-sliders text-pink"></i> Điều Chỉnh Kho</h3>
+<p class="text-muted small">Dùng khi tồn kho thay đổi KHÔNG do nhập hàng hay giao hàng: hàng hỏng/vỡ, hết hạn, mất, hoặc kiểm kê thấy lệch.
+    Phiếu đã lập <strong>không sửa, không xóa</strong> được; ghi sai thì lập một phiếu ngược lại. Điều chỉnh kho <strong>không</strong> làm thay đổi công nợ nhà cung cấp hay doanh thu.</p>
+
+<div class="row g-3">
+    @* ===== Form lập phiếu ===== *@
+    <div class="col-lg-4">
+        <form asp-action="DieuChinh" method="post" class="card shadow-sm border-0 p-3" onsubmit="return confirm('Lập phiếu điều chỉnh kho? Phiếu không sửa / xóa được.')">
+            <h6 class="fw-bold">📝 Lập phiếu điều chỉnh</h6>
+            <label class="form-label">Sản phẩm *</label>
+            <select name="maSanPham" id="oSanPham" class="form-select mb-2" required>
+                <option value="">— Chọn sản phẩm —</option>
+                @foreach (var sp in Model.DsSanPham)
+                {
+                    <option value="@sp.MaSanPham" data-kho="@sp.TonKho" selected="@(sp.MaSanPham == Model.MaSanPhamChon)">@sp.TenSanPham (tồn @sp.TonKho)</option>
+                }
+            </select>
+
+            <label class="form-label">Loại *</label>
+            <select name="loai" id="oLoai" class="form-select mb-2" required onchange="doiLoai()">
+                <option value="@HangSo.DieuChinhHong">@HangSo.TenLoaiDieuChinh(HangSo.DieuChinhHong)</option>
+                <option value="@HangSo.DieuChinhHetHan">@HangSo.TenLoaiDieuChinh(HangSo.DieuChinhHetHan)</option>
+                <option value="@HangSo.DieuChinhMat">@HangSo.TenLoaiDieuChinh(HangSo.DieuChinhMat)</option>
+                <option value="@HangSo.DieuChinhKiemKe">@HangSo.TenLoaiDieuChinh(HangSo.DieuChinhKiemKe)</option>
+            </select>
+
+            @* Chỉ "Kiểm kê" mới chọn được tăng / giảm; các loại khác luôn là giảm *@
+            <div id="khungHuong" class="mb-2" style="display:none;">
+                <label class="form-label">Kiểm kê thấy</label>
+                <div class="d-flex gap-3">
+                    <label><input type="radio" name="huong" value="giam" checked /> Thiếu (giảm kho)</label>
+                    <label><input type="radio" name="huong" value="tang" /> Dư (tăng kho)</label>
+                </div>
+            </div>
+
+            <label class="form-label">Số lượng *</label>
+            <input type="number" name="soLuong" min="1" value="1" class="form-control mb-2" required />
+
+            <label class="form-label">Lý do / ghi chú *</label>
+            <textarea name="ghiChu" rows="2" class="form-control mb-3" required placeholder="Ví dụ: Gãy 1 cây khi đóng gói đơn #30"></textarea>
+
+            <button class="btn btn-pink">Lập phiếu</button>
+        </form>
+    </div>
+
+    @* ===== Lịch sử phiếu ===== *@
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="fw-bold">📋 Lịch sử điều chỉnh @(spChon != null ? "— " + spChon.TenSanPham : "(100 phiếu gần nhất)")</span>
+                <span>Tổng giá trị hao hụt: <strong class="text-danger">@TienIch.DinhDangTien(Model.TongHaoHut)</strong>
+                    @if (spChon != null) { <a asp-action="DieuChinh" class="ms-2 small">Xem tất cả sản phẩm</a> }</span>
+            </div>
+            <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Phiếu</th><th>Ngày</th><th>Sản phẩm</th><th>Loại</th><th class="text-end">SL</th><th class="text-center">Tồn trước → sau</th><th class="text-end">Giá trị</th><th>Ghi chú</th><th>Người lập</th></tr></thead>
+                <tbody>
+                @foreach (var d in Model.LichSu)
+                {
+                    <tr>
+                        <td>#@d.MaDieuChinh</td>
+                        <td class="small">@TienIch.NgayGio(d.NgayTao)</td>
+                        <td><a asp-action="DieuChinh" asp-route-maSanPham="@d.MaSanPham">@d.MaSanPhamNavigation.TenSanPham</a></td>
+                        <td class="small">@HangSo.TenLoaiDieuChinh(d.LoaiDieuChinh)</td>
+                        <td class="text-end fw-bold @(d.SoLuong < 0 ? "text-danger" : "text-success")">@(d.SoLuong > 0 ? "+" : "")@d.SoLuong</td>
+                        <td class="text-center">@d.TonTruoc → @d.TonSau</td>
+                        <td class="text-end">@TienIch.DinhDangTien(d.GiaTriHaoHut)</td>
+                        <td class="small" style="max-width:220px;">@d.GhiChu</td>
+                        <td class="small">@(d.MaNguoiTaoNavigation?.TenNguoiDung ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.LichSu.Count == 0) { <tr><td colspan="9" class="text-center text-muted py-4">Chưa có phiếu điều chỉnh nào.</td></tr> }
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Chọn "Kiểm kê" thì mới hiện lựa chọn thiếu / dư
+    function doiLoai() {
+        document.getElementById('khungHuong').style.display = document.getElementById('oLoai').value === '@HangSo.DieuChinhKiemKe' ? '' : 'none';
+    }
+    doiLoai();
+</script>
+}

@@ -1,0 +1,25 @@
+@model DongNoPhieu
+@* Form trả nợ MỘT phiếu nhập: ô số tiền + nút điền nhanh. Dùng chung ở trang Công nợ NCC và trang chi tiết phiếu nhập.
+   ViewData["KhaDung"] = doanh thu khả dụng; ViewData["QuayVe"] = mã phiếu để quay lại sau khi trả (0 = về trang Công nợ). *@
+@{
+    decimal khaDung = (decimal)(ViewData["KhaDung"] ?? 0m);
+    int quayVe = (int)(ViewData["QuayVe"] ?? 0);
+    decimal toiThieu = DichVuCongNo.MucTraToiThieu(Model);
+    decimal nuaConNo = Math.Max(toiThieu, Math.Round(Model.ConNo / 2 / 1000) * 1000);   // 50% số còn nợ, làm tròn 1.000đ
+    decimal toiDa = Math.Min(Model.ConNo, khaDung);                                     // trả được nhiều nhất bây giờ
+    bool traDuoc = toiDa >= toiThieu && toiDa > 0;
+}
+<form asp-controller="CongNo" asp-action="TraNoPhieu" asp-route-maNhapKho="@Model.MaNhapKho" asp-route-maPhieuQuayVe="@quayVe"
+      method="post" class="khong-in" onsubmit="return confirm('Trả nợ phiếu #@Model.MaNhapKho với số tiền này?')">
+    <div class="input-group input-group-sm" style="min-width:260px">
+        <input type="number" name="soTien" class="form-control" step="1" placeholder="Số tiền trả" required />
+        <button class="btn btn-success" disabled="@(!traDuoc)">💵 Trả</button>
+    </div>
+    <div class="d-flex flex-wrap gap-1 mt-1">
+        <button type="button" class="btn btn-outline-secondary btn-sm py-0" onclick="this.form.soTien.value=@((long)Model.ConNo)">Trả hết</button>
+        @if (nuaConNo < Model.ConNo) { <button type="button" class="btn btn-outline-secondary btn-sm py-0" onclick="this.form.soTien.value=@((long)nuaConNo)">50%</button> }
+        @if (traDuoc) { <button type="button" class="btn btn-outline-secondary btn-sm py-0" onclick="this.form.soTien.value=@((long)toiDa)">Trả tối đa (@TienIch.DinhDangTien(toiDa))</button> }
+    </div>
+    <div class="small text-muted mt-1">Tối thiểu mỗi lần: @TienIch.DinhDangTien(toiThieu)
+        @if (!traDuoc) { <span class="text-danger"> · Doanh thu khả dụng chưa đủ mức tối thiểu</span> }</div>
+</form>

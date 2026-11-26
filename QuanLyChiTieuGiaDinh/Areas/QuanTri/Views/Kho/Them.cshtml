@@ -1,0 +1,133 @@
+﻿@{
+    ViewData["Title"] = "Tạo phiếu nhập";
+    var dsNcc = (List<NhaCungCap>)ViewBag.DanhSachNcc;
+    var dsSp = (List<SanPham>)ViewBag.DanhSachSanPham;
+    decimal soDu = ViewBag.SoDuKhaDung;
+    int chonSanPham = (int)(ViewBag.ChonSanPham ?? 0);
+}
+<h3 class="mb-3"><i class="bi bi-plus-circle text-pink"></i> Tạo Phiếu Nhập Kho</h3>
+@if (ViewBag.CanhBao != null) { <div class="alert alert-danger">@ViewBag.CanhBao</div> }
+<form asp-action="Them" method="post" class="card shadow-sm border-0 p-4">
+    <div class="row g-3 mb-3">
+        <div class="col-md-5">
+            <label class="form-label">Nhà cung cấp *</label>
+            <div class="input-group">
+                <select name="maNcc" id="oNcc" class="form-select" required>
+                    <option value="">— Chọn nhà cung cấp —</option>
+                    @foreach (var n in dsNcc) { <option value="@n.MaNcc">@n.TenNcc</option> }
+                </select>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#hopThemNcc" title="Thêm nhà cung cấp mới mà không rời trang">➕ Mới</button>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <label class="form-label">Ghi chú</label>
+            <input name="ghiChu" class="form-control" placeholder="Ghi chú (không bắt buộc)" />
+        </div>
+    </div>
+
+    <label class="form-label fw-bold">Sản phẩm nhập</label>
+    <div id="dsDong"></div>
+    <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="themDong()">+ Thêm dòng</button>
+
+    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="daThanhToan" value="true" id="daTT">
+            <label class="form-check-label" for="daTT">Đã thanh toán ngay <span class="text-muted small">(doanh thu khả dụng: @TienIch.DinhDangTien(soDu))</span></label>
+        </div>
+        <div class="fs-5">Tổng tiền: <strong class="text-pink" id="tongTien">0đ</strong></div>
+    </div>
+    <div class="mt-3"><button class="btn btn-pink px-4" type="submit">💾 Lưu phiếu nhập</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>
+
+@* Hộp thoại "Thêm nhanh nhà cung cấp" - nằm NGOÀI form phiếu nhập, gửi bằng fetch *@
+<div class="modal fade" id="hopThemNcc" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">➕ Thêm nhanh nhà cung cấp</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <label class="form-label">Tên nhà cung cấp *</label>
+            <input id="oTenNccMoi" class="form-control mb-2" placeholder="Ví dụ: Công ty TNHH ABC" />
+            <label class="form-label">Số điện thoại</label>
+            <input id="oSdtNccMoi" class="form-control mb-2" placeholder="Không bắt buộc" />
+            <label class="form-label">Địa chỉ</label>
+            <input id="oDiaChiNccMoi" class="form-control" placeholder="Không bắt buộc" />
+            <div id="loiNccMoi" class="text-danger small mt-2"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-pink" onclick="themNhanhNcc()">Thêm</button></div>
+    </div></div>
+</div>
+
+@section Scripts {
+<script>
+    // ===== Thêm nhanh nhà cung cấp (không rời trang, các dòng sản phẩm đang nhập vẫn giữ) =====
+    // Bấm "Thêm" trong hộp thoại: gửi lên máy chủ, thành công thì thêm vào danh sách NCC, chọn luôn và đóng hộp thoại
+    async function themNhanhNcc() {
+        var oTen = document.getElementById('oTenNccMoi');
+        var oLoi = document.getElementById('loiNccMoi');
+        if (!oTen.value.trim()) { oLoi.textContent = 'Vui lòng nhập tên nhà cung cấp!'; oTen.focus(); return; }
+        var duLieu = new FormData();
+        duLieu.append('tenNcc', oTen.value.trim());
+        duLieu.append('dienThoai', document.getElementById('oSdtNccMoi').value.trim());
+        duLieu.append('diaChi', document.getElementById('oDiaChiNccMoi').value.trim());
+        duLieu.append('__RequestVerificationToken', document.querySelector('input[name=__RequestVerificationToken]').value);
+        var kq = await (await fetch('@Url.Action("ThemNhanh", "NhaCungCap")', { method: 'POST', body: duLieu })).json();
+        if (!kq.thanhCong) { oLoi.textContent = kq.thongBao; return; }
+        document.getElementById('oNcc').add(new Option(kq.ten, kq.ma, true, true));   // thêm vào danh sách và chọn luôn
+        ['oTenNccMoi', 'oSdtNccMoi', 'oDiaChiNccMoi'].forEach(function (id) { document.getElementById(id).value = ''; });
+        oLoi.textContent = '';
+        bootstrap.Modal.getInstance(document.getElementById('hopThemNcc')).hide();
+    }
+
+    var dsSanPham = [@Html.Raw(string.Join(",", dsSp.Select(s => "{ma:" + s.MaSanPham + ",ten:\"" + System.Net.WebUtility.HtmlEncode(s.TenSanPham).Replace("\\", "\\\\").Replace("\"", "\\\"") + "\",ban:" + (long)s.GiaBan + ",giam:" + s.GiamToiDa + ",von:" + (long)s.GiaVon + "}")))];
+    function themDong() {
+        var d = document.createElement('div');
+        d.className = 'row g-2 mb-2 align-items-center';
+        var opt = '<option value="0">-- Chọn sản phẩm --</option>' + dsSanPham.map(function (s) { return '<option value="' + s.ma + '">' + s.ten + '</option>'; }).join('');
+        d.innerHTML = '<div class="col-md-6"><select name="maSanPham" class="form-select" onchange="goiY(this.closest(\'.row\'))">' + opt + '</select></div>' +
+            '<div class="col-md-2"><input type="number" name="soLuong" min="1" value="1" class="form-control" oninput="tinh()" placeholder="SL"></div>' +
+            '<div class="col-md-3"><input type="number" name="giaNhap" min="1" value="0" class="form-control" oninput="tinh();goiY(this.closest(\'.row\'))" placeholder="Giá nhập"></div>' +
+            '<div class="col-md-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.row\').remove();tinh()">✕</button></div>' +
+            '<div class="col-12 ghiChuGia small"></div>';
+        document.getElementById('dsDong').appendChild(d);
+    }
+    function tinh() {
+        var tong = 0;
+        document.querySelectorAll('#dsDong .row').forEach(function (r) {
+            tong += (parseInt(r.querySelector('[name=soLuong]').value) || 0) * (parseInt(r.querySelector('[name=giaNhap]').value) || 0);
+        });
+        document.getElementById('tongTien').textContent = dinhDang(tong);
+    }
+    // ===== GỢI Ý GIÁ BÁN theo giá nhập vừa gõ (chỉ gợi ý, vào Sản phẩm > Sửa để đổi giá bán) =====
+    // Công thức giống DichVuGia.GoiYGiaBan: giá nhập x (1 + lãi tối thiểu) / (1 - giảm tối đa), làm tròn lên bội 1.000đ
+    var LAI_TOI_THIEU = @HangSo.LoiNhuanToiThieu;
+    var BUOC_LAM_TRON = @HangSo.BuocLamTronGia;
+    function goiY(dong) {
+        var ma = parseInt(dong.querySelector('[name=maSanPham]').value) || 0;
+        var von = parseFloat(dong.querySelector('[name=giaNhap]').value) || 0;
+        var o = dong.querySelector('.ghiChuGia');
+        var sp = dsSanPham.find(function (s) { return s.ma === ma; });
+        if (!sp || von <= 0) { o.innerHTML = ''; return; }
+        var gia = Math.ceil(von * (1 + LAI_TOI_THIEU / 100) / (1 - sp.giam / 100) / BUOC_LAM_TRON) * BUOC_LAM_TRON;
+        var giaSan = Math.round(sp.ban * (1 - sp.giam / 100));      // giá thấp nhất sau khi giảm tối đa
+        var lai = (giaSan - von) / von * 100;                        // lãi % khi bị giảm hết cỡ
+        var html = '💡 Giá bán hiện tại <strong>' + dinhDang(sp.ban) + '</strong> · giá bán gợi ý theo giá nhập này: <strong>' + dinhDang(gia) + '</strong>. ';
+        if (sp.ban < gia) html += '<span class="text-danger">⚠ Giá bán đang thấp hơn gợi ý: nếu giảm tối đa ' + sp.giam + '% thì lãi chỉ còn ' + lai.toFixed(1) + '%' + (lai < 0 ? ' (LỖ)' : '') + '.</span>';
+        else html += '<span class="text-success">✔ Giá bán đủ lãi (giảm tối đa ' + sp.giam + '% vẫn lãi ' + lai.toFixed(1) + '%).</span>';
+        o.innerHTML = html;
+    }
+    function dinhDang(so) { return Math.round(so).toLocaleString('vi-VN') + 'đ'; }
+    themDong();
+
+    // Vừa thêm sản phẩm mới -> chọn sẵn sản phẩm đó ở dòng đầu, điền giá nhập dự kiến
+    var chonSanPham = @chonSanPham;
+    if (chonSanPham > 0) {
+        var dong = document.querySelector('#dsDong .row');
+        var sp = dsSanPham.find(function (s) { return s.ma === chonSanPham; });
+        if (dong && sp) {
+            dong.querySelector('[name=maSanPham]').value = sp.ma;
+            dong.querySelector('[name=giaNhap]').value = sp.von;
+            tinh(); goiY(dong);
+        }
+    }
+</script>
+}
