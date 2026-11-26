@@ -73,8 +73,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         }
 
         // Số tiền thành viên ĐÃ NẠP vào ví trong kỳ hạn mức (từ NgayBatDau đến hết ngày HanChot)
-        // GIẢ ĐỊNH: GiaoDich có MaNguoiThucHien, SoTien, LoaiGiaoDich ("Thu" = tiền vào ví).
-        // Nếu tên trường khác, chỉ cần sửa đúng hàm này.
+        // Chỉ tính giao dịch đang hoạt động (bỏ qua giao dịch đã xóa và dòng hoàn tiền).
         private async Task<decimal> TinhSoTienDaNapAsync(HanMucChiTieu hanMuc)
         {
             var tuNgay = hanMuc.NgayBatDau.Date;
@@ -84,6 +83,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 .Where(g => g.MaTaiKhoan == hanMuc.MaTaiKhoan
                          && g.MaNguoiThucHien == hanMuc.MaThanhVien
                          && g.LoaiGiaoDich == "Thu"
+                         && g.TrangThai == "HoatDong"
                          && g.NgayGiaoDich >= tuNgay
                          && g.NgayGiaoDich < denNgay)
                 .SumAsync(g => (decimal?)g.SoTien) ?? 0;
@@ -91,9 +91,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
         #endregion
 
-        // =========================================================
         // INDEX - Danh sách Ví
-        // =========================================================
         public async Task<IActionResult> Index()
         {
             var nguoiDung = await LayNguoiDungDangNhap();
@@ -128,9 +126,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(danhSachTaiKhoan);
         }
 
-        // =========================================================
         // DETAILS - Xem chi tiết tài khoản và lịch sử giao dịch
-        // =========================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -172,6 +168,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             }
 
             // 1. LẤY DANH SÁCH GIAO DỊCH THUỘC TÀI KHOẢN NÀY
+            //    (gồm cả dòng hoàn tiền "HoanTien" và giao dịch đã xóa "DaXoa" để lịch sử biến động số dư đầy đủ)
             var danhSachGiaoDich = await _context.GiaoDichs
                 .Include(g => g.NguoiThucHien)
                 .Include(g => g.DanhMuc)
@@ -249,9 +246,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(taiKhoan);
         }
 
-        // =========================================================
         // CREATE - Thêm Ví cá nhân mới (TK-05A)
-        // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> Create()
@@ -339,9 +334,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         }
 
 
-        // =========================================================
         // EDIT - Chỉnh sửa Ví cá nhân (TK-05B)
-        // =========================================================
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -405,9 +398,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(input);
         }
 
-        // =========================================================
         // DELETE - Xóa / Khóa / Lưu trữ Ví cá nhân (TK-05C)
-        // =========================================================
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();

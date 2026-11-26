@@ -20,7 +20,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
         private async Task<NguoiDung?> LayNguoiDungDangNhapAsync()
         {
-            var email = User.FindFirstValue(ClaimTypes.Email);
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
             if (string.IsNullOrEmpty(email)) return null;
 
             return await _context.NguoiDungs.FirstOrDefaultAsync(x => x.Email == email);
@@ -49,36 +49,45 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         }
 
         /// <summary>
-        /// TRUY VẤN DÙNG CHUNG cho tháng báo cáo và tháng so sánh (và dữ liệu xuất file, vì file xuất lấy từ cùng model hiển thị):
-        /// luôn lọc đúng hộ gia đình + đúng tháng + điều kiện thu/chi thực tế (BaoCaoQueryExtensions.ThuChiThucTe)
-        /// + phạm vi xem của người dùng (cá nhân / chủ hộ / thành viên BR56).
+        /// Tạo truy vấn giao dịch thực tế phân tách rõ Hộ gia đình và Cá nhân, hỗ trợ Theo tháng hoặc Cả năm (thang == null).
         /// </summary>
         private IQueryable<GiaoDich> TaoTruyVanBaoCao(
-            int maGiaDinh, NguoiDung nguoiDung, bool laChuHo, bool laCaNhan, int thang, int nam)
+            int maGiaDinh, NguoiDung nguoiDung, bool laChuHo, bool laCaNhan, int? thang, int nam)
         {
             var query = _context.GiaoDichs
                 .Where(x => x.TaiKhoanTien != null &&
-                            x.TaiKhoanTien.MaGiaDinh == maGiaDinh &&
-                            x.NgayGiaoDich.Month == thang &&
                             x.NgayGiaoDich.Year == nam)
                 .ThuChiThucTe();
 
+            if (thang.HasValue)
+            {
+                query = query.Where(x => x.NgayGiaoDich.Month == thang.Value);
+            }
+
             if (laCaNhan)
             {
-                // Cá nhân: chỉ giao dịch do chính người dùng thực hiện
-                query = query.Where(x => x.MaNguoiThucHien == nguoiDung.MaNguoiDung);
+                // Cá nhân: giao dịch dùng tài khoản cá nhân của người dùng (không phụ thuộc MaGiaDinh của ví bị null hay không)
+                query = query.Where(x => !x.TaiKhoanTien!.LaTaiKhoanGiaDinh &&
+                                         (x.TaiKhoanTien.MaNguoiSoHuu == nguoiDung.MaNguoiDung ||
+                                          x.MaNguoiThucHien == nguoiDung.MaNguoiDung));
             }
-            else if (!laChuHo)
+            else
             {
-                // Gia đình - thành viên (BR56): giao dịch của mình + giao dịch dùng tài khoản gia đình
-                query = query.Where(x => x.MaNguoiThucHien == nguoiDung.MaNguoiDung ||
-                                         x.TaiKhoanTien!.LaTaiKhoanGiaDinh);
+                // Hộ gia đình: thuộc hộ gia đình hiện tại
+                query = query.Where(x => x.TaiKhoanTien!.MaGiaDinh == maGiaDinh);
+
+                if (!laChuHo)
+                {
+                    // Thành viên xem hộ gia đình (BR56): giao dịch dùng tài khoản gia đình hoặc giao dịch của chính mình
+                    query = query.Where(x => x.TaiKhoanTien!.LaTaiKhoanGiaDinh ||
+                                             x.MaNguoiThucHien == nguoiDung.MaNguoiDung);
+                }
             }
 
             return query;
         }
 
-        /// <summary>Tổng thu / tổng chi - một cách tính duy nhất cho cả tháng này và tháng trước.</summary>
+        /// <summary>Tổng thu / tổng chi - một cách tính duy nhất cho cả kỳ này và kỳ trước.</summary>
         private static (decimal TongThu, decimal TongChi) TinhTong(IEnumerable<(string Loai, decimal SoTien)> giaoDichs)
         {
             var ds = giaoDichs.ToList();
@@ -86,7 +95,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                     ds.Where(x => x.Loai == "Chi").Sum(x => x.SoTien));
         }
 
-        public async Task<IActionResult> Index(int? thang, int? nam, string cheDo = "gia-dinh")
+        public async Task<IActionResult> Index(int? thang, int? nam, string cheDo = "gia-dinh", string kieuBaoCao = "thang")
         {
             var nguoiDung = await LayNguoiDungDangNhapAsync();
             if (nguoiDung == null)
@@ -94,6 +103,8 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
             }
 
+            bool laCaNam = kieuBaoCao == "nam";
+            bool laCaNhan = cheDo == "ca-nhan";
             int thangBaoCao = thang ?? DateTime.Now.Month;
             int namBaoCao = nam ?? DateTime.Now.Year;
 
@@ -103,6 +114,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var hoGiaDinh = await LayHoGiaDinhCuaNguoiDungAsync(nguoiDung.MaNguoiDung);
             if (hoGiaDinh == null)
             {
+                ViewBag.CheDoXem = laCaNhan ? "ca-nhan" : "gia-dinh";
+                ViewBag.LaCaNam = laCaNam;
+                ViewBag.KieuBaoCao = laCaNam ? "nam" : "thang";
                 return View(new BaoCaoViewModel
                 {
                     NguoiDung = nguoiDung,
@@ -115,11 +129,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             int maGiaDinh = hoGiaDinh.MaGiaDinh;
             bool laChuHo = LaChuHo(nguoiDung, hoGiaDinh);
 
-            // Chế độ xem: "gia-dinh" (mặc định) hoặc "ca-nhan"
-            bool laCaNhan = cheDo == "ca-nhan";
-
-            // ===== THÁNG BÁO CÁO =====
-            var giaoDichs = await TaoTruyVanBaoCao(maGiaDinh, nguoiDung, laChuHo, laCaNhan, thangBaoCao, namBaoCao)
+            // ===== KỲ BÁO CÁO (1 THÁNG HOẶC CẢ NĂM) =====
+            int? thangLoc = laCaNam ? null : thangBaoCao;
+            var giaoDichs = await TaoTruyVanBaoCao(maGiaDinh, nguoiDung, laChuHo, laCaNhan, thangLoc, namBaoCao)
                 .Include(x => x.TaiKhoanTien)
                 .Include(x => x.DanhMuc)
                 .Include(x => x.NguoiThucHien)
@@ -128,23 +140,38 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             var (tongThu, tongChi) = TinhTong(giaoDichs.Select(x => (x.LoaiGiaoDich, x.SoTien)));
 
-            // ===== THÁNG TRƯỚC (cùng điều kiện lọc) =====
-            var thangTruocDate = new DateTime(namBaoCao, thangBaoCao, 1).AddMonths(-1);
+            // ===== KỲ TRƯỚC (THÁNG TRƯỚC HOẶC NĂM TRƯỚC) =====
+            int thangKyTruoc, namKyTruoc;
+            int? thangLocKyTruoc;
 
-            var giaoDichThangTruoc = (await TaoTruyVanBaoCao(maGiaDinh, nguoiDung, laChuHo, laCaNhan,
-                    thangTruocDate.Month, thangTruocDate.Year)
+            if (laCaNam)
+            {
+                thangKyTruoc = 0;
+                namKyTruoc = namBaoCao - 1;
+                thangLocKyTruoc = null;
+            }
+            else
+            {
+                var thangTruocDate = new DateTime(namBaoCao, thangBaoCao, 1).AddMonths(-1);
+                thangKyTruoc = thangTruocDate.Month;
+                namKyTruoc = thangTruocDate.Year;
+                thangLocKyTruoc = thangKyTruoc;
+            }
+
+            var giaoDichKyTruoc = (await TaoTruyVanBaoCao(maGiaDinh, nguoiDung, laChuHo, laCaNhan,
+                    thangLocKyTruoc, namKyTruoc)
                 .Select(x => new { x.LoaiGiaoDich, x.SoTien })
                 .ToListAsync())
                 .Select(x => (x.LoaiGiaoDich, x.SoTien))
                 .ToList();
 
-            var (thuTruoc, chiTruoc) = TinhTong(giaoDichThangTruoc);
+            var (thuTruoc, chiTruoc) = TinhTong(giaoDichKyTruoc);
 
             var soSanh = new BaoCaoSoSanhViewModel
             {
-                ThangTruoc = thangTruocDate.Month,
-                NamTruoc = thangTruocDate.Year,
-                SoGiaoDichThangTruoc = giaoDichThangTruoc.Count,
+                ThangTruoc = thangKyTruoc,
+                NamTruoc = namKyTruoc,
+                SoGiaoDichThangTruoc = giaoDichKyTruoc.Count,
                 Thu = new ChiSoSoSanhViewModel { HienTai = tongThu, ThangTruoc = thuTruoc },
                 Chi = new ChiSoSoSanhViewModel { HienTai = tongChi, ThangTruoc = chiTruoc },
                 ChenhLech = new ChiSoSoSanhViewModel { HienTai = tongThu - tongChi, ThangTruoc = thuTruoc - chiTruoc }
@@ -172,10 +199,10 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 MaGiaDinh = maGiaDinh,
                 LaChuHo = laChuHo,
                 PhamViBaoCao = laCaNhan
-                    ? "Chỉ gồm các giao dịch do bạn thực hiện."
+                    ? $"Chỉ gồm các giao dịch thuộc tài khoản cá nhân của {nguoiDung.HoTen}."
                     : laChuHo
                         ? "Toàn bộ giao dịch của hộ gia đình."
-                        : "Giao dịch do bạn thực hiện và giao dịch dùng tài khoản gia đình.",
+                        : "Giao dịch của bạn và giao dịch dùng tài khoản gia đình.",
                 ThangBaoCao = thangBaoCao,
                 NamBaoCao = namBaoCao,
                 TongThu = tongThu,
@@ -192,7 +219,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             ViewBag.LaChuHo = laChuHo;
             ViewBag.MaNguoiDung = nguoiDung.MaNguoiDung;
             ViewBag.MaGiaDinh = maGiaDinh;
-            ViewBag.SoSanh = soSanh; // số liệu so sánh với tháng trước (hiển thị + xuất file)
+            ViewBag.SoSanh = soSanh;
+            ViewBag.LaCaNam = laCaNam;
+            ViewBag.KieuBaoCao = laCaNam ? "nam" : "thang";
 
             return View(model);
         }

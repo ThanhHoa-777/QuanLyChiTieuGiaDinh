@@ -25,9 +25,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return await _context.NguoiDungs.FirstOrDefaultAsync(x => x.Email == email);
         }
 
-        // =====================================================
         // TRUNG TÂM THÔNG BÁO (TAB CÁ NHÂN & TAB GIA ĐÌNH)
-        // =====================================================
         public async Task<IActionResult> Index(string tab = "CaNhan", string filter = "tat-ca")
         {
             var nguoiDung = await LayNguoiDungDangNhapAsync();
@@ -39,18 +37,28 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             ViewBag.CountChuaDocCaNhan = await query.CountAsync(x => x.PhamVi == PhamViThongBao.CaNhan && !x.DaDoc);
             ViewBag.CountChuaDocGiaDinh = await query.CountAsync(x => x.PhamVi == PhamViThongBao.GiaDinh && !x.DaDoc);
 
+            // Số thông báo CẢNH BÁO chưa đọc của tab hiện tại (dùng cho banner cảnh báo)
+            ViewBag.CountCanhBao = await query.CountAsync(x => x.PhamVi == phamViCurrent
+                                                              && x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach
+                                                              && !x.DaDoc);
+
             var filteredQuery = query.Where(x => x.PhamVi == phamViCurrent);
-            switch (filter.ToLower())
+            if (filter.Equals("chua-doc", StringComparison.OrdinalIgnoreCase))
             {
-                case "chua-doc":
-                    filteredQuery = filteredQuery.Where(x => !x.DaDoc);
-                    break;
-                case "canh-bao":
-                    filteredQuery = filteredQuery.Where(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach || x.LoaiThongBao == LoaiThongBao.PheDuyet || x.LoaiThongBao == LoaiThongBao.YeuCauThoatHo);
-                    break;
+                filteredQuery = filteredQuery.Where(x => !x.DaDoc);
+            }
+            else if (filter.Equals("canh-bao", StringComparison.OrdinalIgnoreCase))
+            {
+                filteredQuery = filteredQuery.Where(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach);
             }
 
-            var thongBaos = await filteredQuery.OrderBy(x => x.DaDoc).ThenByDescending(x => x.NgayTao).ToListAsync();
+            // Ưu tiên: cảnh báo chưa đọc -> chưa đọc -> mới nhất
+            var thongBaos = await filteredQuery
+                .OrderByDescending(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach && !x.DaDoc)
+                .ThenBy(x => x.DaDoc)
+                .ThenByDescending(x => x.NgayTao)
+                .ToListAsync();
+
             ViewBag.TabCurrent = tab;
             ViewBag.FilterCurrent = filter;
 
@@ -92,9 +100,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index), new { tab });
         }
 
-        // =====================================================
         // XỬ LÝ LỜI MỜI DIRECTLY (CHẤP NHẬN / TỪ CHỐI TỪ THÔNG BÁO)
-        // =====================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -163,16 +169,17 @@ namespace QuanLyChiTieuGiaDinh.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DanhDauDaDoc(int id)
         {
-            var thongBao = await _context.ThongBaos.FindAsync(id);
+            var nguoiDung = await LayNguoiDungDangNhapAsync();
+            if (nguoiDung == null) return RedirectToPage("/Account/Login", new { area = "Identity" });
+
+            // Chỉ cho phép đánh dấu thông báo của chính mình
+            var thongBao = await _context.ThongBaos.FirstOrDefaultAsync(x => x.MaThongBao == id && x.MaNguoiDung == nguoiDung.MaNguoiDung);
             if (thongBao == null)
             {
                 return NotFound();
             }
 
-            // Đánh dấu đã đọc
             thongBao.DaDoc = true;
-
-            _context.ThongBaos.Update(thongBao);
             await _context.SaveChangesAsync();
 
             // Quay lại đúng tab hiện tại (Cá nhân hoặc Gia đình)
