@@ -1,0 +1,69 @@
+﻿@model HoSoVM
+@{
+    ViewData["Title"] = "Hồ sơ - ShopSon";
+    var nd = Model.NguoiDung;
+    bool laKhach = nd.QuyenHan == HangSo.QuyenKhachHang;
+}
+<div class="tieude-khu"><div class="nhan-nho">Tài khoản</div><h2>👤 Hồ Sơ Của Tôi</h2></div>
+
+<div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:start;" class="luoi-hoso">
+    <form asp-controller="TaiKhoan" asp-action="HoSo" method="post" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+        <label class="nhan-o">Tên đăng nhập</label>
+        <input value="@nd.TenDangNhap" disabled class="o-nhap" style="background:#f5f5f5;" />
+        <label class="nhan-o">Họ và tên *</label>
+        <input name="tenNguoiDung" value="@nd.TenNguoiDung" required class="o-nhap" />
+        <label class="nhan-o">Email</label>
+        <input name="email" type="email" value="@nd.Email" class="o-nhap" />
+        <div style="font-size:12px;color:#888;margin:-8px 0 12px;">📧 Mã khôi phục mật khẩu sẽ gửi tới email này.</div>
+        <label class="nhan-o">Số điện thoại</label>
+        <input name="soDienThoai" value="@nd.SoDienThoai" class="o-nhap" />
+        <label class="nhan-o">Địa chỉ</label>
+        <input name="diaChi" value="@nd.DiaChi" class="o-nhap" />
+        <hr style="border-color:#f8d7da;">
+        <label class="nhan-o">Đổi mật khẩu (bỏ trống nếu không đổi)</label>
+        <input name="matKhauMoi" type="password" placeholder="Mật khẩu mới" class="o-nhap" />
+        <input name="matKhauXacNhan" type="password" placeholder="Nhập lại mật khẩu mới" class="o-nhap" />
+        <label class="nhan-o">Mật khẩu hiện tại <span style="font-weight:400;color:#999;">(chỉ cần khi đổi email hoặc đổi mật khẩu)</span></label>
+        <input name="matKhauHienTai" type="password" placeholder="Mật khẩu hiện tại" class="o-nhap" autocomplete="current-password" />
+        <button type="submit" class="btn-mua-ngay" style="padding:12px 28px;border:none;cursor:pointer;">💾 Lưu thay đổi</button>
+    </form>
+
+    @if (laKhach)
+    {
+        <div style="background:linear-gradient(135deg,#fff0f7,#fce4ec);border-radius:14px;padding:22px;">
+            <div style="font-size:12px;color:#888;">Hạng thành viên</div>
+            <div style="font-size:24px;font-weight:800;color:@HangThanhVien.MauHang(nd.HangKhachHang);">@HangThanhVien.IconHang(nd.HangKhachHang) @HangThanhVien.TenHang(nd.HangKhachHang)</div>
+            <div style="font-size:15px;font-weight:700;color:#d63384;margin:6px 0;">@TienIch.DinhDangSo(nd.TongDiem) điểm</div>
+            <div style="background:#f8d7da;border-radius:6px;height:9px;"><div style="background:@HangThanhVien.MauHang(nd.HangKhachHang);height:9px;border-radius:6px;width:@(HangThanhVien.PhanTramTienTrinh(nd.TongDiem))%;"></div></div>
+            @if (HangThanhVien.DiemConThieu(nd.TongDiem) > 0)
+            {
+                <div style="font-size:12px;color:#888;margin-top:6px;">Còn <strong>@TienIch.DinhDangSo(HangThanhVien.DiemConThieu(nd.TongDiem))</strong> điểm để lên hạng tiếp theo</div>
+            }
+            else
+            {
+                <div style="font-size:12px;color:#27ae60;font-weight:700;margin-top:6px;">💎 Bạn đã đạt hạng cao nhất!</div>
+            }
+            <div style="font-size:12px;color:#888;margin-top:10px;">Cứ 10.000đ tiền hàng = 10 điểm · Bạc ≥ 2.500 · Vàng ≥ 5.000 · Kim Cương ≥ 10.000</div>
+            <div style="margin-top:12px;font-size:13px;">📦 Tổng số đơn: <strong>@Model.TongDonHang</strong></div>
+            @if (Model.LichSuDiem.Count > 0)
+            {
+                <div style="margin-top:14px;border-top:1px dashed #f8d7da;padding-top:10px;">
+                    <div style="font-weight:700;color:#d63384;font-size:13px;margin-bottom:6px;">📋 Lịch sử điểm</div>
+                    @foreach (var ls in Model.LichSuDiem)
+                    {
+                        <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #fce4ec;">
+                            <span>@ls.GhiChu <small style="color:#aaa;">(@ls.NgayGhi.ToString("dd/MM/yyyy"))</small>
+                                @if (ls.MaDonHang != null) { <a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@ls.MaDonHang" style="color:#d63384;">· xem đơn #@ls.MaDonHang</a> }</span>
+                            <strong style="color:#27ae60;">+@TienIch.DinhDangSo(ls.SoDiemCong)</strong>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+<style>
+    .o-nhap { width:100%; padding:11px 12px; border:1.5px solid #f8d7da; border-radius:8px; margin-bottom:12px; font:inherit; }
+    .nhan-o { font-size:12px; color:#888; font-weight:600; display:block; margin-bottom:4px; }
+    @@media (max-width: 800px) { .luoi-hoso { grid-template-columns: 1fr !important; } }
+</style>

@@ -1,0 +1,55 @@
+@model KhuyenMaiVM
+@{ ViewData["Title"] = "Khuyến mãi - ShopSon"; }
+<div class="tieude-khu">
+    <div class="nhan-nho">Ưu đãi</div>
+    <h2>🎁 Mã Giảm Giá Của Bạn</h2>
+</div>
+@if (!Model.DaDangNhap)
+{
+    <p style="text-align:center;color:#888;margin-bottom:16px;">
+        <a asp-controller="TaiKhoan" asp-action="DangNhap" style="color:#d63384;font-weight:700;">Đăng nhập</a> để xem thêm mã dành riêng cho hạng thành viên của bạn.
+    </p>
+}
+else
+{
+    <p style="text-align:center;margin-bottom:16px;">Hạng của bạn: <strong style="color:@HangThanhVien.MauHang(Model.HangKhach);">@HangThanhVien.IconHang(Model.HangKhach) @HangThanhVien.TenHang(Model.HangKhach)</strong></p>
+}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:34px;">
+    @foreach (var v in Model.Voucher)
+    {
+        <div onclick="chepMa('@v.MaCode')" style="background:#fff;border:1.5px dashed #d63384;border-radius:14px;padding:16px;cursor:pointer;">
+            <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:17px;font-weight:800;color:#d63384;">@v.MaCode</span>
+                <span style="font-size:11px;background:@HangThanhVien.MauHang(v.HangVoucher);color:#fff;border-radius:10px;padding:2px 8px;">@HangThanhVien.TenHang(v.HangVoucher)</span>
+            </div>
+            <div style="font-size:12px;color:#666;margin:4px 0;">@v.MoTa</div>
+            @if (v.GiaTri == 0) { <div style="color:#e74c3c;font-weight:700;font-size:13px;">Miễn phí vận chuyển</div> }
+            else if (v.LoaiGiam == "PHAN_TRAM")
+            {
+                <div style="color:#e74c3c;font-weight:700;font-size:13px;">Giảm @v.GiaTri%@(v.GiamToiDa > 0 ? " (tối đa " + TienIch.DinhDangTien(v.GiamToiDa) + ")" : "")</div>
+            }
+            else { <div style="color:#e74c3c;font-weight:700;font-size:13px;">Giảm @TienIch.DinhDangTien(v.GiaTri)</div> }
+            @if (v.DonToiThieu > 0) { <div style="font-size:11px;color:#888;">Đơn tối thiểu @TienIch.DinhDangTien(v.DonToiThieu)</div> }
+            <div style="font-size:11px;color:#888;">
+                @(v.NgayHetHan.HasValue ? "HSD: " + v.NgayHetHan.Value.ToString("dd/MM/yyyy") : "Không giới hạn thời gian")
+                · Còn @(v.GioiHanDung - v.SoLanDung) lượt
+            </div>
+            <button type="button" onclick="event.stopPropagation();chepMa('@v.MaCode')"
+                    style="margin-top:10px;width:100%;background:#d63384;color:#fff;border:none;border-radius:8px;padding:8px;font-weight:700;cursor:pointer;">
+                📋 Sao chép mã
+            </button>
+        </div>
+    }
+    @if (Model.Voucher.Count == 0) { <p style="color:#aaa;grid-column:1/-1;text-align:center;">Hiện chưa có mã giảm giá nào.</p> }
+</div>
+
+<div class="tieude-khu">
+    <div class="nhan-nho">Giá tốt</div>
+    <h2>Sản Phẩm Đang Giảm Giá</h2>
+</div>
+<div class="luoi-sanpham">
+    @foreach (var the in Model.SanPhamGiamGia)
+    {
+        <partial name="_TheSanPham" model="the" />
+    }
+</div>

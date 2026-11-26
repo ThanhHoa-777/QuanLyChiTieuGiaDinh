@@ -1,0 +1,13 @@
+@model DanhSachSanPhamVM
+@if (Model.TongTrang > 1)
+{
+    <div style="display:flex;justify-content:center;gap:6px;margin:26px 0;flex-wrap:wrap;">
+        @for (int t = 1; t <= Model.TongTrang; t++)
+        {
+            bool dangChon = t == Model.Trang;
+            <a asp-controller="SanPham" asp-action="Index" asp-route-trang="@t" asp-route-tuKhoa="@Model.TuKhoa"
+               asp-route-sapXep="@Model.SapXep" asp-route-loaiSon="@Model.LoaiSon" asp-route-maThuongHieu="@Model.MaThuongHieu"
+               style="padding:7px 13px;border-radius:8px;border:1.5px solid #f8d7da;text-decoration:none;font-weight:600;@(dangChon ? "background:#d63384;color:#fff;" : "color:#d63384;background:#fff;")">@t</a>
+        }
+    </div>
+}

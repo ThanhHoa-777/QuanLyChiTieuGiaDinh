@@ -1,0 +1,85 @@
+﻿@model List<TinNhan>
+@{
+    ViewData["Title"] = "Tin nhắn - ShopSon";
+    string tab = ViewBag.Tab as string ?? "trochuyen";
+    bool laThongBao = tab == "thongbao";
+    int chuaDocTabKia = ViewBag.ChuaDocTabKia is int n ? n : 0;
+}
+<div style="max-width:680px;margin:0 auto;">
+    <div class="tieude-khu"><div class="nhan-nho">Hỗ trợ</div><h2>Tin Nhắn</h2></div>
+
+    @* ===== Menu chọn tab: Trò chuyện với shop / Thông báo hệ thống ===== *@
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        @foreach (var (ma, ten) in new[] { ("trochuyen", "💬 Trò chuyện với shop"), ("thongbao", "🔔 Thông báo") })
+        {
+            bool dangMo = tab == ma;
+            <a asp-controller="TinNhan" asp-action="Index" asp-route-tab="@ma"
+               style="flex:1;text-align:center;padding:10px;border-radius:12px;font-weight:700;text-decoration:none;position:relative;@(dangMo ? "background:#d63384;color:#fff;" : "background:#fff;color:#d63384;border:1.5px solid #f8d7da;")">
+                @ten
+                @if (!dangMo && chuaDocTabKia > 0)
+                {
+                    <span style="position:absolute;top:-6px;right:10px;background:#e74c3c;color:#fff;border-radius:10px;padding:0 7px;font-size:12px;">@chuaDocTabKia</span>
+                }
+            </a>
+        }
+    </div>
+
+    <div style="background:white;border:1.5px solid #f8d7da;border-radius:16px;overflow:hidden;">
+        @if (laThongBao)
+        {
+            @* ===== TAB THÔNG BÁO: danh sách thông báo, mới nhất ở trên, chỉ đọc ===== *@
+            <div style="background:linear-gradient(90deg,#d63384,#e91e8c);padding:14px 20px;color:white;font-weight:700;">🔔 Thông báo từ hệ thống</div>
+            <div style="max-height:480px;overflow-y:auto;background:#fdf6f8;">
+                @if (Model.Count == 0)
+                {
+                    <div style="text-align:center;color:#aaa;padding:40px;"><div style="font-size:40px;margin-bottom:8px;">🔔</div><p>Chưa có thông báo nào.</p></div>
+                }
+                @foreach (var tin in Model.OrderByDescending(t => t.NgayGui))
+                {
+                    <div style="padding:12px 16px;border-bottom:1px solid #f8d7da;background:#fff;white-space:pre-line;font-size:14px;">
+                        @tin.NoiDung
+                        <div style="font-size:11px;color:#999;margin-top:4px;">@tin.NgayGui.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                }
+            </div>
+            <div style="padding:10px 16px;font-size:12px;color:#888;border-top:1px solid #f8d7da;">
+                Cần hỏi thêm về đơn hàng? Chuyển sang tab <a asp-controller="TinNhan" asp-action="Index" asp-route-tab="trochuyen" style="color:#d63384;">💬 Trò chuyện với shop</a>.
+            </div>
+        }
+        else
+        {
+            @* ===== TAB TRÒ CHUYỆN: khung chat với shop ===== *@
+            <div style="background:linear-gradient(90deg,#d63384,#e91e8c);padding:14px 20px;color:white;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:24px;">💄</span>
+                <div><div style="font-weight:700;">ShopSon - Hỗ trợ khách hàng</div><div style="font-size:11px;opacity:.85;">Thường trả lời trong 1-2 giờ</div></div>
+            </div>
+            <div id="khungChat" style="height:380px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#fdf6f8;">
+                @if (Model.Count == 0)
+                {
+                    <div style="text-align:center;color:#aaa;padding:40px;"><div style="font-size:40px;margin-bottom:8px;">💬</div><p>Bạn chưa có tin nhắn nào. Hãy gửi tin đầu tiên!</p></div>
+                }
+                @foreach (var tin in Model)
+                {
+                    <div style="display:flex;justify-content:@(tin.LaAdmin ? "flex-start" : "flex-end");">
+                        <div style="max-width:75%;padding:10px 14px;border-radius:14px;white-space:pre-line;font-size:14px;@(tin.LaAdmin ? "background:#fff;border:1px solid #f8d7da;" : "background:#d63384;color:#fff;")">
+                            @if (!string.IsNullOrEmpty(tin.HinhAnh))
+                            {
+                                <a href="@TienIch.DuongDanAnh(tin.HinhAnh)" target="_blank"><img src="@TienIch.DuongDanAnh(tin.HinhAnh)" style="max-width:220px;max-height:220px;border-radius:10px;display:block;margin-bottom:4px;" /></a>
+                            }
+                            @tin.NoiDung
+                            <div style="font-size:10px;opacity:.7;margin-top:4px;">@(tin.LaAdmin ? "ShopSon" : "Bạn") · @tin.NgayGui.ToString("dd/MM HH:mm")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <form asp-controller="TinNhan" asp-action="Gui" method="post" enctype="multipart/form-data" style="display:flex;gap:8px;padding:12px;border-top:1px solid #f8d7da;align-items:center;">
+                <input name="noiDung" placeholder="Nhập tin nhắn..." style="flex:1;padding:11px;border:1.5px solid #f8d7da;border-radius:10px;" />
+                @* Nút 📷 chọn ảnh: có thể gửi ảnh không cần chữ *@
+                <label title="Gửi ảnh" style="cursor:pointer;font-size:22px;margin:0;">📷<input type="file" name="anh" accept="image/*" style="display:none;" onchange="document.getElementById('tenAnh').textContent = this.files.length ? this.files[0].name : ''" /></label>
+                <span id="tenAnh" style="font-size:11px;color:#888;max-width:90px;overflow:hidden;white-space:nowrap;"></span>
+                <button type="submit" class="btn-mua-ngay" style="border:none;cursor:pointer;padding:0 22px;">Gửi</button>
+            </form>
+        }
+    </div>
+</div>
+@section Scripts { <script>var k = document.getElementById('khungChat'); if (k) k.scrollTop = k.scrollHeight;</script> }
