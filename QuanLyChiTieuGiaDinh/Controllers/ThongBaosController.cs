@@ -217,7 +217,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             TempData["SuccessMessage"] = "Đã từ chối lời mời gia nhập hộ gia đình.";
             return RedirectToAction(nameof(Index), new { tab = thongBao.PhamVi.ToString() });
         }
-
+        // hàm xóa thông báo
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
