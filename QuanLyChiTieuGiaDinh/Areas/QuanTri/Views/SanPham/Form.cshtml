@@ -1,0 +1,183 @@
+﻿@model SanPham
+@{
+    bool laSua = Model.MaSanPham > 0;
+    ViewData["Title"] = laSua ? "Sửa sản phẩm" : "Thêm sản phẩm";
+    var dsTh = (List<ThuongHieu>)ViewBag.DanhSachThuongHieu;
+    bool daCoPhieuNhap = (bool)(ViewBag.DaCoPhieuNhap ?? false);   // đã nhập kho thì giá nhập lấy theo phiếu nhập
+}
+<h3 class="mb-3">@(laSua ? "✏ Sửa sản phẩm #" + Model.MaSanPham : "➕ Thêm sản phẩm mới")</h3>
+<form asp-action="@(laSua ? "Sua" : "Them")" asp-route-id="@(laSua ? Model.MaSanPham : (int?)null)" method="post" enctype="multipart/form-data" class="card shadow-sm border-0 p-4">
+    <div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Tên sản phẩm *</label><input name="TenSanPham" value="@Model.TenSanPham" class="form-control" required /></div>
+        <div class="col-md-4">
+            <label class="form-label">Thương hiệu *</label>
+            <div class="input-group">
+                <select name="MaThuongHieu" id="oThuongHieu" class="form-select" required>
+                    <option value="">-- Chọn --</option>
+                    @foreach (var t in dsTh)
+                    {
+                        <option value="@t.MaThuongHieu" selected="@(t.MaThuongHieu == Model.MaThuongHieu)">@t.TenThuongHieu</option>
+                    }
+                </select>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#hopThemThuongHieu" title="Thêm thương hiệu mới mà không rời trang">➕ Mới</button>
+            </div>
+        </div>
+        @if (daCoPhieuNhap)
+        {
+            <div class="col-md-3">
+                <label class="form-label">Giá nhập (theo phiếu nhập gần nhất)</label>
+                <input type="number" id="oGiaVon" value="@((long)Model.GiaVon)" class="form-control" readonly />
+                <div class="form-text">Không sửa ở đây. Mỗi lần tạo phiếu nhập, số này tự cập nhật theo giá nhập mới.</div>
+            </div>
+        }
+        else
+        {
+            <div class="col-md-3">
+                <label class="form-label">Giá nhập dự kiến</label><input type="number" id="oGiaVon" name="GiaVon" value="@((long)Model.GiaVon)" min="0" class="form-control" oninput="goiYGia()" />
+                <div class="form-text">Giá NCC báo, dùng để tính giá bán gợi ý. Giá nhập thật sẽ được ghi khi tạo phiếu nhập.</div>
+            </div>
+        }
+        <div class="col-md-3">
+            <label class="form-label">Giá bán *</label><input type="number" id="oGiaBan" name="GiaBan" value="@((long)Model.GiaBan)" min="0" class="form-control" required oninput="goiYGia()" />
+            <div class="form-text">Đúng giá này sẽ hiện cho khách. Khi có giảm giá, giá này bị gạch ngang.</div>
+        </div>
+        <div class="col-md-12">
+            <!-- Khung GỢI Ý GIÁ BÁN: chỉ gợi ý, admin vẫn nhập giá khác được -->
+            <div id="khungGoiY" class="alert alert-info py-2 mb-0" style="display:none;"></div>
+        </div>
+        @if (laSua)
+        {
+            @* Tồn kho chỉ để XEM: chỉ thay đổi qua phiếu nhập (cộng), giao hàng (trừ), cập nhật lại kho khi giao thất bại (cộng) *@
+            <div class="col-md-3">
+                <label class="form-label">Tồn kho hiện tại</label>
+                <input class="form-control" value="@Model.TonKho" disabled />
+                <div class="form-text">
+                    Không sửa tay. Muốn thêm hàng hãy <a asp-controller="Kho" asp-action="Them" asp-route-maSanPham="@Model.MaSanPham">tạo phiếu nhập</a>;
+                    hàng hỏng / mất / kiểm kê lệch thì <a asp-controller="Kho" asp-action="DieuChinh" asp-route-maSanPham="@Model.MaSanPham">điều chỉnh kho</a> (xem cả lịch sử điều chỉnh).
+                </div>
+            </div>
+        }
+        <div class="col-md-3">
+            <label class="form-label">Loại son</label>
+            <select name="LoaiSon" class="form-select">
+                <option value="">-- Chọn --</option>
+                @foreach (var l in HangSo.DanhSachLoaiSon)
+                {
+                    <option value="@l" selected="@(l == Model.LoaiSon)">@l</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Giảm tối đa (%) *</label>
+            <input type="number" id="oGiamToiDa" name="GiamToiDa" value="@Model.GiamToiDa" min="0" max="70" class="form-control" required oninput="goiYGia()" />
+            <div class="form-text">Tổng mức giảm so với giá bán (flash sale + ưu đãi cộng dồn) không vượt quá số này.</div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Ngày bắt đầu bán</label>
+            @if (laSua)
+            {
+                <input type="date" name="NgayTao" value="@Model.NgayTao.ToString("yyyy-MM-dd")" class="form-control" />
+            }
+            else
+            {
+
+                <input class="form-control" value="Hôm nay (tự ghi nhận)" disabled />
+            }
+            <div class="form-text">Mốc để xét giảm giá khi bán chậm (sau @HangSo.SoThangXetChamBan tháng).</div>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">% giảm khi bán chậm</label>
+            <input type="number" id="oChamBan" name="PhanTramChamBan" value="@Model.PhanTramChamBan" min="0" max="70" class="form-control" oninput="document.getElementById('nhanChamBan').textContent = this.value || 0" />
+            <div class="form-text">Mặc định @HangSo.PhanTramGiamChamBan%, không vượt "Giảm tối đa".</div>
+        </div>
+        <div class="col-md-4 d-flex align-items-center">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" name="TuDongGiam" value="true" id="tdg" checked="@Model.TuDongGiam" /><input type="hidden" name="TuDongGiam" value="false" />
+                <label for="tdg" class="form-check-label">Cho phép <strong>tự giảm <span id="nhanChamBan">@Model.PhanTramChamBan</span>%</strong> khi bán chậm (sau @HangSo.SoThangXetChamBan tháng chưa bán được @HangSo.TyLeBanMucTieu% lượng hàng; bán đủ thì giá tự quay lại bình thường)</label>
+            </div>
+        </div>
+        <div class="col-md-12"><label class="form-label">Mô tả</label><textarea name="MoTa" rows="4" class="form-control">@Model.MoTa</textarea></div>
+        <div class="col-md-8">
+            <label class="form-label">Hình ảnh @(laSua ? "(bỏ trống nếu giữ ảnh cũ)" : "")</label><input type="file" name="anh" accept="image/*" class="form-control" />
+            @if (laSua && !string.IsNullOrEmpty(Model.HinhAnh))
+            {
+                <img src="@TienIch.DuongDanAnh(Model.HinhAnh)" style="height:90px;margin-top:8px;border-radius:8px;">
+            }
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" name="LaHangMoi" value="true" id="hm" checked="@Model.LaHangMoi" /><input type="hidden" name="LaHangMoi" value="false" />
+                <label for="hm" class="form-check-label">Hiển thị ở mục "Hàng mới về"</label>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4"><button class="btn btn-pink px-4">💾 Lưu</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>
+
+@* Hộp thoại "Thêm nhanh thương hiệu" - nằm NGOÀI form sản phẩm (không lồng form), gửi bằng fetch *@
+<div class="modal fade" id="hopThemThuongHieu" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">➕ Thêm nhanh thương hiệu</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <label class="form-label">Tên thương hiệu *</label>
+                <input id="oTenThuongHieuMoi" class="form-control mb-2" placeholder="Ví dụ: Maybelline" />
+                <label class="form-label">Mô tả</label>
+                <textarea id="oMoTaThuongHieuMoi" class="form-control" rows="2" placeholder="Không bắt buộc"></textarea>
+                <div id="loiThuongHieuMoi" class="text-danger small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-pink" onclick="themNhanhThuongHieu()">Thêm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ===== Thêm nhanh thương hiệu (không phải rời trang, dữ liệu đang nhập vẫn giữ) =====
+        // Bấm "Thêm" trong hộp thoại: gửi lên máy chủ, thành công thì thêm vào danh sách thương hiệu, chọn luôn và đóng hộp thoại
+        async function themNhanhThuongHieu() {
+            var oTen = document.getElementById('oTenThuongHieuMoi');
+            var oLoi = document.getElementById('loiThuongHieuMoi');
+            if (!oTen.value.trim()) { oLoi.textContent = 'Vui lòng nhập tên thương hiệu!'; oTen.focus(); return; }
+            var duLieu = new FormData();
+            duLieu.append('tenThuongHieu', oTen.value.trim());
+            duLieu.append('moTa', document.getElementById('oMoTaThuongHieuMoi').value.trim());
+            duLieu.append('__RequestVerificationToken', document.querySelector('input[name=__RequestVerificationToken]').value);
+            var kq = await (await fetch('@Url.Action("ThemNhanh", "ThuongHieu")', { method: 'POST', body: duLieu })).json();
+            if (!kq.thanhCong) { oLoi.textContent = kq.thongBao; return; }
+            document.getElementById('oThuongHieu').add(new Option(kq.ten, kq.ma, true, true));   // thêm vào danh sách và chọn luôn
+            oTen.value = ''; document.getElementById('oMoTaThuongHieuMoi').value = ''; oLoi.textContent = '';
+            bootstrap.Modal.getInstance(document.getElementById('hopThemThuongHieu')).hide();
+        }
+        // ===== GỢI Ý GIÁ BÁN (chỉ gợi ý, admin vẫn nhập giá khác được) =====
+        // Công thức giống DichVuGia.GoiYGiaBan ở máy chủ: giá nhập x (1 + lãi tối thiểu) / (1 - giảm tối đa), làm tròn lên bội 1.000đ
+        var LAI_TOI_THIEU = @HangSo.LoiNhuanToiThieu;
+        var BUOC_LAM_TRON = @HangSo.BuocLamTronGia;
+        function tien(so) { return Math.round(so).toLocaleString('vi-VN') + 'đ'; }
+        function goiYGia() {
+            var von = parseFloat(document.getElementById('oGiaVon').value) || 0;
+            var ban = parseFloat(document.getElementById('oGiaBan').value) || 0;
+            var giam = parseFloat(document.getElementById('oGiamToiDa').value) || 0;
+            var khung = document.getElementById('khungGoiY');
+            if (von <= 0 || giam >= 100) { khung.style.display = 'none'; return; }
+            var goiY = Math.ceil(von * (1 + LAI_TOI_THIEU / 100) / (1 - giam / 100) / BUOC_LAM_TRON) * BUOC_LAM_TRON;
+            var html = '💡 <strong>Giá bán gợi ý: ' + tien(goiY) + '</strong> — để dù giảm tối đa ' + giam + '% vẫn còn lãi ít nhất ' + LAI_TOI_THIEU + '% so với giá nhập. '
+                     + '<button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="dungGiaGoiY(' + goiY + ')">Dùng giá này</button>';
+            if (ban > 0) {
+                var laiThuong = (ban - von) / von * 100;                       // lãi khi bán đúng giá thường
+                var giaSan = Math.round(ban * (1 - giam / 100));               // giá thấp nhất sau khi giảm tối đa
+                var laiToiDa = (giaSan - von) / von * 100;                     // lãi khi bị giảm hết cỡ
+                html += '<div class="small mt-1">Với giá bán ' + tien(ban) + ': lãi <strong>' + laiThuong.toFixed(1) + '%</strong> khi bán giá thường; '
+                      + 'khi giảm tối đa (giá còn ' + tien(giaSan) + ') lãi <strong class="' + (laiToiDa < 0 ? 'text-danger' : (laiToiDa < LAI_TOI_THIEU ? 'text-warning' : 'text-success')) + '">'
+                      + laiToiDa.toFixed(1) + '%</strong>' + (laiToiDa < 0 ? ' — <span class="text-danger">LỖ</span>' : '') + '.</div>';
+            }
+            khung.innerHTML = html;
+            khung.style.display = 'block';
+        }
+        function dungGiaGoiY(gia) { document.getElementById('oGiaBan').value = gia; goiYGia(); }
+        goiYGia();
+    </script>
+}

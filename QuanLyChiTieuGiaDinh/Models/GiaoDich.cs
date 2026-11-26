@@ -72,42 +72,10 @@ namespace QuanLyChiTieuGiaDinh.Models
         [Display(Name = "Ảnh hóa đơn")]
         public string? AnhHoaDon { get; set; }
 
-        // =========================================================
-        // TRẠNG THÁI DUYỆT
-        // =========================================================
-        // DaDuyet  : giao dịch đã được duyệt
-        // ChoDuyet : đang chờ chủ hộ duyệt
-        // TuChoi   : chủ hộ từ chối
-        //
-        // Chỉ giao dịch > 3.000.000 đồng sử dụng
-        // tài khoản gia đình mới cần chờ duyệt.
-        // =========================================================
+        
 
-        [Required]
-        [StringLength(20)]
-        [Display(Name = "Trạng thái duyệt")]
-        public string TrangThaiDuyet { get; set; } = "DaDuyet";
 
-        // =========================================================
-        // TRẠNG THÁI QUYẾT TOÁN CÔNG NỢ
-        // =========================================================
-        // ChuaQuyetToan : Khoản chi chưa quyết toán với hộ
-        // DaQuyetToan   : Đã hoàn tất quyết toán tài chính
-        // Dùng để kiểm tra ràng buộc khi thành viên rời hộ (BR14)
-        // =========================================================
-
-        [Required]
-        [StringLength(30)]
-        [Display(Name = "Trạng thái quyết toán")]
-        public string TrangThaiQuyetToan { get; set; } = "ChuaQuyetToan";
-
-        // =========================================================
-        // LIÊN KẾT CẤU HÌNH ĐỊNH KỲ (BR30, BR32)
-        // =========================================================
-        // Mã cấu hình định kỳ sinh ra giao dịch này (nếu có)
-        // Khi cấu hình định kỳ bị xóa, thuộc tính này nhận null
-        // để bảo toàn dữ liệu lịch sử giao dịch.
-        // =========================================================
+       
 
         public int? MaDinhKy { get; set; }
 

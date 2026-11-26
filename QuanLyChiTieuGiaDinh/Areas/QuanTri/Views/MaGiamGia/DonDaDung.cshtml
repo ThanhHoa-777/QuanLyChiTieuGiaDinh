@@ -1,0 +1,32 @@
+﻿@model List<DonHang>
+@{
+    var ma = (MaGiamGium)ViewBag.Ma;
+    ViewData["Title"] = "Đơn dùng mã " + ma.MaCode;
+    // Tổng tiền giảm chỉ tính đơn chưa hủy / chưa thất bại. Đơn hủy vẫn hiện để đối chiếu với số lượt đã dùng.
+    var donTinh = Model.Where(d => d.TrangThai != HangSo.Huy && d.TrangThai != HangSo.GiaoThatBai).ToList();
+}
+<div class="d-flex justify-content-between mb-3">
+    <h3>🎟 Đơn hàng đã dùng mã <span class="text-pink">@ma.MaCode</span></h3>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Mã giảm giá</a>
+</div>
+<p>Lượt dùng: <strong>@ma.SoLanDung / @ma.GioiHanDung</strong> ·
+   Tổng tiền đã giảm (đơn chưa hủy): <strong class="text-success">@TienIch.DinhDangTien(donTinh.Sum(d => d.TienGiam))</strong></p>
+<div class="card shadow-sm border-0"><div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
+    <thead class="table-light"><tr><th>Đơn</th><th>Khách</th><th>Ngày đặt</th><th class="text-end">Tiền giảm</th><th class="text-end">Tổng tiền</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+    @foreach (var d in Model)
+    {
+        @* Bấm cả dòng để mở chi tiết đơn *@
+        <tr style="cursor:pointer;" onclick="location.href='@Url.Action("ChiTiet", "DonHang", new { id = d.MaDonHang })'">
+            <td><strong>#@d.MaDonHang</strong></td>
+            <td><partial name="_TenKhach" model="d" /><div class="small text-muted">@d.SoDienThoai</div></td>
+            <td>@TienIch.NgayGio(d.NgayDat)</td>
+            <td class="text-end text-success">-@TienIch.DinhDangTien(d.TienGiam)</td>
+            <td class="text-end fw-bold">@TienIch.DinhDangTien(d.TongTien)</td>
+            <td><span class="badge bg-@DichVuDonHang.MauTrangThaiAdmin(d.TrangThai)">@DichVuDonHang.TenTrangThaiAdmin(d.TrangThai)</span></td>
+        </tr>
+    }
+    @if (Model.Count == 0) { <tr><td colspan="6" class="text-center text-muted py-4">Chưa có đơn nào dùng mã này.</td></tr> }
+    </tbody>
+</table></div></div>

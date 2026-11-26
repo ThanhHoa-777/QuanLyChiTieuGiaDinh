@@ -1,0 +1,93 @@
+﻿@model List<SanPham>
+@{
+    ViewData["Title"] = "Sản phẩm";
+    var dsGia = ViewBag.Gia as Dictionary<int, KetQuaGia> ?? new Dictionary<int, KetQuaGia>();
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-grid text-pink"></i> Danh Sách Sản Phẩm</h3>
+    <a asp-action="Them" class="btn btn-pink"><i class="bi bi-plus-circle"></i> Thêm sản phẩm</a>
+</div>
+<form method="get" class="mb-3 d-flex gap-2" style="max-width:420px;">
+    <input name="tuKhoa" value="@ViewBag.TuKhoa" class="form-control" placeholder="Tìm tên sản phẩm, thương hiệu..." />
+    <button class="btn btn-outline-secondary">Tìm</button>
+</form>
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th></th><th>Sản phẩm</th><th>Thương hiệu</th><th>Loại</th><th>Giá hiện tại</th><th>Giảm giá tự động</th><th>Tồn</th><th>Đã bán</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr class="@(s.NgungKinhDoanh || s.MaThuongHieuNavigation.NgungKinhDoanh ? "table-secondary" : "")">
+                        <td style="width:60px;"><img src="@TienIch.DuongDanAnh(s.HinhAnh)" style="width:48px;height:48px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'"></td>
+                        <td>
+                            @TienIch.CatChuoi(s.TenSanPham, 50) @if (s.LaHangMoi) {
+                            <span class="badge bg-success">NEW</span>
+                        }
+                        @if (s.NgungKinhDoanh)
+                        {
+                            <span class="badge bg-secondary">Đã ẩn</span>
+                        }
+                        else if (s.MaThuongHieuNavigation.NgungKinhDoanh)
+                        {
+
+                            <span class="badge bg-secondary">Ẩn theo thương hiệu</span>
+                        }
+                    </td>
+                    <td>@s.MaThuongHieuNavigation.TenThuongHieu</td>
+                    <td>@s.LoaiSon</td>
+                    @{
+                        var g = dsGia[s.MaSanPham];
+                    }
+                    <td>
+                        <strong class="@(g.CoGiam && g.GiaCuoi < g.GiaThuong ? "text-danger" : "")">@TienIch.DinhDangTien(g.GiaCuoi)</strong>
+                        @if (g.GiaThuong > g.GiaCuoi)
+                        {
+                            <div class="small text-muted text-decoration-line-through">@TienIch.DinhDangTien(g.GiaThuong)</div>
+                        }
+                        @if (g.LaFlash)
+                        {
+                            <div class="badge bg-danger">⚡ Flash -@g.PhanTramFlash%</div>
+                        }
+                        @if (g.LaGiamChamBan)
+                        {
+                            <div class="badge bg-warning text-dark">🎁 Chậm bán -@g.PhanTramChamBan%</div>
+                        }
+                        @if (g.CoGiam)
+                        {
+                            <div class="small text-danger">Tổng giảm @g.PhanTramGiamTong%</div>
+                        }
+                        <div class="small text-muted">Giảm tối đa @s.GiamToiDa%@(g.DaChamTran ? " (đã chạm)" : "")</div>
+                        @if (s.GiaVon > 0)
+                        {
+                            decimal laiToiDa = (DichVuGia.TinhGiaSan(s.GiaBan, s.GiamToiDa) - s.GiaVon) / s.GiaVon * 100m;   @* lãi % khi bị giảm hết cỡ *@
+                            <div class="small @(laiToiDa < 0 ? "text-danger fw-bold" : "text-muted")" title="Giá nhập @TienIch.DinhDangTien(s.GiaVon)">Lãi khi giảm tối đa: @laiToiDa.ToString("0.#")%@(laiToiDa < 0 ? " ⚠ LỖ" : "")</div>
+                        }
+                    </td>
+                    <td>
+                        <form asp-action="BatTatGiam" asp-route-id="@s.MaSanPham" method="post">
+                            @if (s.TuDongGiam)
+                            {
+                                <button class="btn btn-sm btn-success" title="Bấm để tắt">Đang BẬT</button>
+                                <div class="small text-muted mt-1">@(g.LaGiamChamBan ? $"Đang giảm {s.PhanTramChamBan}% (đã bán {g.TyLeDaBan}%/{HangSo.TyLeBanMucTieu}%)" : s.NgayTao.AddMonths(HangSo.SoThangXetChamBan) > DateTime.Now ? $"Bắt đầu xét từ {s.NgayTao.AddMonths(HangSo.SoThangXetChamBan):dd/MM/yyyy}" : $"Đạt chỉ tiêu ({g.TyLeDaBan}%)")</div>
+                            }
+                            else
+                            {
+
+                                <button class="btn btn-sm btn-outline-secondary" title="Bấm để bật">Đang TẮT</button>
+                            }
+                        </form>
+                    </td>
+                    <td class="@(s.TonKho <= 5 ? "text-danger fw-bold" : "")">@s.TonKho</td>
+                    <td>@s.DaBan</td>
+                    <td class="text-end">
+                        <a asp-action="Sua" asp-route-id="@s.MaSanPham" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        <form asp-action="AnHien" asp-route-id="@s.MaSanPham" method="post" class="d-inline"><button class="btn btn-sm btn-outline-warning">@(s.NgungKinhDoanh ? "Hiện" : "Ẩn")</button></form>
+                        <form asp-action="Xoa" asp-route-id="@s.MaSanPham" method="post" class="d-inline" onsubmit="return confirm('Xóa sản phẩm này?')"><button class="btn btn-sm btn-outline-danger">Xóa</button></form>
+                    </td>
+                </tr>
+                                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,200 @@
+@model ChiTietSanPhamVM
+@{
+    var the = Model.San;
+    var sp = the.SanPham;
+    ViewData["Title"] = sp.TenSanPham + " - ShopSon";
+    int sao = (int)Math.Round(sp.DanhGia);
+    int conLuot = Math.Max(0, HangSo.LuotFlashToiDa - the.LuotBanFlash);
+    int conBan = Model.San.SoConBan;   // số còn bán được (tồn kho - hàng đang giữ cho đơn chờ giao)
+    int toiDaThem = Math.Max(0, conBan - Model.SoLuongTrongGio);   // còn thêm được bao nhiêu (trừ phần đã có trong giỏ)
+}
+<div class="breadcrumb-trang">
+    <a asp-controller="TrangChu" asp-action="Index">Trang chủ</a> ›
+    <a asp-controller="SanPham" asp-action="Index">Sản phẩm</a> ›
+    @TienIch.CatChuoi(sp.TenSanPham, 40)
+</div>
+
+<div class="khu-chitiet">
+    <!-- Hình ảnh -->
+    <div>
+        @if (!string.IsNullOrEmpty(sp.HinhAnh))
+        {
+            <img class="hinh-chitiet" src="@TienIch.DuongDanAnh(sp.HinhAnh)" alt="@sp.TenSanPham"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div class="hinh-chitiet-mac-dinh" style="display:none;">💄</div>
+        }
+        else
+        {
+            <div class="hinh-chitiet-mac-dinh">💄</div>
+        }
+    </div>
+
+    <!-- Thông tin -->
+    <div class="thong-tin-sp">
+        <div class="nhan-thuonghieu">
+            <a asp-controller="SanPham" asp-action="Index" asp-route-maThuongHieu="@sp.MaThuongHieu">@the.TenThuongHieu</a>
+        </div>
+        <h1 style="font-size:24px;font-weight:700;margin:8px 0;">@sp.TenSanPham</h1>
+
+        <div class="khu-danh-gia" style="margin:10px 0;">
+            <span class="sao-vang">@(new string('★', sao))@(new string('☆', 5 - sao))</span>
+            <span class="so-danh-gia">@sp.DanhGia (@Model.DanhSachDanhGia.Count đánh giá) · Đã bán @sp.DaBan</span>
+        </div>
+
+        @if (the.LaFlash)
+        {
+            <div style="background:linear-gradient(135deg,#ff6b35,#e74c3c);color:#fff;border-radius:12px;padding:12px 16px;margin:12px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div><strong>⚡ FLASH SALE -@the.PhanTramFlash%</strong><br><small>Còn @conLuot lượt giá sốc hôm nay</small></div>
+                <div class="dem-nguoc">
+                    <div class="dem-o"><span class="dem-gio">00</span><small>Giờ</small></div><span class="dem-dau">:</span>
+                    <div class="dem-o"><span class="dem-phut">00</span><small>Phút</small></div><span class="dem-dau">:</span>
+                    <div class="dem-o"><span class="dem-giay">00</span><small>Giây</small></div>
+                </div>
+            </div>
+        }
+        else if (the.HetLuotFlash)
+        {
+            <div style="background:#fff3cd;color:#856404;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px;">
+                ⚡ Sản phẩm đã hết lượt Flash Sale hôm nay — bạn vẫn mua được với giá thường.
+            </div>
+        }
+        @* Ưu đãi chậm bán CỘNG DỒN với flash sale nên hiện độc lập (có thể hiện cùng lúc với khung flash ở trên) *@
+        @if (the.Gia.LaGiamChamBan)
+        {
+            <div style="background:#fff0f3;color:#c2185b;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px;">
+                🎁 <strong>Ưu đãi đặc biệt</strong> — sản phẩm đang được giảm thêm @the.Gia.PhanTramChamBan%@(the.LaFlash ? " (cộng dồn với Flash Sale)" : "").
+            </div>
+        }
+
+        <!-- Giá: luôn là giá khách phải trả, giá gạch ngang và nhãn % tính từ cùng một nguồn (DichVuGia) nên không bao giờ lệch -->
+        <div style="margin:8px 0;">
+            <span style="font-size:30px;font-weight:800;color:@(the.LaFlash || the.Gia.LaGiamChamBan ? "#e74c3c" : "#d63384");">@TienIch.DinhDangTien(the.GiaHienThi)</span>
+            @if (the.CoGiamGia)
+            {
+                <span class="gia-goc" style="font-size:16px;">@TienIch.DinhDangTien(the.GiaGachNgang)</span>
+                <span class="nhan-badge giam" style="position:static;">-@the.PhanTramGiam%</span>
+            }
+        </div>
+
+        <p style="color:#666;margin:8px 0;">
+            Loại: <strong>@sp.LoaiSon</strong> · Còn: <strong>@conBan</strong> sản phẩm
+            @if (conBan <= 0)
+            {
+                <span style="color:#e74c3c;font-weight:700;"> — Tạm hết hàng (đã có khách đặt hết)</span>
+            }
+            else if (conBan <= HangSo.NguongSapHet)
+            {
+
+                <span style="color:#e67e22;font-weight:700;"> — ⚠ Sắp hết hàng!</span>
+            }
+        </p>
+        @if (Model.SoLuongTrongGio > 0)
+        {
+            <p style="color:#888;font-size:13px;margin:0;">🛒 Bạn đã có <strong>@Model.SoLuongTrongGio</strong> sản phẩm này trong giỏ@(toiDaThem > 0 ? $" — thêm được tối đa {toiDaThem} nữa" : " — đã đủ số lượng trong kho")</p>
+        }
+
+        <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
+            <span>Số lượng:</span>
+            <div style="display:flex;align-items:center;border:1.5px solid #f8d7da;border-radius:8px;">
+                <button type="button" onclick="doiSoLuong(-1)" style="width:34px;height:34px;border:none;background:none;font-size:18px;cursor:pointer;">−</button>
+                <input type="number" id="soLuong" value="1" min="1" max="@conBan" style="width:52px;text-align:center;border:none;font-weight:700;" onchange="capNhatLienKet()" />
+                <button type="button" onclick="doiSoLuong(1)" style="width:34px;height:34px;border:none;background:none;font-size:18px;cursor:pointer;">+</button>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <a id="nutThemGio" class="btn-them-gio" style="padding:12px 24px;font-size:15px;" data-them-gio data-ma="@sp.MaSanPham" data-lay-so-luong="true"
+               href="@Url.Action("Them", "GioHang", new { id = sp.MaSanPham, sl = 1, quayLai = true })">🛍 Thêm vào giỏ</a>
+            <a id="nutMuaNgay" class="btn-mua-ngay" style="padding:12px 24px;font-size:15px;"
+               href="@Url.Action("MuaNgay", "GioHang", new { id = sp.MaSanPham, sl = 1 })">⚡ Mua ngay</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(sp.MoTa))
+        {
+            <div style="margin-top:22px;">
+                <h4 style="font-weight:700;">Mô tả sản phẩm</h4>
+                <p style="color:#555;line-height:1.7;white-space:pre-line;">@sp.MoTa</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ===== ĐÁNH GIÁ ===== -->
+<div id="danhgia" style="margin-top:40px;">
+    <h3 style="font-weight:700;margin-bottom:14px;">⭐ Đánh giá sản phẩm (@Model.DanhSachDanhGia.Count)</h3>
+
+    @if (Model.CoTheDanhGia)
+    {
+        <form asp-controller="SanPham" asp-action="GuiDanhGia" method="post" style="background:#fdf6f8;border-radius:12px;padding:16px;margin-bottom:18px;">
+            <input type="hidden" name="maSanPham" value="@sp.MaSanPham" />
+            <input type="hidden" name="maDonHang" value="@Model.MaDonDanhGia" />
+            <div style="margin-bottom:8px;font-weight:600;">Bạn đã mua sản phẩm này ở đơn #@Model.MaDonDanhGia — hãy chia sẻ cảm nhận nhé! <span style="color:#b8860b;">(+@HangSo.DiemDanhGia điểm tích lũy)</span></div>
+            <select name="soSao" style="padding:8px;border-radius:8px;border:1.5px solid #f8d7da;">
+                <option value="5">★★★★★ Tuyệt vời</option>
+                <option value="4">★★★★☆ Tốt</option>
+                <option value="3">★★★☆☆ Bình thường</option>
+                <option value="2">★★☆☆☆ Chưa hài lòng</option>
+                <option value="1">★☆☆☆☆ Tệ</option>
+            </select>
+            <textarea name="noiDung" rows="3" placeholder="Viết nhận xét của bạn..." style="width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1.5px solid #f8d7da;"></textarea>
+            <button type="submit" class="btn-mua-ngay" style="margin-top:8px;">Gửi đánh giá</button>
+        </form>
+    }
+    else if (Model.DaDanhGiaRoi)
+    {
+        <p style="color:#27ae60;font-weight:600;">✅ Bạn đã đánh giá sản phẩm này cho mọi đơn còn hạn đánh giá.</p>
+    }
+
+    @if (Model.DanhSachDanhGia.Count == 0)
+    {
+        <p style="color:#aaa;">Chưa có đánh giá nào.</p>
+    }
+    @foreach (var dg in Model.DanhSachDanhGia)
+    {
+        <div style="border-bottom:1px solid #f8d7da;padding:12px 0;">
+            <strong>@(Model.TenNguoiDanhGia.GetValueOrDefault(dg.MaNguoiDung, "Khách hàng"))</strong>
+            <span class="sao-vang">@(new string('★', dg.SoSao))@(new string('☆', 5 - dg.SoSao))</span>
+            <small style="color:#aaa;">@TienIch.NgayGio(dg.NgayDanhGia)</small>
+            <div style="color:#555;margin-top:4px;white-space:pre-line;">@dg.NoiDung</div>
+        </div>
+    }
+</div>
+
+<!-- ===== SẢN PHẨM LIÊN QUAN ===== -->
+@if (Model.LienQuan.Count > 0)
+{
+    <div class="tieude-khu" style="margin-top:40px;">
+        <div class="nhan-nho">Gợi ý</div>
+        <h2>Cùng Thương Hiệu</h2>
+    </div>
+    <div class="luoi-sanpham">
+        @foreach (var lq in Model.LienQuan)
+        {
+            <partial name="_TheSanPham" model="lq" />
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        var maSP = @sp.MaSanPham, tonKho = @conBan;
+        // Số lượng chọn ở trang này phải ≤ tồn kho. (Việc cộng với số đã có trong giỏ do máy chủ kiểm tra khi bấm Thêm.)
+        function laySoLuong() {
+            var v = parseInt(document.getElementById('soLuong').value) || 1;
+            return Math.max(1, Math.min(tonKho, v));
+        }
+        function capNhatLienKet() {
+            var sl = laySoLuong();
+            document.getElementById('soLuong').value = sl;
+            var q = '?id=' + maSP + '&sl=' + sl;
+            document.getElementById('nutThemGio').href = '/GioHang/Them' + q + '&quayLai=true';
+            document.getElementById('nutMuaNgay').href = '/GioHang/MuaNgay' + q;
+        }
+        function doiSoLuong(buoc) {
+            var moi = laySoLuong() + buoc;
+            if (moi > tonKho) { hienThongBao('Kho chỉ còn ' + tonKho + ' sản phẩm!', false); moi = tonKho; }
+            document.getElementById('soLuong').value = Math.max(1, moi);
+            capNhatLienKet();
+        }
+    </script>
+}

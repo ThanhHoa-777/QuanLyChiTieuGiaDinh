@@ -1,0 +1,28 @@
+﻿@model List<DonCanChuY>
+@* Khung cảnh báo các đơn cần chú ý (dùng chung cho Tổng quan và Quản lý đơn hàng). Không có đơn nào thì không hiện gì. *@
+@if (Model.Count > 0)
+{
+    <div class="card border-danger shadow-sm mb-4">
+        <div class="card-header bg-danger text-white fw-bold">⚠️ @Model.Count đơn cần chú ý</div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light"><tr><th>Đơn</th><th>Khách</th><th>Vấn đề</th><th>Gợi ý xử lý</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td><strong>#@c.Don.MaDonHang</strong><div class="small text-muted">@TienIch.NgayGio(c.Don.NgayDat)</div></td>
+                        <td><partial name="_TenKhach" model="c.Don" /><div class="small text-muted">@c.Don.SoDienThoai</div></td>
+                        <td><span class="badge bg-warning text-dark">@c.VanDe</span></td>
+                        <td class="small" style="max-width:420px;">@c.GoiY</td>
+                        <td class="text-nowrap">
+                            <a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@c.Don.MaDonHang" class="btn btn-sm btn-pink">Xử lý</a>
+                            @if (c.Don.MaNguoiDung != null) { <a asp-controller="TinNhan" asp-action="HoiThoai" asp-route-id="@c.Don.MaNguoiDung" class="btn btn-sm btn-outline-secondary">💬</a> }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

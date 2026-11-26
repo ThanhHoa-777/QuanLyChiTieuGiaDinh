@@ -80,7 +80,7 @@ namespace QuanLyChiTieuGiaDinh.Services
                 GhiChu =
                     "Giao dịch tự động từ giao dịch định kỳ",
 
-                TrangThaiDuyet = "DaDuyet"
+                
             };
 
             _context.GiaoDichs.Add(giaoDich);

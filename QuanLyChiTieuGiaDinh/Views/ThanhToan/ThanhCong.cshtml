@@ -1,0 +1,50 @@
+@model DonHang
+@{
+    ViewData["Title"] = "Đặt hàng thành công - ShopSon";
+    bool laCK = Model.PhuongThucThanhToan == HangSo.ThanhToanChuyenKhoan;
+}
+<div style="max-width:640px;margin:0 auto;background:#fff;border-radius:16px;padding:30px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+    <div style="font-size:60px;">🎉</div>
+    <h2 style="color:#d63384;">Đặt hàng thành công!</h2>
+    <p>Mã đơn hàng của bạn: <strong style="font-size:20px;color:#d63384;">#@Model.MaDonHang</strong></p>
+    <p style="color:#666;">Tổng thanh toán: <strong>@TienIch.DinhDangTien(Model.TongTien)</strong> · @(laCK ? "Chuyển khoản" : "Thanh toán khi nhận hàng")</p>
+
+    @if (laCK)
+    {
+        <partial name="_KhungChuyenKhoan" model="Model" />
+    }
+
+    <h4 style="text-align:left;margin-top:20px;">Sản phẩm đã đặt</h4>
+    @foreach (var ct in Model.ChiTietDonHangs)
+    {
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #fce4ec;text-align:left;font-size:14px;">
+            <span>@ct.TenSanPham × @ct.SoLuong <partial name="_NhanGiamGia" model="ct" /></span>
+            <strong>@TienIch.DinhDangTien(ct.GiaBan * ct.SoLuong)@if (ct.GiaTruocGiam > ct.GiaBan) { <span class="gia-goc" style="font-weight:400;font-size:12px;"> @TienIch.DinhDangTien(ct.GiaTruocGiam * ct.SoLuong)</span> }</strong>
+        </div>
+    }
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        @if (User.DaDangNhap())
+        {
+            <a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@Model.MaDonHang" class="btn-mua-ngay" style="display:inline-flex;">📦 Xem đơn hàng</a>
+            <a asp-controller="DonHang" asp-action="InHoaDon" asp-route-id="@Model.MaDonHang" target="_blank" class="btn-them-gio" style="display:inline-flex;padding:11px 22px;">🖨 In hóa đơn</a>
+        }
+        else
+        {
+            @* Khách vãng lai không có trang "Đơn hàng của tôi" nên dẫn sang Tra cứu bằng mã đơn + số điện thoại *@
+            <a asp-controller="TraCuu" asp-action="Index" asp-route-soDienThoai="@Model.SoDienThoai" asp-route-maDonHang="@Model.MaDonHang" class="btn-mua-ngay" style="display:inline-flex;">📦 Xem đơn hàng</a>
+            <a asp-controller="TraCuu" asp-action="InHoaDon" asp-route-id="@Model.MaDonHang" asp-route-soDienThoai="@Model.SoDienThoai" target="_blank" class="btn-them-gio" style="display:inline-flex;padding:11px 22px;">🖨 In hóa đơn</a>
+        }
+        <a asp-controller="SanPham" asp-action="Index" class="btn-them-gio" style="display:inline-flex;padding:11px 22px;">Tiếp tục mua sắm</a>
+    </div>
+    @if (!User.DaDangNhap())
+    {
+        <p style="font-size:12px;color:#888;margin-top:14px;">Bạn đặt hàng không cần đăng nhập — hãy ghi nhớ mã đơn #@Model.MaDonHang và số điện thoại để <a asp-controller="TraCuu" asp-action="Index">tra cứu đơn hàng</a>.</p>
+    }
+</div>
+
+@section Scripts {
+<script>
+    // Đơn đã đặt xong: xóa bản nháp thanh toán để nút "Quay lại thanh toán" không còn hiện nữa
+    try { sessionStorage.removeItem('thanhToanDangDien'); } catch (e) { }
+</script>
+}

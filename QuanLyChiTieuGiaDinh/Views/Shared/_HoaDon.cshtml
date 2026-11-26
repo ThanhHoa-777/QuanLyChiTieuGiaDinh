@@ -1,0 +1,141 @@
+@model HoaDonVM
+@inject IConfiguration CauHinh
+@* HÓA ĐƠN BÁN HÀNG - dùng chung cho khách (đã đăng nhập / tra cứu) và admin.
+   Thông tin cửa hàng đọc từ appsettings.json mục "CuaHang" (xem hướng dẫn); thiếu mục nào thì ẩn dòng đó. *@
+@{
+    var don = Model.Don;
+    string tenCuaHang = CauHinh["CuaHang:Ten"] ?? "ShopSon - Beauty Boutique";
+    string diaChiCh = CauHinh["CuaHang:DiaChi"] ?? "";
+    string sdtCh = CauHinh["CuaHang:SoDienThoai"] ?? "";
+    string emailCh = CauHinh["CuaHang:Email"] ?? "";
+    string maSoThue = CauHinh["CuaHang:MaSoThue"] ?? "";
+    string soHoaDon = "HD" + don.MaDonHang.ToString("D6");   // HD000123
+    bool laCK = don.PhuongThucThanhToan == HangSo.ThanhToanChuyenKhoan;
+    bool daHuy = don.TrangThai == HangSo.Huy || don.TrangThai == HangSo.GiaoThatBai;
+
+    string thanhToan;
+    if (laCK) thanhToan = don.DaHoanTien ? "Chuyển khoản — đã hoàn tiền" : don.DaNhanTien ? "Chuyển khoản — đã thanh toán" : "Chuyển khoản — chưa nhận được tiền";
+    else thanhToan = don.TrangThai == HangSo.HoanThanh ? "Thanh toán khi nhận hàng (COD) — đã thanh toán" : "Thanh toán khi nhận hàng (COD)";
+}
+<style>
+    .hd { max-width: 800px; margin: 0 auto; background: #fff; padding: 28px 34px; font-size: 13.5px; line-height: 1.5; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+    .hd-dau { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #d63384; padding-bottom: 12px; }
+    .hd-ten-ch { font-size: 22px; font-weight: 800; color: #d63384; }
+    .hd-tieu-de { text-align: center; margin: 16px 0 4px; font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+    .hd-phu { text-align: center; color: #666; margin-bottom: 14px; }
+    .hd-khach { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+    .hd-khach > div { flex: 1; min-width: 240px; }
+    .hd table { width: 100%; border-collapse: collapse; }
+    .hd th { background: #fce4ec; border: 1px solid #e8b4c8; padding: 6px 8px; text-align: left; font-size: 12.5px; }
+    .hd td { border: 1px solid #ddd; padding: 6px 8px; vertical-align: top; }
+    .hd .so { text-align: right; white-space: nowrap; }
+    .hd .gach { text-decoration: line-through; color: #888; font-size: 11.5px; }
+    .hd .nhan { font-size: 11px; color: #c2185b; font-weight: 700; }
+    .hd-tong { width: 55%; margin-left: auto; margin-top: 10px; }
+    .hd-tong td { border: none; padding: 3px 8px; }
+    .hd-tong .lon td { border-top: 2px solid #d63384; font-size: 16px; font-weight: 800; color: #d63384; padding-top: 7px; }
+    .hd-chu { margin-top: 10px; font-style: italic; }
+    .hd-tietkiem { margin-top: 8px; background: #e8f5e9; color: #2e7d32; padding: 6px 10px; border-radius: 6px; font-weight: 600; }
+    .hd-ky { display: flex; justify-content: space-around; text-align: center; margin-top: 30px; }
+    .hd-ky div { min-width: 200px; }
+    .hd-chan { margin-top: 24px; text-align: center; color: #777; font-size: 12px; border-top: 1px dashed #ccc; padding-top: 10px; }
+    .hd-dau-huy { position: absolute; top: 38%; left: 18%; transform: rotate(-25deg); font-size: 72px; font-weight: 900; color: rgba(200,0,0,.18); border: 8px solid rgba(200,0,0,.18); padding: 0 24px; pointer-events: none; }
+    @@media print { .hd { box-shadow: none; padding: 0; max-width: none; } }
+</style>
+
+<div class="hd">
+    @if (daHuy) { <div class="hd-dau-huy">ĐÃ HỦY</div> }
+
+    <div class="hd-dau">
+        <div>
+            <div class="hd-ten-ch">💄 @tenCuaHang</div>
+            @if (diaChiCh != "") { <div>Địa chỉ: @diaChiCh</div> }
+            @if (sdtCh != "") { <div>Điện thoại: @sdtCh</div> }
+            @if (emailCh != "") { <div>Email: @emailCh</div> }
+            @if (maSoThue != "") { <div>Mã số thuế: @maSoThue</div> }
+        </div>
+        <div style="text-align:right;">
+            <div>Số hóa đơn: <strong>@soHoaDon</strong></div>
+            <div>Ngày đặt: @don.NgayDat.ToString("dd/MM/yyyy HH:mm")</div>
+            @if (don.NgayHoanThanh != null) { <div>Ngày hoàn thành: @don.NgayHoanThanh.Value.ToString("dd/MM/yyyy HH:mm")</div> }
+            <div>Trạng thái: <strong>@DichVuDonHang.TenTrangThaiAdmin(don.TrangThai)</strong></div>
+        </div>
+    </div>
+
+    <div class="hd-tieu-de">HÓA ĐƠN BÁN HÀNG</div>
+    <div class="hd-phu">(Đơn hàng #@don.MaDonHang)</div>
+
+    <div class="hd-khach">
+        <div>
+            <div><strong>Khách hàng:</strong> @don.HoTen @if (don.MaNguoiDung == null) { <span>(Khách)</span> }</div>
+            <div><strong>Điện thoại:</strong> @don.SoDienThoai</div>
+            @if (!string.IsNullOrEmpty(don.Email)) { <div><strong>Email:</strong> @don.Email</div> }
+        </div>
+        <div>
+            <div><strong>Địa chỉ giao hàng:</strong> @don.DiaChiGiaoHang</div>
+            <div><strong>Thanh toán:</strong> @thanhToan</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th style="width:36px;">STT</th><th>Sản phẩm</th><th class="so" style="width:50px;">SL</th><th class="so">Đơn giá</th><th class="so">Thành tiền</th></tr>
+        </thead>
+        <tbody>
+        @{ int stt = 0; }
+        @foreach (var ct in Model.ChiTiet)
+        {
+            stt++;
+            bool coGiam = ct.GiaTruocGiam > ct.GiaBan;
+            int phanTram = coGiam ? (int)Math.Round((ct.GiaTruocGiam - ct.GiaBan) / ct.GiaTruocGiam * 100m) : 0;
+            <tr>
+                <td>@stt</td>
+                <td>
+                    @ct.TenSanPham
+                    <div style="color:#777;font-size:12px;">@ct.ThuongHieu</div>
+                    @if (ct.LaFlashSale || ct.LaGiamChamBan)
+                    {
+                        <div class="nhan">
+                            @(ct.LaFlashSale ? "⚡ Flash Sale" : "")@(ct.LaFlashSale && ct.LaGiamChamBan ? " + " : "")@(ct.LaGiamChamBan ? "🎁 Ưu đãi đặc biệt" : "")
+                            @if (coGiam) { <span> — giảm @phanTram%</span> }
+                        </div>
+                    }
+                </td>
+                <td class="so">@ct.SoLuong</td>
+                <td class="so">@if (coGiam) { <div class="gach">@TienIch.DinhDangTien(ct.GiaTruocGiam)</div> }@TienIch.DinhDangTien(ct.GiaBan)</td>
+                <td class="so"><strong>@TienIch.DinhDangTien(ct.GiaBan * ct.SoLuong)</strong></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <table class="hd-tong">
+        @if (Model.GiamSanPham > 0)
+        {
+            <tr><td>Tiền hàng (giá thường)</td><td class="so">@TienIch.DinhDangTien(Model.TienGiaThuong)</td></tr>
+            <tr><td>Giảm giá sản phẩm (Flash / Ưu đãi)</td><td class="so">-@TienIch.DinhDangTien(Model.GiamSanPham)</td></tr>
+        }
+        <tr><td>Tiền hàng @(Model.GiamSanPham > 0 ? "sau giảm" : "")</td><td class="so">@TienIch.DinhDangTien(Model.TienHang)</td></tr>
+        @if (Model.GiamVoucher > 0)
+        {
+            <tr><td>Mã giảm giá (@don.MaGiamGia)</td><td class="so">-@TienIch.DinhDangTien(Model.GiamVoucher)</td></tr>
+        }
+        <tr>
+            <td>Phí vận chuyển@(Model.MienPhiShip ? " (miễn phí - mã " + don.MaGiamGia + ")" : "")</td>
+            <td class="so">@(Model.PhiShip == 0 ? "Miễn phí" : TienIch.DinhDangTien(Model.PhiShip))</td>
+        </tr>
+        <tr class="lon"><td>TỔNG THANH TOÁN</td><td class="so">@TienIch.DinhDangTien(don.TongTien)</td></tr>
+    </table>
+
+    <div class="hd-chu"><strong>Bằng chữ:</strong> @TienIch.DocSoThanhChu(don.TongTien)</div>
+    @if (Model.TongTietKiem > 0)
+    {
+        <div class="hd-tietkiem">🎉 Quý khách đã tiết kiệm được @TienIch.DinhDangTien(Model.TongTietKiem) trong đơn hàng này.</div>
+    }
+
+    <div class="hd-ky">
+        <div><strong>Người mua hàng</strong><br /><small>(Ký, ghi rõ họ tên)</small><br /><br /><br /><br /></div>
+        <div><strong>Người bán hàng</strong><br /><small>(Ký, ghi rõ họ tên)</small><br /><br /><br /><br /></div>
+    </div>
+    <div class="hd-chan">Cảm ơn quý khách đã mua sắm tại @tenCuaHang! · Hóa đơn được in từ hệ thống lúc @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+</div>

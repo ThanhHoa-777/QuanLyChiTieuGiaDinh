@@ -104,5 +104,55 @@ namespace QuanLyChiTieuGiaDinh.Services
                     duLieuLienKet);
             }
         }
+
+        // =====================================================
+        // 4. QUY TẮC PHẠM VI THÔNG BÁO (HỢP NHẤT TẠI MỘT CHỖ)
+        // =====================================================
+        // Nguyên tắc: thông báo thuộc tab "Gia đình" khi nó liên quan đến hộ mà người nhận
+        // ĐANG LÀ THÀNH VIÊN. Thông báo thuộc tab "Cá nhân" khi chỉ liên quan riêng người nhận,
+        // hoặc khi người nhận CHƯA / KHÔNG CÒN thuộc hộ đó.
+        //
+        //   Sự kiện                                          Người nhận        Phạm vi
+        //   Lời mời gia nhập hộ                              người được mời    Cá nhân  (chưa thuộc hộ)
+        //   Lời mời tham gia mục tiêu nhóm tự do             người được mời    Cá nhân
+        //   Thành viên mới / từ chối lời mời                 chủ hộ            Gia đình
+        //   Yêu cầu rời hộ                                   chủ hộ            Gia đình
+        //   Kết quả: chủ hộ ĐỒNG Ý cho rời hộ                người rời hộ      Cá nhân  (đã rời hộ)
+        //   Kết quả: chủ hộ TỪ CHỐI cho rời hộ               người xin rời     Gia đình (vẫn trong hộ)
+        //   Bị gỡ khỏi hộ / hộ bị giải tán                   người bị ảnh hưởng Cá nhân (không còn hộ)
+        //   Chuyển quyền chủ hộ                              chủ hộ mới        Gia đình
+        //   Hạn mức nộp tiền / chi tiêu ví gia đình          thành viên        Gia đình
+        //   Mục tiêu tiết kiệm của hộ gia đình               thành viên hộ     Gia đình
+        //   Mục tiêu tiết kiệm cá nhân / nhóm tự do          người tham gia    Cá nhân
+        //
+        /// <summary>Phạm vi thông báo của một mục tiêu tiết kiệm: mục tiêu của hộ -> Gia đình, còn lại -> Cá nhân.</summary>
+        public static PhamViThongBao PhamViCuaMucTieu(LoaiMucTieuTietKiem loaiMucTieu)
+        {
+            return loaiMucTieu == LoaiMucTieuTietKiem.HoGiaDinh
+                ? PhamViThongBao.GiaDinh
+                : PhamViThongBao.CaNhan;
+        }
+
+        /// <summary>Gửi thông báo vào tab Cá nhân của một người.</summary>
+        public Task TaoThongBaoCaNhanAsync(
+            int maNguoiDung,
+            string tieuDe,
+            string noiDung,
+            LoaiThongBao loaiThongBao = LoaiThongBao.HeThong,
+            string? duLieuLienKet = null)
+        {
+            return TaoThongBaoAsync(maNguoiDung, tieuDe, noiDung, PhamViThongBao.CaNhan, loaiThongBao, duLieuLienKet);
+        }
+
+        /// <summary>Gửi thông báo vào tab Gia đình của một thành viên hộ.</summary>
+        public Task TaoThongBaoGiaDinhChoThanhVienAsync(
+            int maNguoiDung,
+            string tieuDe,
+            string noiDung,
+            LoaiThongBao loaiThongBao = LoaiThongBao.HeThong,
+            string? duLieuLienKet = null)
+        {
+            return TaoThongBaoAsync(maNguoiDung, tieuDe, noiDung, PhamViThongBao.GiaDinh, loaiThongBao, duLieuLienKet);
+        }
     }
 }

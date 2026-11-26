@@ -1,0 +1,26 @@
+﻿@model MaGiamGium
+@{
+    bool laSua = ViewContext.RouteData.Values["action"]?.ToString() == "Sua";
+    ViewData["Title"] = laSua ? "Sửa mã giảm giá" : "Thêm mã giảm giá";
+}
+<h3 class="mb-3">@(laSua ? "✏ Sửa mã " + Model.MaCode : "➕ Thêm mã giảm giá")</h3>
+<form asp-action="@(laSua ? "Sua" : "Them")" asp-route-id="@(laSua ? Model.MaCode : null)" method="post" class="card shadow-sm border-0 p-4">
+    <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Mã *</label><input name="MaCode" value="@Model.MaCode" class="form-control text-uppercase" readonly="@laSua" required /></div>
+        <div class="col-md-8"><label class="form-label">Mô tả</label><input name="MoTa" value="@Model.MoTa" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Loại giảm</label>
+            <select name="LoaiGiam" class="form-select"><option value="SO_TIEN" selected="@(Model.LoaiGiam == "SO_TIEN")">Số tiền cố định</option><option value="PHAN_TRAM" selected="@(Model.LoaiGiam == "PHAN_TRAM")">Phần trăm (%)</option></select></div>
+        <div class="col-md-3"><label class="form-label">Giá trị (0 = miễn ship)</label><input type="number" name="GiaTri" value="@Model.GiaTri" min="0" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Giảm tối đa (chỉ loại %)</label><input type="number" name="GiamToiDa" value="@Model.GiamToiDa" min="0" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Đơn tối thiểu</label><input type="number" name="DonToiThieu" value="@Model.DonToiThieu" min="0" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Hạng được dùng</label>
+            <select name="HangVoucher" class="form-select">
+                @foreach (var h in new[] { "THUONG", "BAC", "VANG", "KIM_CUONG" }) { <option value="@h" selected="@(Model.HangVoucher == h)">@HangThanhVien.TenHang(h) trở lên</option> }
+            </select></div>
+        <div class="col-md-3"><label class="form-label">Giới hạn số lượt dùng (tổng)</label><input type="number" name="GioiHanDung" value="@Model.GioiHanDung" min="0" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Số lần mỗi khách</label><input type="number" name="SoLanMoiKhach" value="@Model.SoLanMoiKhach" min="0" class="form-control" />
+            <div class="form-text">0 = không giới hạn. Mã chào mừng nên để 1.</div></div>
+        <div class="col-md-3"><label class="form-label">Ngày hết hạn (bỏ trống = không giới hạn)</label><input type="date" name="NgayHetHan" value="@(Model.NgayHetHan?.ToString("yyyy-MM-dd"))" class="form-control" /></div>
+    </div>
+    <div class="mt-4"><button class="btn btn-pink px-4">💾 Lưu</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>

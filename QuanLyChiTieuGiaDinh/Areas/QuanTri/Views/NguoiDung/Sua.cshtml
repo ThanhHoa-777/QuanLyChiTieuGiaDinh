@@ -1,0 +1,16 @@
+@model NguoiDung
+@{ ViewData["Title"] = "Sửa người dùng"; bool laToi = Model.MaNguoiDung == User.MaNguoiDung(); }
+<h3 class="mb-3">✏ Sửa người dùng: @Model.TenDangNhap</h3>
+<form asp-action="Sua" asp-route-id="@Model.MaNguoiDung" method="post" class="card shadow-sm border-0 p-4" style="max-width:600px;">
+    <label class="form-label">Họ và tên</label><input name="tenNguoiDung" value="@Model.TenNguoiDung" class="form-control mb-2" required />
+    <label class="form-label">Email</label><input name="email" value="@Model.Email" class="form-control mb-2" />
+    <label class="form-label">Số điện thoại</label><input name="soDienThoai" value="@Model.SoDienThoai" class="form-control mb-2" />
+    <label class="form-label">Địa chỉ</label><input name="diaChi" value="@Model.DiaChi" class="form-control mb-2" />
+    <label class="form-label">Quyền hạn</label>
+    <select name="quyenHan" class="form-select mb-3" disabled="@laToi">
+        <option value="2" selected="@(Model.QuyenHan == 2)">Khách hàng</option>
+        <option value="1" selected="@(Model.QuyenHan == 1)">Quản trị (Admin)</option>
+    </select>
+    @if (laToi) { <input type="hidden" name="quyenHan" value="@Model.QuyenHan" /> }
+    <div><button class="btn btn-pink">Lưu</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>

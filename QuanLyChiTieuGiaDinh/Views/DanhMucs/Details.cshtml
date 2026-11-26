@@ -149,13 +149,6 @@
                                     Thu nhập
                                 </span>
                             }
-                            else if (Model.LoaiDanhMuc == "TietKiem")
-                            {
-                                <span class="badge bg-primary">
-                                    <i class="bi bi-piggy-bank"></i>
-                                    Tiết kiệm
-                                </span>
-                            }
                             else
                             {
                                 <span class="badge bg-secondary">
@@ -247,6 +240,25 @@
                                 Xóa
 
                             </a>
+
+                            @if (Model.TrangThai == "Active")
+                            {
+                                <form asp-action="AnDanhMuc" asp-route-id="@Model.MaDanhMuc" method="post">
+                                    <button type="submit" class="btn btn-outline-secondary">
+                                        <i class="bi bi-eye-slash"></i>
+                                        Ẩn
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="KhoiPhuc" asp-route-id="@Model.MaDanhMuc" method="post">
+                                    <button type="submit" class="btn btn-outline-success">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        Khôi phục
+                                    </button>
+                                </form>
+                            }
                         }
                         else
                         {

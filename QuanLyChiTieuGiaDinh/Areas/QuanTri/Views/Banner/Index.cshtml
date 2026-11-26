@@ -1,0 +1,39 @@
+@model List<ThongTinBanner>
+@{ ViewData["Title"] = "Banner trang chủ"; int soDung = Model.Count(b => b.DangDung); }
+<h3 class="mb-1"><i class="bi bi-images text-pink"></i> Banner Trang Chủ</h3>
+<p class="text-muted small">Đang dùng <strong>@soDung</strong> banner. Từ 2 banner trở lên, trang chủ sẽ tự chạy trình chiếu (đổi ảnh sau 4 giây). Kích thước đề nghị: 1920×600.</p>
+
+<form asp-action="TaiLen" method="post" enctype="multipart/form-data" class="card shadow-sm border-0 p-3 mb-4 d-flex flex-row gap-2 align-items-center flex-wrap">
+    <input type="file" name="anh" multiple accept="image/*" class="form-control" style="max-width:420px;" required />
+    <button class="btn btn-pink"><i class="bi bi-upload"></i> Tải banner lên</button>
+</form>
+
+<div class="row g-3">
+@foreach (var b in Model)
+{
+    <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm border-0 h-100 @(b.DangDung ? "border border-2 border-success" : "")">
+            <img src="~/banner/@b.TenFile" class="card-img-top" style="height:160px;object-fit:cover;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted text-truncate" style="max-width:60%;">@b.TenFile</span>
+                    @if (b.DangDung) { <span class="badge bg-success">Đang dùng</span> } else { <span class="badge bg-secondary">Đang tắt</span> }
+                </div>
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                    <form asp-action="BatTat" method="post"><input type="hidden" name="tenFile" value="@b.TenFile" /><input type="hidden" name="dangDung" value="@((!b.DangDung).ToString().ToLower())" />
+                        <button class="btn btn-sm @(b.DangDung ? "btn-outline-warning" : "btn-outline-success")">@(b.DangDung ? "Tắt" : "Bật")</button></form>
+                    <form asp-action="ChiDungMot" method="post"><input type="hidden" name="tenFile" value="@b.TenFile" /><button class="btn btn-sm btn-pink">Chỉ dùng banner này</button></form>
+                    <form asp-action="DoiThuTu" method="post"><input type="hidden" name="tenFile" value="@b.TenFile" /><input type="hidden" name="huong" value="-1" /><button class="btn btn-sm btn-outline-secondary" title="Lên trước">↑</button></form>
+                    <form asp-action="DoiThuTu" method="post"><input type="hidden" name="tenFile" value="@b.TenFile" /><input type="hidden" name="huong" value="1" /><button class="btn btn-sm btn-outline-secondary" title="Xuống sau">↓</button></form>
+                    <form asp-action="Xoa" method="post" onsubmit="return confirm('Xóa banner này?')"><input type="hidden" name="tenFile" value="@b.TenFile" /><button class="btn btn-sm btn-outline-danger">Xóa</button></form>
+                </div>
+                <form asp-action="LienKet" method="post" class="d-flex gap-1">
+                    <input type="hidden" name="tenFile" value="@b.TenFile" />
+                    <input name="lienKet" value="@b.LienKet" class="form-control form-control-sm" placeholder="Link khi bấm vào banner (vd: /FlashSale)" />
+                    <button class="btn btn-sm btn-outline-secondary">Lưu</button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+</div>

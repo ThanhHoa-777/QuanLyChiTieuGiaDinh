@@ -1,0 +1,25 @@
+@model DanhSachSanPhamVM
+@{ ViewData["Title"] = "Tìm kiếm - ShopSon"; }
+<div class="tieude-khu">
+    <div class="nhan-nho">Tìm kiếm</div>
+    <h2>Tìm Sản Phẩm</h2>
+</div>
+<form asp-controller="SanPham" asp-action="TimKiem" method="get" class="khu-timkiem">
+    <input type="text" name="tuKhoa" placeholder="🔍 Nhập tên son, thương hiệu..." value="@Model.TuKhoa" autofocus />
+    <button type="submit">Tìm kiếm</button>
+</form>
+@if (!string.IsNullOrEmpty(Model.TuKhoa))
+{
+    <p style="text-align:center;color:#aaa;margin:16px 0;font-size:13px;">Tìm thấy <strong style="color:#d63384;">@Model.TongKetQua</strong> sản phẩm cho "@Model.TuKhoa"</p>
+    <div class="luoi-sanpham">
+        @foreach (var the in Model.SanPham)
+        {
+            <partial name="_TheSanPham" model="the" />
+        }
+    </div>
+    <partial name="~/Views/SanPham/_PhanTrang.cshtml" model="Model" />
+}
+else
+{
+    <p style="text-align:center;color:#bbb;margin-top:30px;">Nhập tên sản phẩm hoặc thương hiệu để tìm kiếm.</p>
+}
