@@ -1,0 +1,25 @@
+@model List<NguoiDung>
+@{ ViewData["Title"] = "Người dùng"; int toi = User.MaNguoiDung(); }
+<h3 class="mb-3"><i class="bi bi-people text-pink"></i> Người Dùng</h3>
+<div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+    <thead class="table-light"><tr><th>Mã</th><th>Họ tên</th><th>Tên đăng nhập</th><th>Liên hệ</th><th>Quyền</th><th>Hạng / điểm</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+    @foreach (var n in Model)
+    {
+        <tr>
+            <td>@n.MaNguoiDung</td><td>@n.TenNguoiDung</td><td>@n.TenDangNhap</td>
+            <td>@n.Email<div class="small text-muted">@n.SoDienThoai</div></td>
+            <td>@if (n.QuyenHan == HangSo.QuyenQuanTri) { <span class="badge-admin">Admin</span> } else { <span class="badge-user">Khách</span> }</td>
+            <td>@(n.QuyenHan == HangSo.QuyenKhachHang ? HangThanhVien.IconHang(n.HangKhachHang) + " " + TienIch.DinhDangSo(n.TongDiem) + "đ" : "—")</td>
+            <td>@if (n.Khoa) { <span class="badge bg-danger">Đã khóa</span> } else { <span class="badge bg-success">Hoạt động</span> }</td>
+            <td class="text-end text-nowrap">
+                <a asp-action="Sua" asp-route-id="@n.MaNguoiDung" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                @if (n.MaNguoiDung != toi)
+                {
+                    <form asp-action="Khoa" asp-route-id="@n.MaNguoiDung" method="post" class="d-inline"><button class="btn btn-sm btn-outline-warning">@(n.Khoa ? "Mở khóa" : "Khóa")</button></form>
+                    <form asp-action="DatLaiMatKhau" asp-route-id="@n.MaNguoiDung" method="post" class="d-inline" onsubmit="return confirm('Đặt lại mật khẩu về 123456?')"><button class="btn btn-sm btn-outline-info">Reset MK</button></form>
+                    <form asp-action="Xoa" asp-route-id="@n.MaNguoiDung" method="post" class="d-inline" onsubmit="return confirm('Xóa người dùng này?')"><button class="btn btn-sm btn-outline-danger">Xóa</button></form>
+                }
+            </td>
+        </tr>
+    }
+    </tbody></table></div></div>

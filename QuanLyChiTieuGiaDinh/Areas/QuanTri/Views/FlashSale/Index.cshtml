@@ -1,0 +1,34 @@
+﻿@using Shopson.Areas.QuanTri.Controllers
+@model FlashSaleAdminVM
+@{ ViewData["Title"] = "Lịch sử Flash Sale"; }
+<h3 class="mb-3"><i class="bi bi-lightning-charge text-pink"></i> Lịch Sử Flash Sale</h3>
+<form method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end">
+    <div><label class="form-label">Chọn ngày</label><input type="date" name="ngay" value="@Model.Ngay.ToString("yyyy-MM-dd")" max="@Model.HomNay.ToString("yyyy-MM-dd")" class="form-control" /></div>
+    <button class="btn btn-pink">Xem</button>
+    <div class="ms-3 small text-muted">Các ngày đã có flash sale: @string.Join(" · ", Model.DanhSachNgay.Take(8).Select(n => n.ToString("dd/MM")))</div>
+</form>
+<div class="alert alert-light border small">
+    ℹ Mỗi ngày chỉ bốc <strong>6 sản phẩm còn hàng</strong> vào đúng ngày đó (theo tồn kho lúc đó), nên không xem trước được ngày mai.
+    Sản phẩm hết hàng mà chưa bán lượt flash nào sẽ được tự thay bằng sản phẩm khác.
+</div>
+<div class="card shadow-sm border-0"><table class="table table-hover align-middle mb-0">
+    <thead class="table-light"><tr><th>Sản phẩm</th><th>Giảm</th><th>@(Model.Ngay == Model.HomNay ? "Giá thường → giá flash" : "Giá bán thường")</th><th>Tồn kho</th><th>Lượt flash đã đặt</th><th>Đã hoàn thành</th><th>Đang xử lý</th></tr></thead><tbody>
+    @foreach (var d in Model.Dong)
+    {
+        <tr><td><div class="d-flex align-items-center gap-2">
+                <img src="@TienIch.DuongDanAnh(d.SanPham.HinhAnh)" style="width:44px;height:44px;object-fit:cover;border-radius:6px;" onerror="this.style.visibility='hidden'" />
+                <a asp-controller="SanPham" asp-action="Sua" asp-route-id="@d.SanPham.MaSanPham" class="text-decoration-none text-dark">@d.SanPham.TenSanPham</a></div></td><td><span class="badge bg-danger">-@d.PhanTram%</span></td>
+            <td>
+                @if (Model.Ngay == Model.HomNay)
+                {
+                    @TienIch.DinhDangTien(d.Gia.GiaThuong) <text>→</text> <strong class="text-danger">@TienIch.DinhDangTien(d.Gia.GiaCuoi)</strong>
+                    @if (d.Gia.DaChamTran) { <span class="badge bg-warning text-dark" title="Đã chạm mức giảm tối đa của sản phẩm">chạm mức tối đa</span> }
+                }
+                else { @TienIch.DinhDangTien(d.SanPham.GiaBan) }
+            </td>
+            <td>@if (d.SanPham.TonKho <= 0) { <span class="badge bg-secondary">Hết hàng</span> } else { @d.SanPham.TonKho }</td>
+            <td>@d.LuotBan / @HangSo.LuotFlashToiDa @if (d.LuotBan >= HangSo.LuotFlashToiDa) { <span class="badge bg-secondary">Hết lượt</span> }</td>
+            <td class="text-success fw-bold">@d.DaHoanThanh</td><td class="text-warning fw-bold">@d.DangXuLy</td></tr>
+    }
+    @if (Model.Dong.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-3">Ngày này không có dữ liệu flash sale.</td></tr> }
+    </tbody></table></div>

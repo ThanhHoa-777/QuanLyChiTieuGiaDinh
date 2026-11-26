@@ -1,0 +1,8 @@
+@{ ViewData["Title"] = "Đổi mật khẩu"; }
+<h3 class="mb-3"><i class="bi bi-key text-pink"></i> Đổi Mật Khẩu</h3>
+<form asp-action="DoiMatKhau" method="post" class="card shadow-sm border-0 p-4" style="max-width:460px;">
+    <input type="password" name="matKhauCu" class="form-control mb-2" placeholder="Mật khẩu hiện tại" required />
+    <input type="password" name="matKhauMoi" class="form-control mb-2" placeholder="Mật khẩu mới" required />
+    <input type="password" name="matKhauMoiLai" class="form-control mb-3" placeholder="Nhập lại mật khẩu mới" required />
+    <div><button class="btn btn-pink">Đổi mật khẩu</button></div>
+</form>

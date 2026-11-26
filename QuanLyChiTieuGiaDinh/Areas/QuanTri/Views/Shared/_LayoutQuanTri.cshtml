@@ -1,0 +1,140 @@
+﻿@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@inject IConfiguration CauHinh
+@{
+    string tenController = ViewContext.RouteData.Values["controller"] as string ?? "";
+    string DangChon(params string[] ds) => ds.Contains(tenController) ? "fw-bold text-pink" : "";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="@(Antiforgery.GetAndStoreTokens(Context).RequestToken)" />
+    <title>@(ViewData["Title"] ?? "Quản trị") - ShopSon Admin</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="~/css/quantri.css" asp-append-version="true" />
+</head>
+<body>
+<div id="PhanDau">
+    <div class="container-fluid d-flex align-items-center justify-content-between px-4">
+        <div class="d-flex align-items-center gap-2">
+            <span style="font-size:2rem;">💄</span>
+            <span class="fw-bold fs-4">ShopSon</span>
+            <small class="text-pink ms-2">Khu vực quản trị</small>
+        </div>
+        <div class="header-user d-flex align-items-center gap-3">
+            <a href="/" target="_blank" class="btn-trangtinhref"><i class="bi bi-shop"></i> Xem Trang Tin</a>
+            <span><i class="bi bi-person-circle me-1"></i> Xin chào <strong>@User.HoTen()</strong></span>
+            <form asp-area="" asp-controller="TaiKhoan" asp-action="DangXuat" method="post" class="m-0">
+                <button type="submit" class="btn btn-link text-white p-0"><i class="bi bi-box-arrow-right"></i> Đăng xuất</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="PhanGiua" class="container-fluid">
+    <div class="row">
+        <div id="BenTrai" class="col-md-2 p-0">
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-gear"></i> Quản lý</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="TongQuan" asp-action="Index" class="@DangChon("TongQuan")"><i class="bi bi-house-door"></i> Tổng quan</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="SanPham" asp-action="Index" class="@DangChon("SanPham")"><i class="bi bi-grid"></i> Danh sách sản phẩm</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="SanPham" asp-action="Them"><i class="bi bi-plus-circle"></i> Thêm sản phẩm</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="TinTuc" asp-action="Index" class="@DangChon("TinTuc")"><i class="bi bi-newspaper"></i> Tin tức</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="Banner" asp-action="Index" class="@DangChon("Banner")"><i class="bi bi-images"></i> Banner trang chủ</a></li>
+                </ul>
+            </div>
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-bag-check"></i> Đơn hàng</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="DonHang" asp-action="Index" class="@DangChon("DonHang")"><i class="bi bi-list-check"></i> Tất cả đơn hàng</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="DonHang" asp-action="Index" asp-route-tt="XAC_NHAN"><i class="bi bi-clock"></i> Chờ giao hàng</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="CongNo" asp-action="KhachHang"><i class="bi bi-wallet2"></i> Công nợ khách hàng</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="KhieuNai" asp-action="Index" class="@DangChon("KhieuNai")"><i class="bi bi-exclamation-triangle"></i> Khiếu nại</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="DoanhThu" asp-action="Index" class="@DangChon("DoanhThu")"><i class="bi bi-graph-up"></i> Doanh thu</a></li>
+                </ul>
+            </div>
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-box-seam"></i> Kho hàng</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="Kho" asp-action="Index" class="@DangChon("Kho")"><i class="bi bi-box-arrow-in-left"></i> Nhập kho</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="Kho" asp-action="Them"><i class="bi bi-plus-circle"></i> Tạo phiếu nhập</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="Kho" asp-action="DieuChinh"><i class="bi bi-sliders"></i> Điều chỉnh kho</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="Kho" asp-action="LichSu"><i class="bi bi-clock-history"></i> Lịch sử kho</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="Kho" asp-action="TonKho"><i class="bi bi-boxes"></i> Tồn kho</a></li>
+                </ul>
+            </div>
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-truck"></i> Nhà cung cấp</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="NhaCungCap" asp-action="Index" class="@DangChon("NhaCungCap")"><i class="bi bi-building"></i> Danh sách NCC</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="CongNo" asp-action="Index" class="@DangChon("CongNo")"><i class="bi bi-cash-coin"></i> Công nợ nhà cung cấp</a></li>
+                </ul>
+            </div>
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-shield-lock"></i> Quản trị</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="ThuongHieu" asp-action="Index" class="@DangChon("ThuongHieu")"><i class="bi bi-tags"></i> Thương hiệu</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="MaGiamGia" asp-action="Index" class="@DangChon("MaGiamGia")"><i class="bi bi-ticket-perforated"></i> Mã giảm giá</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="TichDiem" asp-action="Index" class="@DangChon("TichDiem")"><i class="bi bi-star-fill"></i> Tích điểm khách hàng</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="FlashSale" asp-action="Index" class="@DangChon("FlashSale")"><i class="bi bi-lightning-charge"></i> Lịch sử Flash Sale</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="NguoiDung" asp-action="Index" class="@DangChon("NguoiDung")"><i class="bi bi-people"></i> Người dùng</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="TinNhan" asp-action="Index" class="@DangChon("TinNhan")"><i class="bi bi-chat-dots"></i> Tin nhắn khách</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="NhatKyEmail" asp-action="Index" class="@DangChon("NhatKyEmail")"><i class="bi bi-envelope"></i> Nhật ký email</a></li>
+                </ul>
+            </div>
+            <div class="menu-section">
+                <div class="menu-title"><i class="bi bi-person"></i> Cá nhân</div>
+                <ul>
+                    <li><a asp-area="QuanTri" asp-controller="CaNhan" asp-action="HoSo" class="@DangChon("CaNhan")"><i class="bi bi-person-lines-fill"></i> Hồ sơ cá nhân</a></li>
+                    <li><a asp-area="QuanTri" asp-controller="CaNhan" asp-action="DoiMatKhau"><i class="bi bi-key"></i> Đổi mật khẩu</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="BenPhai" class="col-md-10 p-4">
+            <div class="khong-in d-flex gap-2 mb-3">
+                @if (tenController != "TongQuan")
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="quayLaiTrangTruoc('/QuanTri')">← Quay lại</button>
+                }
+                @* In trang hiện tại: khi in, thanh menu và các nút tự ẩn (xem phần @@media print trong quantri.css) *@
+                <button type="button" class="btn btn-sm btn-outline-dark ms-auto" onclick="window.print()">🖨 In trang này</button>
+            </div>
+            @* Tiêu đề chỉ hiện trên bản in giấy: tên cửa hàng, tên báo cáo, thời điểm in, người in *@
+            <div class="chi-in-khi-in text-center mb-3">
+                <h4 class="mb-0">💄 @(CauHinh["CuaHang:Ten"] ?? "ShopSon - Beauty Boutique")</h4>
+                <div>@(ViewData["Title"] ?? "Báo cáo") — in lúc @DateTime.Now.ToString("dd/MM/yyyy HH:mm") bởi @User.HoTen()</div>
+                <hr />
+            </div>
+            @if (TempData["ThongBaoOK"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show">@TempData["ThongBaoOK"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            }
+            @if (TempData["ThongBaoLoi"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show">@TempData["ThongBaoLoi"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            }
+            @RenderBody()
+        </div>
+    </div>
+</div>
+<div id="PhanCuoi" class="text-center py-3 text-muted small">💄 ShopSon Admin &copy; 2026</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function layMaChongGiaMao() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+    // Nút "Quay lại trang trước" cho toàn khu quản trị
+    function quayLaiTrangTruoc(trangChu) {
+        var cungWebsite = false;
+        try { cungWebsite = document.referrer && new URL(document.referrer).host === location.host; } catch (e) { }
+        if (cungWebsite && history.length > 1) history.back(); else location.href = trangChu || '/QuanTri';
+    }
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
