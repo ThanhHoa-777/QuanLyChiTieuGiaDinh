@@ -8,6 +8,7 @@
     string filterCurrent = ViewBag.FilterCurrent ?? "tat-ca";
     int countCaNhan = ViewBag.CountChuaDocCaNhan ?? 0;
     int countGiaDinh = ViewBag.CountChuaDocGiaDinh ?? 0;
+    int countCanhBao = ViewBag.CountCanhBao ?? 0;
 
     var thanhCong = (TempData["SuccessMessage"] ?? TempData["Success"])?.ToString();
     var loi = (TempData["ErrorMessage"] ?? TempData["Error"])?.ToString();
@@ -53,6 +54,17 @@
     </div>
 }
 
+<!-- BANNER THÔNG BÁO CẢNH BÁO -->
+@if (countCanhBao > 0 && filterCurrent != "canh-bao")
+{
+    <div class="alert alert-warning d-flex align-items-center mb-3 shadow-sm" role="alert">
+        <span style="font-size: 22px;">⚠️</span>
+        <strong class="ms-2">Bạn có @countCanhBao thông báo cảnh báo chưa đọc!</strong>
+        <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="canh-bao"
+           class="btn btn-warning btn-sm fw-bold ms-auto">Xem ngay</a>
+    </div>
+}
+
 <!-- NAVIGATION TABS -->
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
@@ -87,6 +99,14 @@
        class="btn btn-sm @(filterCurrent == "chua-doc" ? "btn-primary" : "btn-outline-primary")">
         Chưa đọc
     </a>
+    <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="canh-bao"
+       class="btn btn-sm @(filterCurrent == "canh-bao" ? "btn-warning" : "btn-outline-warning text-dark")">
+        ⚠️ Cảnh báo
+        @if (countCanhBao > 0)
+        {
+            <span class="badge bg-danger ms-1">@countCanhBao</span>
+        }
+    </a>
 </div>
 
 <!-- DANH SÁCH THÔNG BÁO -->
@@ -105,6 +125,11 @@ else
     <div class="list-group shadow-sm">
         @foreach (var thongBao in Model)
         {
+            bool laCanhBao = thongBao.LoaiThongBao == LoaiThongBao.CanhBaoNganSach;
+            string borderClass = laCanhBao && !thongBao.DaDoc ? "border-warning border-2"
+            : (!thongBao.DaDoc ? "border-primary" : "");
+            string bgClass = laCanhBao && !thongBao.DaDoc ? "bg-warning-subtle"
+            : (!thongBao.DaDoc ? "bg-light" : "bg-white");
             string borderClass = !thongBao.DaDoc ? "border-primary" : "";
             string bgClass = !thongBao.DaDoc ? "bg-light" : "bg-white";
             var maMucTieu = thongBao.LayMaMucTieu();
@@ -115,11 +140,17 @@ else
 
                     <div class="me-3 flex-grow-1">
                         <div class="d-flex align-items-center gap-2 mb-1">
+                            <span style="font-size: 22px;">@(laCanhBao ? "⚠️" : "🔔")</span>
                             <span style="font-size: 22px;">🔔</span>
 
-                            <h6 class="mb-0 fw-bold text-dark fs-6">
+                            <h6 class="mb-0 fw-bold @(laCanhBao ? "text-warning-emphasis" : "text-dark") fs-6">
                                 @thongBao.TieuDe
                             </h6>
+
+                            @if (laCanhBao)
+                            {
+                                <span class="badge bg-warning text-dark">Cảnh báo</span>
+                            }
 
                             @if (!thongBao.DaDoc)
                             {
@@ -217,7 +248,8 @@ else
                         }
                         else
                         {
-                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-primary btn-sm">
+                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao"
+                               class="btn @(laCanhBao && !thongBao.DaDoc ? "btn-warning" : "btn-outline-primary") btn-sm">
                                 @(maMucTieu != null ? "Xem mục tiêu" : "Xem")
                             </a>
                         }

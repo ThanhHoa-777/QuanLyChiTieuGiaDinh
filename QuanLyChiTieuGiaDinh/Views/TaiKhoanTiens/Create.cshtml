@@ -10,50 +10,44 @@
 
         <div class="col-md-7">
 
-            <div class="card shadow-sm">
+            <div class="card shadow-sm border-0">
 
-                <!-- TIÊU ĐỀ -->
                 <div class="card-header bg-primary text-white">
-
                     <h3 class="mb-0">
                         <i class="bi bi-wallet2"></i>
                         Thêm tài khoản tiền
                     </h3>
-
                 </div>
 
                 <div class="card-body">
 
-                    <!-- THÔNG TIN -->
                     <div class="alert alert-info">
 
-                        <div class="fw-semibold mb-2">
+                        <div class="fw-bold mb-2">
                             <i class="bi bi-info-circle"></i>
                             Thông tin tài khoản
                         </div>
 
-                        <div class="mb-1">
-                            Tài khoản sẽ được tự động gán vào
-                            <strong>hộ gia đình hiện tại</strong>.
-                        </div>
+                        <p class="mb-1">
+                            Hệ thống chỉ hỗ trợ tạo
+                            <strong>Ví cá nhân</strong>.
+                        </p>
 
-                        <div>
-                            Bạn sẽ là <strong>người tạo tài khoản</strong>
-                            và là người có quyền sửa hoặc xóa tài khoản này.
-                        </div>
+                        <p class="mb-0">
+                            Ví được tự động gán cho bạn và hộ gia đình
+                            hiện tại. Số dư ban đầu mặc định là
+                            <strong>0đ</strong>.
+                        </p>
 
                     </div>
 
+                    <form asp-action="Create" method="post">
 
-                    <form asp-action="Create"
-                          method="post">
-
-                        <!-- VALIDATION -->
+                        @Html.AntiForgeryToken()
 
                         <div asp-validation-summary="ModelOnly"
                              class="alert alert-danger">
                         </div>
-
 
                         <!-- TÊN TÀI KHOẢN -->
 
@@ -65,112 +59,13 @@
 
                             <input asp-for="TenTaiKhoan"
                                    class="form-control"
-                                   placeholder="Ví dụ: Tiền mặt gia đình, Ví cá nhân..." />
+                                   placeholder="Ví dụ: Tiền mặt, Tài khoản ngân hàng..." />
 
                             <span asp-validation-for="TenTaiKhoan"
                                   class="text-danger">
                             </span>
 
                         </div>
-
-
-                        <!-- PHẠM VI TÀI KHOẢN -->
-
-                        <div class="mb-4">
-
-                            <label class="form-label fw-bold">
-                                Phạm vi tài khoản
-                            </label>
-
-                            <div class="row g-3">
-
-                                <!-- CÁ NHÂN -->
-
-                                <div class="col-md-6">
-
-                                    <div class="card h-100 border">
-
-                                        <div class="card-body">
-
-                                            <div class="form-check">
-
-                                                <input asp-for="LaTaiKhoanGiaDinh"
-                                                       class="form-check-input"
-                                                       value="false"
-                                                       id="taiKhoanCaNhan" />
-
-                                                <label class="form-check-label fw-bold"
-                                                       for="taiKhoanCaNhan">
-
-                                                    👤 Tài khoản cá nhân
-
-                                                </label>
-
-                                            </div>
-
-                                            <div class="small text-muted mt-2">
-
-                                                Chỉ bạn có thể xem,
-                                                sử dụng, sửa và xóa
-                                                tài khoản này.
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-
-                                <!-- GIA ĐÌNH -->
-
-                                <div class="col-md-6">
-
-                                    <div class="card h-100 border">
-
-                                        <div class="card-body">
-
-                                            <div class="form-check">
-
-                                                <input type="radio"
-                                                       name="LaTaiKhoanGiaDinh"
-                                                       value="true"
-                                                       class="form-check-input"
-                                                       id="taiKhoanGiaDinh" />
-
-                                                <label class="form-check-label fw-bold"
-                                                       for="taiKhoanGiaDinh">
-
-                                                    🏠 Tài khoản gia đình
-
-                                                </label>
-
-                                            </div>
-
-                                            <div class="small text-muted mt-2">
-
-                                                Tất cả thành viên trong gia đình
-                                                đều có thể xem và sử dụng
-                                                tài khoản này.
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            <div class="form-text mt-2">
-                                💡 Tài khoản gia đình phù hợp với tiền chung
-                                mà các thành viên cùng đóng góp và sử dụng.
-                            </div>
-
-                        </div>
-
 
                         <!-- LOẠI TÀI KHOẢN -->
 
@@ -203,41 +98,24 @@
 
                         </div>
 
-
                         <!-- SỐ DƯ BAN ĐẦU -->
 
                         <div class="mb-3">
 
-                            <label asp-for="SoDuBanDau"
-                                   class="form-label fw-bold">
+                            <label class="form-label fw-bold">
+                                Số dư ban đầu
                             </label>
 
-                            <div class="input-group">
-
-                                <input asp-for="SoDuBanDau"
-                                       class="form-control"
-                                       type="number"
-                                       min="0"
-                                       step="0.01"
-                                       placeholder="0" />
-
-                                <span class="input-group-text">
-                                    ₫
-                                </span>
-
+                            <div class="form-control bg-light">
+                                0 ₫
                             </div>
 
                             <div class="form-text">
-                                Số dư hiện tại sẽ được tự động đặt bằng
-                                số dư ban đầu.
+                                Số dư ban đầu được hệ thống tự động
+                                thiết lập bằng 0 và không thể thay đổi.
                             </div>
 
-                            <span asp-validation-for="SoDuBanDau"
-                                  class="text-danger">
-                            </span>
-
                         </div>
-
 
                         <!-- GHI CHÚ -->
 
@@ -258,6 +136,41 @@
 
                         </div>
 
+                        <!-- THÔNG TIN TỰ ĐỘNG -->
+
+                        <div class="card bg-light border-0 mb-4">
+
+                            <div class="card-body">
+
+                                <div class="fw-bold mb-3">
+                                    <i class="bi bi-shield-check"></i>
+                                    Thông tin tự động
+                                </div>
+
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Loại ví:</span>
+                                    <strong class="text-primary">
+                                        Ví cá nhân
+                                    </strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Chủ sở hữu:</span>
+                                    <strong>
+                                        Bạn
+                                    </strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <span>Trạng thái:</span>
+                                    <span class="badge bg-success">
+                                        Hoạt động
+                                    </span>
+                                </div>
+
+                            </div>
+
+                        </div>
 
                         <!-- NÚT -->
 
@@ -292,7 +205,6 @@
     </div>
 
 </div>
-
 
 @section Scripts {
 
