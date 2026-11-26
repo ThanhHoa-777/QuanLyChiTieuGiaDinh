@@ -1,0 +1,187 @@
+﻿@model DonHang
+@{
+    var don = Model;
+    ViewData["Title"] = "Đơn hàng #" + don.MaDonHang;
+    bool laCK = don.PhuongThucThanhToan == HangSo.ThanhToanChuyenKhoan;
+    decimal tienHang = don.ChiTietDonHangs.Sum(c => c.GiaBan * c.SoLuong);
+    bool chuaGiao = HangSo.TrangThaiChuaGiao.Contains(don.TrangThai);
+    bool dangGiaoHoacDaGiao = don.TrangThai == HangSo.DangGiao || don.TrangThai == HangSo.DaGiaoChoXacNhan;
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-receipt text-pink"></i> Đơn hàng #@don.MaDonHang
+        <span class="badge bg-@DichVuDonHang.MauTrangThaiAdmin(don.TrangThai) fs-6">@DichVuDonHang.TenTrangThaiAdmin(don.TrangThai)</span></h3>
+    <div class="d-flex gap-2 khong-in">
+        <a asp-action="InHoaDon" asp-route-id="@don.MaDonHang" target="_blank" class="btn btn-primary btn-sm">🖨 In hóa đơn</a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Danh sách</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white fw-bold">🛍 Sản phẩm</div>
+            <table class="table mb-0 align-middle">
+                <tbody>
+                @foreach (var ct in don.ChiTietDonHangs)
+                {
+                    <tr>
+                        <td style="width:70px;"><img src="@TienIch.DuongDanAnh(ct.HinhAnh)" style="width:56px;height:56px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'"></td>
+                        <td>@ct.TenSanPham<div class="small text-muted">@ct.ThuongHieu</div><partial name="_NhanGiamGia" model="ct" /></td>
+                        <td>@if (ct.GiaTruocGiam > ct.GiaBan) { <s class="text-muted small">@TienIch.DinhDangTien(ct.GiaTruocGiam)</s><br /> }@TienIch.DinhDangTien(ct.GiaBan) × @ct.SoLuong</td>
+                        <td class="text-end fw-bold">@TienIch.DinhDangTien(ct.GiaBan * ct.SoLuong)</td>
+                    </tr>
+                }
+                </tbody>
+                <tfoot>
+                    <tr><td colspan="3" class="text-end">Tiền hàng</td><td class="text-end">@TienIch.DinhDangTien(tienHang)</td></tr>
+                    @if (don.TienGiam > 0)
+                    {
+                        <tr><td colspan="3" class="text-end text-success">Giảm giá @(string.IsNullOrEmpty(don.MaGiamGia) ? "" : "(" + don.MaGiamGia + ")")</td><td class="text-end text-success">-@TienIch.DinhDangTien(don.TienGiam)</td></tr>
+                    }
+                    <tr class="table-light"><td colspan="3" class="text-end fw-bold">Tổng thanh toán (gồm ship)</td><td class="text-end fw-bold text-pink fs-5">@TienIch.DinhDangTien(don.TongTien)</td></tr>
+                </tfoot>
+            </table>
+        </div>
+
+        @if (don.DaKhieuNai)
+        {
+            <div class="card border-danger mb-3">
+                <div class="card-header bg-danger text-white">📢 Khiếu nại của khách (@TienIch.NgayGio(don.NgayKhieuNai))</div>
+                <div class="card-body">
+                    <div style="white-space:pre-line;">@don.NoiDungKhieuNai</div>
+                    @if (!string.IsNullOrEmpty(don.AnhKhieuNai))
+                    {
+                        <a href="@TienIch.DuongDanAnh(don.AnhKhieuNai)" target="_blank"><img src="@TienIch.DuongDanAnh(don.AnhKhieuNai)" class="mt-2 rounded" style="max-width:260px;max-height:260px;object-fit:cover;" alt="Ảnh khiếu nại"></a>
+                    }
+                    @if (don.MaNguoiDung != null)
+                    {
+                        <div class="mt-2"><a asp-controller="TinNhan" asp-action="HoiThoai" asp-route-id="@don.MaNguoiDung" class="btn btn-sm btn-outline-danger">💬 Nhắn tin với khách để giải quyết</a></div>
+                    }
+                    else
+                    {
+                        <div class="mt-2 small text-muted">Khách vãng lai: liên hệ qua số điện thoại @don.SoDienThoai.</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white fw-bold">👤 Khách hàng</div>
+            <div class="card-body small">
+                <div><strong>@don.HoTen</strong> @if (don.MaNguoiDungNavigation != null) { <text>(thành viên @HangThanhVien.TenHang(don.MaNguoiDungNavigation.HangKhachHang))</text> } else { <span class="badge bg-secondary">Khách</span> }</div>
+                <div>📞 @don.SoDienThoai @(string.IsNullOrEmpty(don.Email) ? "" : " · ✉ " + don.Email)</div>
+                <div>📍 @don.DiaChiGiaoHang</div>
+                @if (!string.IsNullOrWhiteSpace(don.GhiChu)) { <div>📝 @don.GhiChu</div> }
+                @if (don.TrangThai == HangSo.Huy)
+                {
+                    @* Lý do + thời điểm hủy (đơn hủy trước khi có cột LyDoHuy thì báo chưa lưu) *@
+                    <div class="alert alert-danger py-2 px-3 mt-2 mb-0">
+                        <div class="fw-bold">✖ Đơn đã hủy@(don.NgayHuy != null ? " lúc " + TienIch.NgayGio(don.NgayHuy) : "")</div>
+                        <div>Lý do: @(string.IsNullOrWhiteSpace(don.LyDoHuy) ? "(đơn cũ, chưa lưu lý do)" : don.LyDoHuy)</div>
+                    </div>
+                }
+                <hr>
+                <div>Đặt lúc: @TienIch.NgayGio(don.NgayDat)</div>
+                @if (don.NgayBatDauGiao != null) { <div>Bắt đầu giao: @TienIch.NgayGio(don.NgayBatDauGiao)</div> }
+                @if (don.NgayTuDongGiao != null) { <div>Chuyển "đã giao": @TienIch.NgayGio(don.NgayTuDongGiao)</div> }
+                @if (don.NgayHoanThanh != null) { <div>Hoàn thành: @TienIch.NgayGio(don.NgayHoanThanh)</div> }
+                @if (don.TrangThai == HangSo.HoanThanh)
+                {
+                    @if (don.KhachXacNhanNhan) { <div class="text-success">✅ Khách đã bấm "Đã nhận hàng"</div> }
+                    else { <div class="text-muted">⏱ Khách không bấm "Đã nhận hàng" (admin hoàn thành hoặc hệ thống tự hoàn thành)</div> }
+                }
+                @if (don.MaNguoiDung != null)
+                {
+                    <div class="mt-2"><a asp-controller="TinNhan" asp-action="HoiThoai" asp-route-id="@don.MaNguoiDung" class="btn btn-sm btn-outline-secondary">💬 Nhắn tin với khách</a></div>
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white fw-bold">💳 Thanh toán</div>
+            <div class="card-body small">
+                <div>Hình thức: <strong>@(laCK ? "Chuyển khoản" : "Thanh toán khi nhận hàng (COD)")</strong></div>
+                @if (laCK)
+                {
+                    <div>Tiền: <span class="badge bg-@(don.DaNhanTien ? "success" : "warning text-dark")">@(don.DaNhanTien ? "Đã nhận tiền" : "Chưa nhận tiền")</span>
+                        @if (don.DaHoanTien) { <span class="badge bg-secondary">Đã hoàn tiền</span> }</div>
+                    @if (!don.DaNhanTien && don.NgayThanhToanCk != null && chuaGiao)
+                    {
+                        <div class="text-danger">Tự hủy lúc: @TienIch.NgayGio(don.NgayThanhToanCk.Value.AddHours(HangSo.GioChoChuyenKhoan))</div>
+                    }
+                    @if (!string.IsNullOrEmpty(don.StkhoanTien))
+                    {
+                        <div class="alert alert-warning mt-2 mb-0 p-2">🏦 STK hoàn tiền của khách:<br><strong>@don.StkhoanTien</strong> — @don.TenTkhoanTien</div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold">⚙ Thao tác</div>
+            <div class="card-body d-flex flex-column gap-2">
+                @if (laCK && !don.DaNhanTien && don.TrangThai != HangSo.Huy)
+                {
+                    <form asp-action="XacNhanTien" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Xác nhận đã nhận tiền chuyển khoản?')">
+                        <button class="btn btn-success w-100">💰 Xác nhận đã nhận tiền</button></form>
+                }
+                @if (DichVuDonHang.CoTheNhanTienSauHuy(don))
+                {
+                    @* Đơn CK bị hủy (thường là tự hủy sau 24 giờ) trước khi shop kịp bấm nhận tiền, nhưng khách đã chuyển thật *@
+                    <form asp-action="NhanTienSauHuy" asp-route-id="@don.MaDonHang" method="post" class="border rounded p-2"
+                          onsubmit="return confirm('Đã kiểm tra ngân hàng và thấy khách đã chuyển @TienIch.DinhDangTien(don.TongTien) cho đơn này?\nĐơn vẫn giữ trạng thái Hủy, sau đó bạn hoàn tiền cho khách.')">
+                        <div class="small text-muted mb-1">Đơn đã hủy khi chưa xác nhận tiền. Nếu kiểm tra ngân hàng thấy khách <strong>đã chuyển</strong>, bấm để ghi nhận rồi hoàn tiền:</div>
+                        <button class="btn btn-outline-success w-100">💰 Đã nhận tiền (sau khi hủy)</button>
+                    </form>
+                }
+                @if (chuaGiao)
+                {
+                    @if (DichVuDonHang.CoTheGiao(don))
+                    {
+                        <form asp-action="GiaoHang" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Chuyển sang GIAO HÀNG? (sẽ trừ tồn kho)')">
+                            <button class="btn btn-success w-100">🚚 Giao hàng</button></form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning p-2 mb-0 small">⏳ Đơn chuyển khoản: cần <strong>xác nhận đã nhận tiền</strong> trước khi giao hàng.</div>
+                    }
+                    <form asp-action="Huy" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Hủy đơn này?')">
+                        <textarea name="lyDo" rows="2" class="form-control mb-1" placeholder="Lý do hủy đơn (bắt buộc, sẽ gửi tin nhắn cho khách)" required></textarea>
+                        <button class="btn btn-outline-danger w-100">✕ Hủy đơn</button></form>
+                }
+                @if (dangGiaoHoacDaGiao)
+                {
+                    <form asp-action="HoanThanh" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Đánh dấu HOÀN THÀNH? (cộng điểm và số đã bán)')">
+                        <button class="btn btn-outline-success w-100">✅ Hoàn thành đơn</button></form>
+                    <form asp-action="GiaoThatBai" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Đánh dấu GIAO THẤT BẠI?')">
+                        <button class="btn btn-outline-danger w-100">❌ Giao thất bại</button></form>
+                }
+                @if (DichVuDonHang.CanNhapTaiKhoanHoan(don))
+                {
+                    @* Đơn đã hủy, shop còn giữ tiền nhưng khách chưa để lại STK (thường do admin hủy thay khách) *@
+                    <form asp-action="HoanTien" asp-route-id="@don.MaDonHang" method="post" class="border rounded p-2" onsubmit="return confirm('Xác nhận đã chuyển tiền hoàn lại cho khách?')">
+                        <div class="small text-muted mb-1">Khách chưa để lại số tài khoản. Nhập theo tin nhắn của khách, chuyển tiền xong rồi bấm xác nhận:</div>
+                        <input name="soTaiKhoan" class="form-control form-control-sm mb-1" placeholder="Số tài khoản *" required />
+                        <input name="tenChuTaiKhoan" class="form-control form-control-sm mb-2" placeholder="Tên chủ tài khoản *" required />
+                        <button class="btn btn-warning w-100">💸 Đã hoàn tiền cho khách</button>
+                        @if (don.MaNguoiDung != null) { <a asp-controller="TinNhan" asp-action="HoiThoai" asp-route-id="@don.MaNguoiDung" class="small d-block mt-1">💬 Xem tin nhắn của khách</a> }
+                    </form>
+                }
+                @if (DichVuDonHang.CoTheHoanTien(don))
+                {
+                    <form asp-action="HoanTien" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Xác nhận đã chuyển tiền hoàn lại cho khách?')">
+                        <button class="btn btn-warning w-100">💸 Đã hoàn tiền cho khách</button></form>
+                }
+                @if (don.TrangThai == HangSo.GiaoThatBai && !don.DaCapNhatKho)
+                {
+                    <form asp-action="CapNhatKho" asp-route-id="@don.MaDonHang" method="post" onsubmit="return confirm('Cộng lại tồn kho cho đơn này? (chỉ làm 1 lần)')">
+                        <button class="btn btn-info w-100">📦 Cập nhật lại kho (hàng đã trả về)</button></form>
+                }
+                @if (don.TrangThai == HangSo.GiaoThatBai && don.DaCapNhatKho) { <div class="text-success small">✅ Đã cộng lại tồn kho.</div> }
+                @if (don.TrangThai == HangSo.HoanThanh || don.TrangThai == HangSo.Huy) { <div class="text-muted small">Đơn đã kết thúc.</div> }
+            </div>
+        </div>
+    </div>
+</div>

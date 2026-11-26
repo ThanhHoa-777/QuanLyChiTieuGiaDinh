@@ -1,0 +1,22 @@
+﻿@{ ViewData["Title"] = "Đặt lại mật khẩu - ShopSon"; }
+<div style="max-width:420px;margin:30px auto;background:#fff;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+    <h2 style="text-align:center;color:#d63384;margin-bottom:6px;">🔑 Đặt Lại Mật Khẩu</h2>
+    <p style="text-align:center;color:#888;font-size:13px;margin-bottom:18px;">Tài khoản: <strong>@ViewBag.TenDangNhap</strong> — mở email để lấy mã 6 số.</p>
+    @if (ViewBag.Loi != null)
+    {
+        <div style="background:#fce4ec;color:#c62828;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px;">@ViewBag.Loi</div>
+    }
+    <form asp-controller="TaiKhoan" asp-action="DatLaiMatKhau" method="post">
+        <input type="hidden" name="tenDangNhap" value="@ViewBag.TenDangNhap" />
+        <input name="maXacNhan" placeholder="Mã 6 số" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" autofocus required class="o-nhap" style="letter-spacing:6px;text-align:center;font-size:18px;font-weight:700;" />
+        <input name="matKhauMoi" type="password" placeholder="Mật khẩu mới" required class="o-nhap" autocomplete="new-password" />
+        <input name="matKhauMoiLai" type="password" placeholder="Nhập lại mật khẩu mới" required class="o-nhap" autocomplete="new-password" />
+        <button type="submit" class="btn-mua-ngay" style="width:100%;padding:12px;border:none;cursor:pointer;">Đặt lại mật khẩu</button>
+    </form>
+    @* "Gửi lại mã": gửi lại tên đăng nhập sang bước 1 (máy chủ tự chặn nếu chưa đủ 60 giây) *@
+    <form asp-controller="TaiKhoan" asp-action="QuenMatKhau" method="post" style="text-align:center;margin-top:12px;">
+        <input type="hidden" name="tenDangNhap" value="@ViewBag.TenDangNhap" />
+        <button type="submit" style="background:none;border:none;color:#d63384;cursor:pointer;font:inherit;font-size:14px;">🔄 Chưa nhận được mã? Gửi lại mã</button>
+    </form>
+</div>
+<style>.o-nhap { width:100%; padding:11px 12px; border:1.5px solid #f8d7da; border-radius:8px; margin-bottom:12px; font:inherit; }</style>

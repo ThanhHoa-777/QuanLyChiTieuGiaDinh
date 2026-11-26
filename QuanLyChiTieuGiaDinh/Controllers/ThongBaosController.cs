@@ -50,6 +50,8 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             else if (filter.Equals("canh-bao", StringComparison.OrdinalIgnoreCase))
             {
                 filteredQuery = filteredQuery.Where(x => x.LoaiThongBao == LoaiThongBao.CanhBaoNganSach);
+            {
+                filteredQuery = filteredQuery.Where(x => !x.DaDoc);
             }
 
             // Ưu tiên: cảnh báo chưa đọc -> chưa đọc -> mới nhất

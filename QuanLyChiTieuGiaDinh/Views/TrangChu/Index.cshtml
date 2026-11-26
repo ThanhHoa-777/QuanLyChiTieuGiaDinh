@@ -1,0 +1,152 @@
+@model TrangChuVM
+@{
+    ViewData["Title"] = "ShopSon - Cửa Hàng Son Môi";
+    var banner = Model.DanhSachBanner;
+}
+
+<!-- ===== BANNER (trình chiếu nếu có nhiều banner đang dùng) ===== abc -->
+@if (banner.Count > 0)
+{
+    <div id="bannerTrinhChieu" style="margin-bottom:24px;border-radius:14px;overflow:hidden;">
+        @for (int i = 0; i < banner.Count; i++)
+        {
+            var b = banner[i];
+            string kieu = i == 0 ? "display:block;" : "display:none;";
+            @if (!string.IsNullOrEmpty(b.LienKet))
+            {
+                <a href="@b.LienKet" class="banner-anh" style="@kieu"><img src="~/banner/@b.TenFile" alt="Banner ShopSon" style="width:100%;height:auto;max-height:560px;object-fit:cover;display:block;"></a>
+            }
+            else
+            {
+                <a asp-controller="SanPham" asp-action="Index" class="banner-anh" style="@kieu"><img src="~/banner/@b.TenFile" alt="Banner ShopSon" style="width:100%;height:auto;max-height:560px;object-fit:cover;display:block;"></a>
+            }
+        }
+    </div>
+}
+
+<!-- ===== FLASH SALE ===== -->
+@* Thanh Flash Sale luôn hiện (kèm đồng hồ đếm ngược); chưa có sản phẩm thì báo thay vì ẩn cả khối *@
+<div>
+    <div class="khu-flashsale" style="border-radius:14px;margin-bottom:24px;">
+        <div class="flashsale-header">
+            <div>
+                <span class="flash-icon">⚡</span>
+                <span class="flash-title">FLASH SALE</span>
+                <span class="flash-sub">Giá sốc mỗi ngày — Chỉ hôm nay!</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <div class="dem-nguoc">
+                    <div class="dem-o"><span class="dem-gio">00</span><small>Giờ</small></div>
+                    <span class="dem-dau">:</span>
+                    <div class="dem-o"><span class="dem-phut">00</span><small>Phút</small></div>
+                    <span class="dem-dau">:</span>
+                    <div class="dem-o"><span class="dem-giay">00</span><small>Giây</small></div>
+                </div>
+                <a asp-controller="FlashSale" asp-action="Index" class="btn-xem-tat-ca" style="white-space:nowrap;">Xem tất cả →</a>
+            </div>
+        </div>
+    </div>
+    @if (Model.FlashSale.Count > 0)
+    {
+        <div class="luoi-sanpham">
+            @foreach (var the in Model.FlashSale)
+            {
+                <partial name="_TheSanPham" model="the" />
+            }
+        </div>
+    }
+    else
+    {
+        <p style="text-align:center;color:#999;padding:20px 0;">Hôm nay chưa có sản phẩm Flash Sale còn hàng — bạn quay lại sau nhé!</p>
+    }
+</div>
+
+<!-- ===== DANH MỤC THEO LOẠI SON ===== -->
+<div class="tieude-khu">
+    <div class="nhan-nho">Danh mục</div>
+    <h2>Khám Phá Theo Loại Son</h2>
+</div>
+<div class="danh-muc-luoi">
+    @foreach (var loai in Model.LoaiSon)
+    {
+        <a asp-controller="SanPham" asp-action="Index" asp-route-loaiSon="@loai.Loai" class="the-danhmuc">
+            <div style="font-size:34px;">@loai.Icon</div>
+            <div style="font-weight:700;">@loai.Loai</div>
+            <div style="font-size:12px;color:#999;">@loai.SoLuong sản phẩm</div>
+        </a>
+    }
+</div>
+
+<!-- ===== VOUCHER ===== -->
+@if (Model.Voucher.Count > 0)
+{
+    <div class="tieude-khu">
+        <div class="nhan-nho">Ưu đãi</div>
+        <div class="tieude-hang-ngang">
+            <h2>🎁 Mã Giảm Giá</h2>
+            <a asp-controller="KhuyenMai" asp-action="Index" class="btn-xem-tat-ca">Xem tất cả →</a>
+        </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:30px;">
+        @foreach (var v in Model.Voucher)
+        {
+            <div onclick="chepMa('@v.MaCode')" style="background:#fff;border:1.5px dashed #d63384;border-radius:14px;padding:16px;cursor:pointer;">
+                <div style="font-size:16px;font-weight:800;color:#d63384;">@v.MaCode</div>
+                <div style="font-size:12px;color:#666;">@v.MoTa</div>
+                @if (v.LoaiGiam == "PHAN_TRAM")
+                {
+                    <div style="font-size:12px;color:#e74c3c;font-weight:700;">Giảm @v.GiaTri% đơn hàng</div>
+                }
+                else if (v.GiaTri > 0)
+                {
+                    <div style="font-size:12px;color:#e74c3c;font-weight:700;">Giảm @TienIch.DinhDangTien(v.GiaTri)</div>
+                }
+                else
+                {
+                    <div style="font-size:12px;color:#e74c3c;font-weight:700;">Miễn phí vận chuyển</div>
+                }
+                <div style="font-size:12px;color:#d63384;font-weight:700;margin-top:6px;">📋 Nhấn để sao chép</div>
+            </div>
+        }
+    </div>
+}
+
+<!-- ===== AI ADVISOR ===== -->
+<div style="background:linear-gradient(135deg,#632dba,#9b59b6);border-radius:16px;padding:26px;text-align:center;color:white;margin-bottom:34px;">
+    <div style="font-size:30px;">🤖</div>
+    <h3 style="margin:6px 0;">Beauty AI Advisor</h3>
+    <p style="opacity:.9;margin-bottom:14px;">Luôn trực tuyến — Tư vấn miễn phí màu son hợp với bạn</p>
+    <a asp-controller="TinTuc" asp-action="Index" class="btn-mua-ngay" style="display:inline-flex;align-items:center;gap:8px;padding:11px 24px;font-size:14px;">💬 Chat với AI ngay</a>
+</div>
+
+<!-- ===== SẢN PHẨM BÁN CHẠY ===== -->
+<div class="tieude-khu">
+    <div class="nhan-nho">Best seller</div>
+    <div class="tieude-hang-ngang">
+        <h2>Sản Phẩm Được Yêu Thích</h2>
+        <a asp-controller="SanPham" asp-action="Index" asp-route-sapXep="ban_chay" class="btn-xem-tat-ca">Xem tất cả →</a>
+    </div>
+</div>
+<div class="luoi-sanpham">
+    @foreach (var the in Model.BanChay)
+    {
+        <partial name="_TheSanPham" model="the" />
+    }
+</div>
+
+<!-- ===== HÀNG MỚI VỀ ===== -->
+@if (Model.HangMoi.Count > 0)
+{
+    <div class="tieude-khu">
+        <div class="nhan-nho">New arrivals</div>
+        <div class="tieude-hang-ngang">
+            <h2>Hàng Mới</h2>
+        </div>
+    </div>
+    <div class="luoi-sanpham">
+        @foreach (var the in Model.HangMoi)
+        {
+            <partial name="_TheSanPham" model="the" />
+        }
+    </div>
+}

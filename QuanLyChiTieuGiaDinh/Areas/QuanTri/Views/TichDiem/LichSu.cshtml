@@ -1,0 +1,37 @@
+﻿@model List<LichSuDiem>
+@{
+    ViewData["Title"] = "Lịch sử điểm"; var k = (NguoiDung)ViewBag.Khach;
+}
+<div class="d-flex justify-content-between mb-3"><h3>📋 Lịch sử điểm — @k.TenNguoiDung</h3><a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Quay lại</a></div>
+@{
+    // Tách điểm theo nguồn: từ đơn hàng hoàn thành và từ thưởng đánh giá
+    int diemDanhGia = Model.Where(l => l.GhiChu.StartsWith(HangSo.GhiChuDiemDanhGia)).Sum(l => l.SoDiemCong);
+    int soLuotDanhGia = Model.Count(l => l.GhiChu.StartsWith(HangSo.GhiChuDiemDanhGia));
+}
+<p>
+    Tổng điểm: <strong class="text-pink">@TienIch.DinhDangSo(k.TongDiem)</strong> · Hạng: <strong>@HangThanhVien.TenHang(k.HangKhachHang)</strong>
+    · Từ đơn hàng: <strong>@TienIch.DinhDangSo(Model.Sum(l => l.SoDiemCong) - diemDanhGia)</strong>
+    · Từ đánh giá: <strong>@TienIch.DinhDangSo(diemDanhGia)</strong> (@soLuotDanhGia lượt × @HangSo.DiemDanhGia)
+</p>
+<div class="card shadow-sm border-0">
+    <table class="table mb-0">
+        <thead class="table-light"><tr><th>Ngày</th><th>Ghi chú</th><th>Đơn hàng</th><th class="text-end">Điểm</th></tr></thead>
+        <tbody>
+            @foreach (var l in Model)
+            {
+                <tr><td>@TienIch.NgayGio(l.NgayGhi)</td><td>@l.GhiChu</td><td>@if (l.MaDonHang != null) {
+                <a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@l.MaDonHang">#@l.MaDonHang</a>
+            } else
+            {
+
+                <text>—</text>
+            }
+</td><td class="text-end text-success fw-bold">+@TienIch.DinhDangSo(l.SoDiemCong)</td></tr>
+                        }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="4" class="text-center text-muted py-3">Chưa có giao dịch điểm.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,118 @@
+﻿@using Shopson.Areas.QuanTri.Controllers
+@model ChiTietPhieuNhapVM
+@{
+    var phieu = Model.Phieu;
+    ViewData["Title"] = "Phiếu nhập #" + phieu.MaNhapKho;
+    var ncc = phieu.MaNccNavigation;
+    int stt = 0;
+}
+<div class="d-flex justify-content-between mb-3">
+    <h3>📦 Phiếu nhập #@phieu.MaNhapKho</h3>
+    <div class="khong-in d-flex gap-2">
+        @if (ncc != null) { <a asp-action="Index" asp-route-maNcc="@ncc.MaNcc" class="btn btn-outline-secondary btn-sm">Các phiếu của @ncc.TenNcc</a> }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Danh sách phiếu</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    @* ----- Thông tin phiếu ----- *@
+    <div class="col-md-6"><div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <h6 class="fw-bold mb-3">Thông tin phiếu</h6>
+        <div>Mã phiếu: <strong>#@phieu.MaNhapKho</strong></div>
+        <div>Ngày nhập: <strong>@TienIch.NgayGio(phieu.NgayNhap)</strong></div>
+        <div>Người nhập: <strong>@(phieu.NguoiNhapNavigation?.TenNguoiDung ?? "—")</strong></div>
+        <div>Số dòng sản phẩm: <strong>@phieu.ChiTietNhapKhos.Count</strong> · Tổng số lượng: <strong>@Model.TongSoLuong</strong></div>
+        <div>Ghi chú: @(string.IsNullOrWhiteSpace(phieu.GhiChu) ? "—" : phieu.GhiChu)</div>
+    </div></div></div>
+
+    @* ----- Nhà cung cấp và công nợ ----- *@
+    <div class="col-md-6"><div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <h6 class="fw-bold mb-3">Nhà cung cấp &amp; thanh toán</h6>
+        @if (ncc == null)
+        {
+            <div class="text-muted">Phiếu không chọn nhà cung cấp nên <strong>không ghi công nợ</strong>.</div>
+        }
+        else
+        {
+            <div>Nhà cung cấp: <strong>@ncc.TenNcc</strong></div>
+            <div>Điện thoại: @(string.IsNullOrWhiteSpace(ncc.DienThoai) ? "—" : ncc.DienThoai)</div>
+            <div>Địa chỉ: @(string.IsNullOrWhiteSpace(ncc.DiaChi) ? "—" : ncc.DiaChi)</div>
+            @if (Model.No == null)
+            {
+                <div class="mt-2">Thanh toán: <span class="badge bg-success">Đã thanh toán</span>
+                    <span class="small text-muted">— trả ngay lúc nhập hàng@(Model.DongTraNgay != null ? ", ngày " + TienIch.NgayGio(Model.DongTraNgay.NgayGhi) : "")</span></div>
+            }
+            else
+            {
+                var no = Model.No;
+                <div class="mt-2">Thanh toán:
+                    <span class="badge bg-@(no.ConNo <= 0 ? "success" : no.DaTra > 0 ? "info text-dark" : "warning text-dark")">@no.TrangThai</span>
+                    @if (no.QuaHan) { <span class="badge bg-danger">Quá hạn @no.SoNgayQuaHan ngày</span> }
+                </div>
+                <table class="table table-sm mt-2 mb-2" style="max-width:420px">
+                    <tr><td>Nợ gốc</td><td class="text-end">@TienIch.DinhDangTien(no.NoGoc)</td></tr>
+                    <tr><td>Đã trả</td><td class="text-end text-success">@TienIch.DinhDangTien(no.DaTra)</td></tr>
+                    <tr><td class="fw-bold">Còn nợ</td><td class="text-end fw-bold text-danger">@TienIch.DinhDangTien(no.ConNo)</td></tr>
+                    <tr><td>Hạn trả</td><td class="text-end">@TienIch.NgayThangNam(no.HanThanhToan)@(no.ConNo > 0 && !no.QuaHan ? $" (còn {no.SoNgayConLai} ngày)" : "")</td></tr>
+                </table>
+                @if (no.ConNo > 0)
+                {
+                    ViewData["KhaDung"] = Model.SoDuKhaDung;
+                    ViewData["QuayVe"] = phieu.MaNhapKho;
+                    <div class="small mb-1">Doanh thu khả dụng hiện tại: <strong>@TienIch.DinhDangTien(Model.SoDuKhaDung)</strong></div>
+                    <partial name="_FormTraNo" model="no" view-data="ViewData" />
+                }
+            }
+        }
+    </div></div></div>
+</div>
+
+@* ----- Danh sách sản phẩm trong phiếu ----- *@
+<div class="card shadow-sm border-0"><div class="table-responsive"><table class="table align-middle mb-0">
+    <thead class="table-light">
+        <tr><th>STT</th><th></th><th>Mã SP</th><th>Sản phẩm</th><th class="text-end">Số lượng</th><th class="text-end">Giá nhập</th><th class="text-end">Thành tiền</th><th class="text-end">Giá bán hiện tại</th></tr>
+    </thead>
+    <tbody>
+    @foreach (var c in phieu.ChiTietNhapKhos.OrderBy(c => c.MaChiTiet))
+    {
+        stt++;
+        var sp = c.MaSanPhamNavigation;
+        <tr>
+            <td>@stt</td>
+            <td style="width:56px;">@if (sp != null && !string.IsNullOrEmpty(sp.HinhAnh)) { <img src="@TienIch.DuongDanAnh(sp.HinhAnh)" style="width:44px;height:44px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'"> }</td>
+            <td>@c.MaSanPham</td>
+            <td>@(sp?.TenSanPham ?? "(sản phẩm đã xóa)")</td>
+            <td class="text-end">@c.SoLuong</td>
+            <td class="text-end">@TienIch.DinhDangTien(c.GiaNhap)</td>
+            <td class="text-end fw-bold">@TienIch.DinhDangTien(c.SoLuong * c.GiaNhap)</td>
+            <td class="text-end">@(sp != null ? TienIch.DinhDangTien(sp.GiaBan) : "—")</td>
+        </tr>
+    }
+    @if (phieu.ChiTietNhapKhos.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">Phiếu này chưa có dòng sản phẩm nào.</td></tr> }
+    </tbody>
+    <tfoot>
+        <tr class="table-light">
+            <td colspan="4" class="text-end fw-bold">Tổng cộng</td>
+            <td class="text-end fw-bold">@Model.TongSoLuong</td>
+            <td></td>
+            <td class="text-end fw-bold text-danger">@TienIch.DinhDangTien(phieu.TongTien)</td>
+            <td></td>
+        </tr>
+    </tfoot>
+</table></div></div>
+@if (Model.No != null && Model.No.LichSuTra.Count > 0)
+{
+    decimal conLai = Model.No.NoGoc;
+    int lan = 0;
+    <h6 class="mt-4 mb-2">💵 Lịch sử thanh toán phiếu #@phieu.MaNhapKho</h6>
+    <div class="card shadow-sm border-0" style="max-width:720px"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Lần</th><th>Ngày trả</th><th class="text-end">Số tiền</th><th class="text-end">Còn nợ sau lần trả</th></tr></thead><tbody>
+        @foreach (var t in Model.No.LichSuTra)
+        {
+            lan++;
+            conLai -= t.SoTien;
+            <tr><td>@lan</td><td>@TienIch.NgayGio(t.NgayGhi)</td><td class="text-end text-success">@TienIch.DinhDangTien(t.SoTien)</td><td class="text-end">@TienIch.DinhDangTien(conLai)</td></tr>
+        }
+        </tbody></table></div>
+}
+<p class="text-muted small mt-2">Thành tiền = số lượng × giá nhập. "Giá bán hiện tại" là giá lúc xem, không phải lúc nhập. Tồn kho xem ở mục Kho hàng → Tồn kho.</p>

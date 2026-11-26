@@ -3,9 +3,8 @@
 @{
     ViewData["Title"] = "Sửa danh mục";
 
-    var danhMucCha =
-        ViewBag.DanhMucCha as List<QuanLyChiTieuGiaDinh.Models.DanhMuc>
-        ?? new List<QuanLyChiTieuGiaDinh.Models.DanhMuc>();
+    // Đã có giao dịch thì không cho đổi loại (tránh sai lệch báo cáo)
+    bool khoaLoai = ViewBag.KhoaLoai ?? false;
 
     var emojis = new[]
     {
@@ -104,7 +103,8 @@
                             </label>
 
                             <select asp-for="LoaiDanhMuc"
-                                    class="form-select">
+                                    class="form-select"
+                                    disabled="@khoaLoai">
 
                                 <option value="ChiTieu">
                                     Chi tiêu
@@ -114,11 +114,15 @@
                                     Thu nhập
                                 </option>
 
-                                <option value="TietKiem">
-                                    Tiết kiệm
-                                </option>
-
                             </select>
+
+                            @if (khoaLoai)
+                            {
+                                <input type="hidden" name="LoaiDanhMuc" value="@Model.LoaiDanhMuc" />
+                                <div class="form-text">
+                                    <i class="bi bi-lock"></i> Danh mục đã phát sinh giao dịch nên không thể đổi loại.
+                                </div>
+                            }
 
                             <span asp-validation-for="LoaiDanhMuc"
                                   class="text-danger">

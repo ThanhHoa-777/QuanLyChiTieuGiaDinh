@@ -17,12 +17,36 @@
     string LamSachGhiChu(string? ghiChu) =>
         Regex.Replace(ghiChu ?? "", @"\|[A-Z_]+(:\d+)?\|", "").Trim();
 
-    decimal tongThu = Model.Where(x => x.LoaiGiaoDich == "Thu").Sum(x => x.SoTien);
-    decimal tongChi = Model.Where(x => x.LoaiGiaoDich == "Chi" && !LaChuyenTien(x)).Sum(x => x.SoTien);
+    // Giao dịch đã xóa (DaXoa) vẫn hiện trong danh sách nhưng bị xám/khóa,chuthich
+    // và KHÔNG được tính vào tổng thu / tổng chi.
+    var dangHoatDong = Model.Where(x => x.TrangThai != "DaXoa").ToList();
+    decimal tongThu = dangHoatDong.Where(x => x.LoaiGiaoDich == "Thu").Sum(x => x.SoTien);
+    decimal tongChi = dangHoatDong.Where(x => x.LoaiGiaoDich == "Chi" && !LaChuyenTien(x)).Sum(x => x.SoTien);
+    int soDaXoa = Model.Count(x => x.TrangThai == "DaXoa");
 
     // Chiều cao chung cho 2 khung để luôn bằng nhau
     const string chieuCao = "height: 70vh;";
 }
+
+<style>
+    /* Giao dịch đã xóa: xám lại, gạch ngang, khóa thao tác */
+    tr.giao-dich-da-xoa > td {
+        background-color: #f1f3f5 !important;
+        color: #adb5bd !important;
+    }
+
+    tr.giao-dich-da-xoa .noi-dung-da-xoa {
+        text-decoration: line-through;
+    }
+
+    tr.giao-dich-da-xoa .badge:not(.badge-da-xoa) {
+        opacity: .6;
+    }
+
+    tr.giao-dich-da-xoa .btn {
+        opacity: .75;
+    }
+</style>
 
 <div class="container-fluid px-4 py-4">
 
@@ -209,7 +233,11 @@
                         {
                             <text>Tháng @ViewBag.Thang/@ViewBag.Nam</text>
                         }
-                        <span class="text-muted fw-normal">· @Model.Count() giao dịch</span>
+                        <span class="text-muted fw-normal">· @dangHoatDong.Count giao dịch</span>
+                        @if (soDaXoa > 0)
+                        {
+                            <span class="text-muted fw-normal">(+ @soDaXoa đã xóa)</span>
+                        }
                     </strong>
 
                     <div class="d-flex align-items-center">
@@ -251,21 +279,23 @@
                             <tbody>
                                 @foreach (var item in Model)
                                 {
+                                    bool daXoa = item.TrangThai == "DaXoa";
                                     bool laNguoiTao = item.MaNguoiThucHien == maNguoiDung;
                                     bool laViGiaDinh = item.TaiKhoanTien?.LaTaiKhoanGiaDinh == true;
-                                    bool biKhoa = item.GhiChu?.Contains("|NAP_HAN_MUC|") == true;
-                                    bool coQuyenSuaXoa = (laChuHo || laNguoiTao) && !biKhoa;
+                                    bool biKhoa = item.GhiChu?.Contains("|NAP_HAN_MUC|") == true
+                                    || item.GhiChu?.Contains("|CHUYEN_TIEN|") == true;
+                                    bool coQuyenSuaXoa = !daXoa && (laChuHo || laNguoiTao) && !biKhoa;
                                     bool laThu = item.LoaiGiaoDich == "Thu";
                                     string ghiChu = LamSachGhiChu(item.GhiChu);
 
-                                    <tr>
+                                    <tr class="@(daXoa ? "giao-dich-da-xoa" : "")">
                                         <td class="ps-3 text-nowrap">
                                             <div class="fw-semibold">@item.NgayGiaoDich.ToString("dd/MM/yyyy")</div>
-                                            <small class="text-muted">@item.NgayGiaoDich.ToString("HH:mm")</small>
+                                            <small class="@(daXoa ? "" : "text-muted")">@item.NgayGiaoDich.ToString("HH:mm")</small>
                                         </td>
 
                                         <td>
-                                            <div class="fw-semibold">
+                                            <div class="fw-semibold noi-dung-da-xoa">
                                                 @if (LaChuyenTien(item))
                                                 {
                                                     <span class="me-1">🔁</span>
@@ -274,7 +304,7 @@
                                             </div>
                                             @if (!string.IsNullOrWhiteSpace(ghiChu))
                                             {
-                                                <small class="text-muted">@ghiChu</small>
+                                                <small class="noi-dung-da-xoa @(daXoa ? "" : "text-muted")">@ghiChu</small>
                                             }
                                         </td>
 
@@ -288,11 +318,17 @@
                                             }
                                         </td>
 
-                                        <td class="text-end text-nowrap fw-bold @(laThu ? "text-success" : "text-danger")">
+                                        <td class="text-end text-nowrap fw-bold noi-dung-da-xoa @(daXoa ? "" : (laThu ? "text-success" : "text-danger"))">
                                             @(laThu ? "+" : "-")@item.SoTien.ToString("N0") ₫
                                         </td>
 
                                         <td class="text-end text-nowrap pe-3">
+                                            @if (daXoa)
+                                            {
+                                                <span class="badge bg-secondary badge-da-xoa me-1">
+                                                    <i class="bi bi-lock-fill"></i> Đã xóa
+                                                </span>
+                                            }
                                             <a asp-action="Details" asp-route-id="@item.MaGiaoDich"
                                                class="btn btn-sm btn-outline-secondary">Xem</a>
                                             @if (coQuyenSuaXoa)

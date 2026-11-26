@@ -1,0 +1,34 @@
+﻿@using Shopson.Areas.QuanTri.Controllers
+@model LichSuKhoVM
+@{ ViewData["Title"] = "Lịch sử kho"; }
+<h3 class="mb-3"><i class="bi bi-clock-history text-pink"></i> Lịch Sử Kho</h3>
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0"><div class="card-header bg-white fw-bold text-success">⬇ Nhập kho (30 phiếu gần nhất)</div>
+        <table class="table table-sm mb-0"><thead class="table-light"><tr><th>Phiếu</th><th>Ngày</th><th>NCC</th><th>SL</th></tr></thead><tbody>
+        @foreach (var p in Model.PhieuNhap)
+        {
+            <tr><td><a asp-action="ChiTiet" asp-route-id="@p.MaNhapKho">#@p.MaNhapKho</a></td><td>@TienIch.NgayGio(p.NgayNhap)</td><td>@(p.MaNccNavigation?.TenNcc ?? "—")</td><td class="text-success fw-bold">+@p.ChiTietNhapKhos.Sum(c => c.SoLuong)</td></tr>
+        }
+        </tbody></table></div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0"><div class="card-header bg-white fw-bold text-danger">⬆ Xuất kho (đơn đang giao / hoàn thành)</div>
+        <table class="table table-sm mb-0"><thead class="table-light"><tr><th>Đơn</th><th>Khách</th><th>Ngày</th><th>SL</th></tr></thead><tbody>
+        @foreach (var d in Model.DonXuat)
+        {
+            <tr><td><a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@d.MaDonHang">#@d.MaDonHang</a></td><td>@d.HoTen @if (d.LaKhach) { <span class="badge bg-secondary">Khách</span> }</td><td>@TienIch.NgayGio(d.NgayXuat)</td><td class="text-danger fw-bold">-@d.TongSoLuong</td></tr>
+        }
+        </tbody></table></div>
+    </div>
+</div>
+<div class="card shadow-sm border-0 mt-3"><div class="card-header bg-white fw-bold text-warning d-flex justify-content-between">
+    <span>⚖ Điều chỉnh kho (30 phiếu gần nhất: hỏng, hết hạn, mất, kiểm kê)</span><a asp-action="DieuChinh" class="small">Lập phiếu / xem tất cả</a></div>
+<table class="table table-sm mb-0"><thead class="table-light"><tr><th>Phiếu</th><th>Ngày</th><th>Sản phẩm</th><th>Loại</th><th>Tồn trước → sau</th><th>SL</th><th>Ghi chú</th></tr></thead><tbody>
+@foreach (var d in Model.DieuChinh)
+{
+    <tr><td>#@d.MaDieuChinh</td><td>@TienIch.NgayGio(d.NgayTao)</td><td>@d.MaSanPhamNavigation.TenSanPham</td><td>@HangSo.TenLoaiDieuChinh(d.LoaiDieuChinh)</td>
+        <td>@d.TonTruoc → @d.TonSau</td><td class="fw-bold @(d.SoLuong < 0 ? "text-danger" : "text-success")">@(d.SoLuong > 0 ? "+" : "")@d.SoLuong</td><td class="small">@d.GhiChu</td></tr>
+}
+@if (Model.DieuChinh.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-3">Chưa có phiếu điều chỉnh nào.</td></tr> }
+</tbody></table></div>

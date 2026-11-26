@@ -130,6 +130,8 @@ else
             : (!thongBao.DaDoc ? "border-primary" : "");
             string bgClass = laCanhBao && !thongBao.DaDoc ? "bg-warning-subtle"
             : (!thongBao.DaDoc ? "bg-light" : "bg-white");
+            string borderClass = !thongBao.DaDoc ? "border-primary" : "";
+            string bgClass = !thongBao.DaDoc ? "bg-light" : "bg-white";
             var maMucTieu = thongBao.LayMaMucTieu();
             var returnUrl = Context.Request.Path + Context.Request.QueryString;
 
@@ -139,6 +141,7 @@ else
                     <div class="me-3 flex-grow-1">
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <span style="font-size: 22px;">@(laCanhBao ? "⚠️" : "🔔")</span>
+                            <span style="font-size: 22px;">🔔</span>
 
                             <h6 class="mb-0 fw-bold @(laCanhBao ? "text-warning-emphasis" : "text-dark") fs-6">
                                 @thongBao.TieuDe

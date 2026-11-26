@@ -1,0 +1,53 @@
+@model QuanLyChiTieuGiaDinh.Models.MucTieuTietKiem
+
+@{
+    ViewData["Title"] = "Xóa mục tiêu tiết kiệm";
+    var khongXoaDuoc = Model.SoTienHienCo > 0 || Model.LichSuTietKiems.Any();
+}
+
+<h2>@ViewData["Title"]</h2>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (khongXoaDuoc)
+{
+    <div class="alert alert-warning">
+        Mục tiêu này đã có tiền hoặc lịch sử tiết kiệm nên không thể xóa.
+        Bạn có thể chuyển trạng thái sang "Đã hủy" trong trang Sửa.
+    </div>
+}
+else
+{
+    <h5 class="text-danger">Bạn có chắc muốn xóa mục tiêu này?</h5>
+}
+
+<dl class="row mt-3">
+    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.TenMucTieu)</dt>
+    <dd class="col-sm-9">@Model.TenMucTieu</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.SoTienMucTieu)</dt>
+    <dd class="col-sm-9">@Model.SoTienMucTieu.ToString("N0") ₫</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.SoTienHienCo)</dt>
+    <dd class="col-sm-9">@Model.SoTienHienCo.ToString("N0") ₫</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.NgayHan)</dt>
+    <dd class="col-sm-9">@Model.NgayHan.ToString("dd/MM/yyyy")</dd>
+</dl>
+
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="MaMucTieu" />
+    @if (!khongXoaDuoc)
+    {
+        <button type="submit" class="btn btn-danger">Xóa</button>
+    }
+    else
+    {
+        <a asp-action="Edit" asp-route-id="@Model.MaMucTieu" class="btn btn-primary">Sửa trạng thái</a>
+    }
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+</form>

@@ -1,0 +1,103 @@
+﻿@using Shopson.Areas.QuanTri.Controllers
+@model DoanhThuVM
+@{
+    ViewData["Title"] = "Doanh thu";
+}
+<h3 class="mb-1"><i class="bi bi-graph-up-arrow text-pink"></i> Báo Cáo Doanh Thu</h3>
+<p class="text-muted small">Chỉ tính các đơn hàng có trạng thái <strong>Hoàn thành</strong>. Lợi nhuận = doanh thu − tiền đã chi trả nhà cung cấp.</p>
+
+<div class="alert alert-info d-flex justify-content-between flex-wrap align-items-center">
+    <div>
+        💰 <strong>Doanh thu khả dụng</strong> = @TienIch.DinhDangTien(Model.TongDoanhThu) (tổng doanh thu) − @TienIch.DinhDangTien(Model.TongChiNcc) (đã chi NCC) = <strong>@TienIch.DinhDangTien(Model.TongDoanhThu - Model.TongChiNcc)</strong>
+        <div class="small text-muted">Số này chỉ giảm khi bạn chi trả nhà cung cấp (thanh toán công nợ hoặc nhập kho "đã thanh toán ngay") hoặc khi một đơn hoàn thành bị đổi sang trạng thái khác.</div>
+        <div class="small mt-1">
+            📉 Giá trị hàng hao hụt (hỏng / hết hạn / mất, theo giá vốn): <strong class="text-danger">@TienIch.DinhDangTien(Model.TongHaoHut)</strong>
+            <span class="text-muted">— chỉ để theo dõi, không trừ vào doanh thu khả dụng vì không có tiền chi ra.</span>
+            <a asp-controller="Kho" asp-action="DieuChinh" class="khong-in">Xem phiếu điều chỉnh</a>
+        </div>
+    </div>
+    <div class="d-flex gap-2 khong-in">
+        <a asp-action="ChiTiet" class="btn btn-sm btn-primary">Xem toàn bộ đơn và khoản chi để đối soát</a>
+        <a asp-action="XuatExcel" class="btn btn-sm btn-outline-success">📥 Xuất Excel</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    @{
+        void Khoi(string nhan, string giaTri, string mau)
+        {
+            <div class="col-6 col-md-3">
+                <div style="background:@mau;color:white;border-radius:14px;padding:18px;text-align:center;">
+                    <div style="font-size:18px;font-weight:700;">@giaTri</div><div style="font-size:12px;opacity:.9;">@nhan</div>
+                </div>
+            </div>
+        }
+    }
+    @{
+        Khoi("Tổng doanh thu", TienIch.DinhDangTien(Model.TongDoanhThu), "linear-gradient(135deg,#d63384,#c2185b)");
+    }
+    @{
+        Khoi("Doanh thu tháng này", TienIch.DinhDangTien(Model.DoanhThuThang), "linear-gradient(135deg,#8e44ad,#6c3483)");
+    }
+    @{
+        Khoi("Tổng đã chi NCC", TienIch.DinhDangTien(Model.TongChiNcc), "linear-gradient(135deg,#e67e22,#d35400)");
+    }
+    @{
+        Khoi("Tổng lợi nhuận", TienIch.DinhDangTien(Model.TongLoiNhuan), "linear-gradient(135deg,#27ae60,#1e8449)");
+    }
+    @{
+        Khoi("Chi NCC tháng này", TienIch.DinhDangTien(Model.ChiNccThang), "linear-gradient(135deg,#2980b9,#1f618d)");
+    }
+    @{
+        Khoi("Lợi nhuận tháng này", TienIch.DinhDangTien(Model.LoiNhuanThang), "linear-gradient(135deg,#16a085,#117a65)");
+    }
+    @{
+        Khoi("Đơn hoàn thành", Model.DonHoanThanh.ToString(), "linear-gradient(135deg,#34495e,#2c3e50)");
+    }
+    @{
+        Khoi("Đơn chờ giao", Model.DonCho.ToString(), "linear-gradient(135deg,#7f8c8d,#566573)");
+    }
+</div>
+
+<form method="get" class="card shadow-sm border-0 p-3 mb-3 d-flex flex-row flex-wrap gap-3 align-items-end">
+    <div>
+        <label class="form-label">Xem theo</label>
+        <select name="loai" class="form-select" onchange="this.form.submit()">
+            <option value="thang" selected="@(Model.Loai == "thang")">Từng tháng trong năm</option>
+            <option value="ngay" selected="@(Model.Loai == "ngay")">Từng ngày</option>
+        </select>
+    </div>
+    @if (Model.Loai == "ngay")
+    {
+        <div><label class="form-label">Từ ngày</label><input type="date" name="tuNgay" value="@Model.TuNgay.ToString("yyyy-MM-dd")" class="form-control" /></div>
+        <div><label class="form-label">Đến ngày</label><input type="date" name="denNgay" value="@Model.DenNgay.ToString("yyyy-MM-dd")" class="form-control" /></div>
+    }
+    else
+    {
+        <div><label class="form-label">Năm</label><input type="number" name="nam" value="@Model.Nam" class="form-control" style="width:110px;" /></div>
+    }
+    <button class="btn btn-pink">Xem báo cáo</button>
+</form>
+
+<div class="card shadow-sm border-0">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>@(Model.Loai == "ngay" ? "Ngày" : "Tháng")</th><th>Số đơn</th><th>Doanh thu</th><th>Chi NCC</th><th>Lợi nhuận</th></tr></thead>
+        <tbody>
+            @foreach (var d in Model.BaoCao)
+            {
+                @* Bấm cả dòng để mở chi tiết kỳ đó *@
+                <tr style="cursor:pointer;" title="Bấm để xem chi tiết" onclick="location.href='@Url.Action("ChiTiet", new { tuNgay = d.TuNgay.ToString("yyyy-MM-dd"), denNgay = d.DenNgay.ToString("yyyy-MM-dd") })'">
+                    <td>@d.Nhan</td>
+                    <td>@d.SoDon</td>
+                    <td>@TienIch.DinhDangTien(d.DoanhThu)</td>
+                    <td>@TienIch.DinhDangTien(d.ChiNcc)</td>
+                    <td class="fw-bold @(d.LoiNhuan >= 0 ? "text-success" : "text-danger")">@TienIch.DinhDangTien(d.LoiNhuan)</td>
+                </tr>
+            }
+            @if (Model.BaoCao.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center text-muted py-4">Không có dữ liệu trong khoảng này.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

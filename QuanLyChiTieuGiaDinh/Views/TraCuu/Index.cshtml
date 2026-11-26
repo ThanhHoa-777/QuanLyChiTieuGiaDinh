@@ -1,0 +1,29 @@
+@model List<DonHangKhachVM>
+@{
+    ViewData["Title"] = "Tra cứu đơn hàng - ShopSon";
+}
+<div style="max-width:860px;margin:0 auto;">
+    <div class="tieude-khu"><div class="nhan-nho">Không cần đăng nhập</div><h2>📦 Tra Cứu Đơn Hàng</h2></div>
+    <form asp-controller="TraCuu" asp-action="Index" method="get" class="khu-timkiem" style="flex-wrap:wrap;gap:10px;">
+        <input type="number" name="maDonHang" placeholder="Mã đơn hàng *" value="@ViewBag.MaDonHang" min="1" required style="max-width:200px;" />
+        <input type="text" name="soDienThoai" placeholder="Số điện thoại đặt hàng *" value="@ViewBag.SoDienThoai" required />
+        <button type="submit">Tra cứu</button>
+    </form>
+    @* Bắt buộc cả mã đơn + SĐT để người biết số điện thoại của bạn không xem được đơn của bạn *@
+    <p style="text-align:center;font-size:13px;color:#888;margin-top:8px;">
+        Mã đơn hàng có trong trang đặt hàng thành công và email xác nhận đơn (ví dụ <strong>#25</strong>).
+        Có tài khoản? <a asp-controller="TaiKhoan" asp-action="DangNhap">Đăng nhập</a> để xem tất cả đơn của bạn.
+    </p>
+    @if (ViewBag.Loi != null)
+    {
+        <p style="text-align:center;color:#dc3545;margin-top:20px;">@ViewBag.Loi</p>
+    }
+    @if (ViewBag.DaTim == true && Model.Count == 0)
+    {
+        <p style="text-align:center;color:#aaa;margin-top:30px;">Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và số điện thoại.</p>
+    }
+    @foreach (var vm in Model)
+    {
+        <partial name="_TheDonHang" model="vm" />
+    }
+</div>

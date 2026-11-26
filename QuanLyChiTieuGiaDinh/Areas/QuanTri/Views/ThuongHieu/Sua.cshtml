@@ -1,0 +1,8 @@
+@model ThuongHieu
+@{ ViewData["Title"] = "Sửa thương hiệu"; }
+<h3 class="mb-3">✏ Sửa thương hiệu #@Model.MaThuongHieu</h3>
+<form asp-action="Sua" asp-route-id="@Model.MaThuongHieu" method="post" class="card shadow-sm border-0 p-4" style="max-width:560px;">
+    <input name="tenThuongHieu" value="@Model.TenThuongHieu" class="form-control mb-2" required />
+    <textarea name="moTa" class="form-control mb-2" rows="3">@Model.MoTa</textarea>
+    <div><button class="btn btn-pink">Lưu</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@(ViewData["Title"] ?? "In") - ShopSon</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif; color: #1a1a1a; background: #f1f1f1; margin: 0; padding: 16px; }
+        .thanh-cong-cu { max-width: 800px; margin: 0 auto 12px; display: flex; gap: 8px; justify-content: flex-end; }
+        .thanh-cong-cu button { padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14px; }
+        .nut-in { background: #d63384; color: #fff; }
+        .nut-phu { background: #fff; color: #444; border: 1px solid #ccc !important; }
+        /* In ra giấy A4: bỏ nền xám, bỏ nút bấm, bỏ lề thừa */
+        @@page { size: A4; margin: 12mm; }
+        @@media print {
+            body { background: #fff; padding: 0; }
+            .khong-in { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="thanh-cong-cu khong-in">
+        <button type="button" class="nut-phu" onclick="if (history.length > 1) history.back(); else window.close();">← Quay lại</button>
+        <button type="button" class="nut-in" onclick="window.print()">🖨 In / Lưu PDF</button>
+    </div>
+    @RenderBody()
+</body>
+</html>

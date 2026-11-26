@@ -1,0 +1,6 @@
+@model HoaDonVM
+@{
+    Layout = "~/Views/Shared/_LayoutIn.cshtml";
+    ViewData["Title"] = "Hóa đơn HD" + Model.Don.MaDonHang.ToString("D6");
+}
+<partial name="_HoaDon" model="Model" />

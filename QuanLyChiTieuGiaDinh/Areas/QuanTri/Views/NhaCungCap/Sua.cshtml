@@ -1,0 +1,10 @@
+@model NhaCungCap
+@{ ViewData["Title"] = "Sửa nhà cung cấp"; }
+<h3 class="mb-3">✏ Sửa nhà cung cấp #@Model.MaNcc</h3>
+<form asp-action="Sua" asp-route-id="@Model.MaNcc" method="post" class="card shadow-sm border-0 p-4" style="max-width:560px;">
+    <input name="tenNcc" value="@Model.TenNcc" class="form-control mb-2" required />
+    <input name="dienThoai" value="@Model.DienThoai" class="form-control mb-2" />
+    <input name="diaChi" value="@Model.DiaChi" class="form-control mb-2" />
+    <textarea name="ghiChu" class="form-control mb-2" rows="2">@Model.GhiChu</textarea>
+    <div><button class="btn btn-pink">Lưu</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a></div>
+</form>

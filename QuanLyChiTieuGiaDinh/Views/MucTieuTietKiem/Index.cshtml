@@ -1,0 +1,130 @@
+@model IEnumerable<QuanLyChiTieuGiaDinh.Models.MucTieuTietKiem>
+
+@{
+    ViewData["Title"] = "Mục Tiêu Tiết Kiệm";
+}
+
+<div class="container py-4">
+
+    <!-- HEADER & NÚT THÊM MỚI -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-success mb-1">
+                <i class="bi bi-piggy-bank-fill me-2"></i>Mục tiêu tiết kiệm
+            </h2>
+            <p class="text-muted mb-0">Theo dõi và quản lý kế hoạch tích lũy tài chính gia đình.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-success rounded-pill px-4 shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Tạo mục tiêu mới
+        </a>
+    </div>
+
+    <!-- DANH SÁCH CARD MỤC TIÊU -->
+    <div class="row g-4">
+        @if (!Model.Any())
+        {
+            <!-- TRẠNG THÁI TRỐNG -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm bg-success bg-opacity-10 text-center py-5 rounded-4">
+                    <div class="card-body">
+                        <i class="bi bi-flag display-4 text-success mb-3"></i>
+                        <h5 class="text-success fw-bold">Chưa có mục tiêu nào</h5>
+                        <p class="text-muted mb-3">Hãy đặt ra mục tiêu tài chính đầu tiên để bắt đầu hành trình tích lũy.</p>
+                        <a asp-action="Create" class="btn btn-success rounded-pill px-4">
+                            <i class="bi bi-plus-lg me-1"></i> Tạo mục tiêu ngay
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                // Tính phần trăm tích lũy
+                double phanTram = 0;
+                if (item.SoTienMucTieu > 0)
+                {
+                    phanTram = Math.Min(100, Math.Round((double)(item.SoTienHienCo / item.SoTienMucTieu * 100), 1));
+                }
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                        <!-- Đường viền trang trí phía trên -->
+                        <div class="bg-success py-1 opacity-75"></div>
+
+                        <div class="card-body p-4 d-flex flex-column">
+
+                            <!-- Header của Card: Badge & Trạng thái -->
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <!-- SỬ DỤNG Html.DisplayFor ĐỂ LẤY CHỮ CÓ DẤU -->
+                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 border border-success border-opacity-25 shadow-sm">
+                                    <i class="bi bi-tag me-1"></i>@Html.DisplayFor(modelItem => item.LoaiMucTieu)
+                                </span>
+                                <span class="badge bg-light text-secondary border rounded-pill px-3 py-2">
+                                    @Html.DisplayFor(modelItem => item.TrangThai)
+                                </span>
+                            </div>
+
+                            <!-- Tiêu đề & Thông tin cơ bản -->
+                            <h4 class="card-title fw-bold text-dark mt-2 mb-1">@item.TenMucTieu</h4>
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-people me-1"></i> Gia đình: <strong class="text-dark">@(item.HoGiaDinh?.TenGiaDinh ?? "Chưa xếp")</strong>
+                            </p>
+
+                            <!-- Thanh tiến độ tích lũy -->
+                            <div class="bg-light rounded-3 p-3 mb-3 border border-success-subtle">
+                                <div class="d-flex justify-content-between small fw-semibold mb-2">
+                                    <span class="text-muted">Đã tích lũy</span>
+                                    <span class="text-success fs-6 fw-bold">@phanTram%</span>
+                                </div>
+                                <div class="progress rounded-pill shadow-sm mb-2" style="height: 10px;">
+                                    <div class="progress-bar bg-success"
+                                         role="progressbar"
+                                         style="width: @phanTram%"
+                                         aria-valuenow="@phanTram"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between mt-1">
+                                    <span class="fw-bold text-success">@item.SoTienHienCo.ToString("N0") ₫</span>
+                                    <span class="text-muted small">/ @item.SoTienMucTieu.ToString("N0") ₫</span>
+                                </div>
+                            </div>
+
+                            <!-- Hạn chót -->
+                            <div class="text-muted small mb-4">
+                                <i class="bi bi-calendar-check text-success me-1"></i> Hạn chót:
+                                <strong class="text-dark">@(item.NgayHan.ToString("dd/MM/yyyy"))</strong>
+                            </div>
+
+                            <!-- Nút thao tác (Được sắp xếp lại cho rõ ràng) -->
+                            <div class="mt-auto border-top pt-3">
+                                <!-- Nạp tiền: Nút chính nổi bật -->
+                                <a asp-action="NapTien" asp-route-id="@item.MaMucTieu"
+                                   class="btn btn-success w-100 rounded-pill mb-2 shadow-sm fw-semibold">
+                                    <i class="bi bi-cash-coin me-1"></i> Nạp tiền
+                                </a>
+
+                                <!-- Các nút phụ: Dàn đều dễ bấm -->
+                                <div class="d-flex gap-2">
+                                    <a asp-action="Details" asp-route-id="@item.MaMucTieu" class="btn btn-outline-info btn-sm flex-fill rounded-3">
+                                        <i class="bi bi-eye d-block d-md-inline mb-1 mb-md-0"></i> Xem
+                                    </a>
+                                    <a asp-action="Edit" asp-route-id="@item.MaMucTieu" class="btn btn-outline-warning btn-sm flex-fill rounded-3">
+                                        <i class="bi bi-pencil d-block d-md-inline mb-1 mb-md-0"></i> Sửa
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@item.MaMucTieu" class="btn btn-outline-danger btn-sm flex-fill rounded-3">
+                                        <i class="bi bi-trash d-block d-md-inline mb-1 mb-md-0"></i> Xóa
+                                    </a>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

@@ -1,0 +1,70 @@
+﻿@model List<NhatKyEmail>
+@{
+    ViewData["Title"] = "Nhật ký email";
+    string? loai = ViewBag.Loai;
+    bool chiLoi = ViewBag.ChiLoi;
+    var cacLoai = new[] { HangSo.EmailDatDon, HangSo.EmailNhanTien, HangSo.EmailDangGiao, HangSo.EmailDaGiao, HangSo.EmailHuy,
+                          HangSo.EmailGiaoThatBai, HangSo.EmailHoanTien, HangSo.EmailKhieuNai, HangSo.EmailMaKhoiPhuc, HangSo.EmailDoiMatKhau, HangSo.EmailDoiEmail };
+}
+<h3 class="mb-1"><i class="bi bi-envelope text-pink"></i> Nhật Ký Email</h3>
+<p class="text-muted small">Mỗi email hệ thống gửi đi là 1 dòng. Chỉ lưu người nhận, tiêu đề, kết quả — <strong>không lưu nội dung thư và mã khôi phục mật khẩu</strong>.</p>
+
+@if (ViewBag.DaCauHinh)
+{
+    <div class="alert alert-success py-2 small">📧 Đang gửi bằng địa chỉ <strong>@ViewBag.DiaChiGui</strong>.</div>
+}
+else
+{
+    <div class="alert alert-warning py-2 small">⚠ Chưa cấu hình email gửi (appsettings.json → mục <code>Email</code>: <code>DiaChiGui</code>, <code>MatKhauUngDung</code>). Hệ thống vẫn chạy bình thường, chỉ là email không được gửi (ghi lỗi "Chưa cấu hình").</div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3"><div class="text-muted small">Gửi thành công</div><div class="fs-4 fw-bold text-success">@ViewBag.TongDaGui</div></div></div>
+    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3"><div class="text-muted small">Gửi lỗi</div><div class="fs-4 fw-bold text-danger">@ViewBag.TongLoi</div></div></div>
+</div>
+
+<form method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+    <select name="loai" class="form-select form-select-sm" style="width:auto;">
+        <option value="">-- Tất cả loại --</option>
+        @foreach (var l in cacLoai)
+        {
+            <option value="@l" selected="@(l == loai)">@HangSo.TieuDeEmail(l)</option>
+        }
+    </select>
+    <label class="small"><input type="checkbox" name="chiLoi" value="true" checked="@chiLoi" /> Chỉ xem email lỗi</label>
+    <button class="btn btn-sm btn-outline-secondary">Lọc</button>
+</form>
+
+<div class="card shadow-sm border-0"><table class="table table-hover align-middle mb-0 small">
+    <thead class="table-light"><tr><th>Thời gian</th><th>Loại</th><th>Người nhận</th><th>Tiêu đề</th><th>Đơn</th><th>Kết quả</th></tr></thead><tbody>
+    @if (Model.Count == 0)
+    {
+        <tr><td colspan="6" class="text-center text-muted py-4">Chưa có email nào.</td></tr>
+    }
+    @foreach (var n in Model)
+    {
+        <tr>
+            <td>@n.NgayGui.ToString("dd/MM/yyyy HH:mm:ss")</td>
+            <td>@HangSo.TieuDeEmail(n.LoaiEmail)</td>
+            <td>@n.EmailNhan</td>
+            <td>@n.TieuDe</td>
+            <td>
+                @if (n.MaDonHang != null)
+                {
+                    <a asp-controller="DonHang" asp-action="ChiTiet" asp-route-id="@n.MaDonHang">#@n.MaDonHang</a>
+                }
+            </td>
+            <td>
+                @if (n.ThanhCong)
+                {
+                    <span class="badge bg-success">Đã gửi</span>
+                }
+                else
+                {
+                    <span class="badge bg-danger">Lỗi</span>
+                    <div class="text-danger" style="max-width:260px;">@n.Loi</div>
+                }
+            </td>
+        </tr>
+    }
+    </tbody></table></div>
