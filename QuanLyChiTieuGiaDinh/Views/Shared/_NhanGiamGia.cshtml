@@ -1,0 +1,10 @@
+@model ChiTietDonHang
+@* Nhãn giảm giá của MỘT dòng sản phẩm trong đơn hàng: dùng chung cho đơn của khách, trang đặt hàng thành công, đơn hàng admin.
+   Dữ liệu lấy từ lúc mua (GiaTruocGiam, LaFlashSale, LaGiamChamBan) nên sau này đổi giá thì đơn cũ vẫn đúng. *@
+@{
+    bool coGiam = Model.GiaTruocGiam > Model.GiaBan;
+    int phanTram = coGiam ? (int)Math.Round((Model.GiaTruocGiam - Model.GiaBan) / Model.GiaTruocGiam * 100m) : 0;   // % giảm thật so với giá thường
+}
+@if (Model.LaFlashSale) { <span style="background:#e74c3c;color:#fff;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:700;">⚡ Flash Sale</span> }
+@if (Model.LaGiamChamBan) { <span style="background:#c2185b;color:#fff;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:700;">🎁 Ưu đãi đặc biệt</span> }
+@if (coGiam) { <span style="color:#e74c3c;font-size:11px;font-weight:700;">Giảm @phanTram%</span> }

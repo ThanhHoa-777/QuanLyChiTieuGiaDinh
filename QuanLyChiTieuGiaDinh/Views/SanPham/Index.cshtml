@@ -1,0 +1,66 @@
+@model DanhSachSanPhamVM
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.TenThuongHieu) ? "Sản phẩm - ShopSon" : Model.TenThuongHieu + " - ShopSon";
+    var sapXepTen = new Dictionary<string, string>
+    {
+        ["mac_dinh"] = "Mặc định", ["ban_chay"] = "Bán chạy", ["moi_nhat"] = "Mới nhất",
+        ["gia_tang"] = "Giá tăng dần", ["gia_giam"] = "Giá giảm dần", ["danh_gia"] = "Đánh giá cao"
+    };
+}
+<div class="breadcrumb-trang">
+    <a asp-controller="TrangChu" asp-action="Index">Trang chủ</a> › Sản phẩm
+    @if (!string.IsNullOrEmpty(Model.TenThuongHieu)) { <text> › @Model.TenThuongHieu</text> }
+</div>
+
+<div class="tieude-khu">
+    <div class="nhan-nho">@(string.IsNullOrEmpty(Model.TenThuongHieu) ? "Bộ sưu tập" : "Thương hiệu")</div>
+    <h2>@(string.IsNullOrEmpty(Model.TenThuongHieu) ? "Tất Cả Sản Phẩm" : Model.TenThuongHieu)</h2>
+</div>
+
+<!-- Bộ lọc -->
+<form asp-controller="SanPham" asp-action="Index" method="get" class="khu-timkiem" style="flex-wrap:wrap;gap:10px;">
+    <input type="text" name="tuKhoa" value="@Model.TuKhoa" placeholder="🔍 Tìm tên son, thương hiệu..." />
+    <select name="loaiSon" style="padding:10px;border-radius:8px;border:1.5px solid #f8d7da;">
+        <option value="">Tất cả loại son</option>
+        @foreach (var loai in HangSo.DanhSachLoaiSon)
+        {
+            <option value="@loai" selected="@(loai == Model.LoaiSon)">@loai</option>
+        }
+    </select>
+    <select name="maThuongHieu" style="padding:10px;border-radius:8px;border:1.5px solid #f8d7da;">
+        <option value="0">Tất cả thương hiệu</option>
+        @foreach (var th in Model.DanhSachThuongHieu)
+        {
+            <option value="@th.MaThuongHieu" selected="@(th.MaThuongHieu == Model.MaThuongHieu)">@th.TenThuongHieu</option>
+        }
+    </select>
+    <select name="sapXep" style="padding:10px;border-radius:8px;border:1.5px solid #f8d7da;">
+        @foreach (var kv in sapXepTen)
+        {
+            <option value="@kv.Key" selected="@(kv.Key == Model.SapXep)">@kv.Value</option>
+        }
+    </select>
+    <button type="submit">Lọc</button>
+</form>
+
+<p style="text-align:center;color:#aaa;margin-bottom:20px;font-size:13px;">
+    Tìm thấy <strong style="color:#d63384;">@Model.TongKetQua</strong> sản phẩm
+</p>
+
+@if (Model.SanPham.Count == 0)
+{
+    <div style="text-align:center;padding:50px;color:#aaa;">
+        <div style="font-size:50px;">🔍</div>
+        <p>Không tìm thấy sản phẩm phù hợp.</p>
+    </div>
+}
+else
+{
+    <div class="luoi-sanpham">
+        @foreach (var the in Model.SanPham)
+        {
+            <partial name="_TheSanPham" model="the" />
+        }
+    </div>
+}
+<partial name="_PhanTrang" model="Model" />

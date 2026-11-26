@@ -1,0 +1,191 @@
+﻿@model List<MucGioHang>
+@{
+    ViewData["Title"] = "Giỏ hàng - ShopSon";
+    int vuaThem = ViewBag.VuaThem is int v ? v : 0;
+    var canhBao = ViewBag.DanhSachCoHetLuot as List<string> ?? new List<string>();
+    var canhBaoKho = ViewBag.CanhBaoKho as List<string> ?? new List<string>();
+}
+<div class="tieude-khu">
+    <div class="nhan-nho">Mua sắm</div>
+    <h2>🛍 Giỏ Hàng Của Bạn</h2>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div style="text-align:center;padding:50px;color:#aaa;">
+        <div style="font-size:56px;">🛒</div>
+        <p>Giỏ hàng đang trống.</p>
+        <a asp-controller="SanPham" asp-action="Index" class="btn-mua-ngay" style="display:inline-flex;margin-top:12px;">Tiếp tục mua sắm</a>
+    </div>
+}
+else
+{
+    @foreach (var ten in canhBao)
+    {
+        <div style="background:#fff3cd;color:#856404;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px;">
+            ⚡ <strong>@ten</strong> đã hết lượt Flash Sale hôm nay — giá được tính lại theo giá thường.
+        </div>
+    }
+    @foreach (var cau in canhBaoKho)
+    {
+        <div style="background:#fdecea;color:#c62828;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px;">
+            📦 @cau
+        </div>
+    }
+    <form asp-controller="GioHang" asp-action="CapNhat" method="post" id="formGioHang">
+        <div style="background:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+            <!-- Chọn tất cả / bỏ chọn tất cả -->
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:2px solid #fce4ec;cursor:pointer;font-weight:700;">
+                <input type="checkbox" id="chonTatCa" onchange="chonTatCaSanPham(this.checked)" />
+                <span id="nhanChonTatCa">Chọn tất cả</span>
+                <span style="font-weight:400;color:#999;font-size:13px;">(@Model.Count sản phẩm@(Model.Any(m => m.TonKho <= 0) ? ", " + Model.Count(m => m.TonKho <= 0) + " hết hàng" : ""))</span>
+            </label>
+            @* Sản phẩm còn hàng ở trên, hết hàng xếp xuống cuối *@
+            @foreach (var m in Model.OrderBy(m => m.TonKho <= 0))
+            {
+                bool hetHang = m.TonKho <= 0;
+                bool sapHet = m.TonKho > 0 && m.TonKho <= HangSo.NguongSapHet;
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #fce4ec;flex-wrap:wrap;">
+                    @if (hetHang)
+                    {
+                        @* Hết hàng: ô chọn bị khóa (class khác "o-chon" nên không tính tiền, không bị "Chọn tất cả") *@
+                        <input type="checkbox" disabled title="Sản phẩm đã hết hàng" />
+                    }
+                    else
+                    {
+                        <input type="checkbox" name="chon" value="@m.MaSanPham" class="o-chon" data-gia="@((long)m.GiaBan)" data-ma="@m.MaSanPham" checked="@(vuaThem <= 0 || vuaThem == m.MaSanPham)" onchange="tinhTong()" />
+                    }
+                    <div style="display:flex;align-items:center;gap:14px;flex:1;flex-wrap:wrap;@(hetHang ? "opacity:.45;" : "")">
+                    <img src="@TienIch.DuongDanAnh(m.HinhAnh)" alt="" style="width:70px;height:70px;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">
+                    <div style="flex:1;min-width:160px;">
+                        <div style="font-size:12px;color:#d63384;font-weight:700;">@m.ThuongHieu</div>
+                        <a asp-controller="SanPham" asp-action="ChiTiet" asp-route-id="@m.MaSanPham" style="font-weight:600;color:#1a0a10;text-decoration:none;">@m.TenSanPham</a>
+                        @if (m.LaFlashSale)
+                        {
+                            <div style="font-size:12px;color:#e74c3c;font-weight:700;">⚡ Flash Sale -@m.PhanTramFlash%</div>
+                        }
+                        @if (m.LaGiamChamBan)
+                        {
+                            <div style="font-size:12px;color:#e74c3c;font-weight:700;">🎁 Ưu đãi đặc biệt</div>
+                        }
+                        <div id="canhBaoKho_@m.MaSanPham" style="font-size:12px;color:#e67e22;font-weight:600;@(sapHet ? "" : "display:none;")">⚠ Chỉ còn @m.TonKho sản phẩm trong kho</div>
+                        @if (hetHang)
+                        {
+                            <span style="display:inline-block;margin-top:4px;background:#6c757d;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;">@(m.NgungBan ? "Ngừng kinh doanh" : "Hết hàng")</span>
+                        }
+                    </div>
+                    <div style="min-width:100px;">
+                        <div style="font-weight:700;color:@(m.LaFlashSale || m.LaGiamChamBan ? "#e74c3c" : "#d63384");">@TienIch.DinhDangTien(m.GiaBan)</div>
+                        @if (m.GiaTruocGiam > m.GiaBan)
+                        {
+                            <div class="gia-goc" style="font-size:12px;">@TienIch.DinhDangTien(m.GiaTruocGiam)</div>
+                        }
+                    </div>
+                    @if (hetHang)
+                    {
+                        @* Không cho đổi số lượng; không gửi ô số lượng lên máy chủ *@
+                        <div style="min-width:110px;text-align:center;color:#888;font-size:13px;">x @m.SoLuong</div>
+                    }
+                    else
+                    {
+                        <div style="display:flex;align-items:center;border:1.5px solid #f8d7da;border-radius:8px;">
+                            <button type="button" onclick="doiSL(@m.MaSanPham,-1)" style="width:30px;height:30px;border:none;background:none;cursor:pointer;">−</button>
+                            <input type="number" name="soLuong[@m.MaSanPham]" id="sl_@m.MaSanPham" value="@m.SoLuong" min="1" max="@m.TonKho" data-kho="@m.TonKho" style="width:46px;text-align:center;border:none;font-weight:700;" onchange="doiSL(@m.MaSanPham,0)" />
+                            <button type="button" onclick="doiSL(@m.MaSanPham,1)" style="width:30px;height:30px;border:none;background:none;cursor:pointer;">+</button>
+                        </div>
+                    }
+                    </div>
+                    <a asp-controller="GioHang" asp-action="Xoa" asp-route-id="@m.MaSanPham" onclick="return confirm('Xóa sản phẩm này khỏi giỏ hàng?')" style="color:#e74c3c;font-size:20px;"><i class="bi bi-trash"></i></a>
+                </div>
+            }
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:20px;">
+            <a asp-controller="SanPham" asp-action="Index" style="color:#d63384;font-weight:600;">← Tiếp tục mua sắm</a>
+            <div style="text-align:right;">
+                <div style="color:#888;font-size:13px;">Đã chọn <strong id="soChon">0</strong> sản phẩm</div>
+                <div style="font-size:22px;font-weight:800;color:#d63384;">Tạm tính: <span id="tongTien">0đ</span></div>
+                <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="submit" class="btn-mua-ngay" style="padding:11px 24px;border:none;cursor:pointer;">Thanh toán →</button>
+                </div>
+            </div>
+        </div>
+    </form>
+}
+
+@section Scripts {
+<script>
+    // Đổi số lượng: chặn ở 1 và ở tồn kho, rồi tự lưu lên máy chủ (không cần nút "Cập nhật").
+    var henGioLuu = {};
+    function doiSL(ma, buoc) {
+        var o = document.getElementById('sl_' + ma);
+        var kho = parseInt(o.dataset.kho) || 1;
+        var moi = (parseInt(o.value) || 1) + buoc;
+        if (moi > kho) { hienThongBao('Kho chỉ còn ' + kho + ' sản phẩm!', false); moi = kho; }
+        o.value = Math.max(1, moi);
+        tinhTong();
+        clearTimeout(henGioLuu[ma]);
+        henGioLuu[ma] = setTimeout(function () { luuSoLuong(ma, parseInt(o.value)); }, 400);
+    }
+    async function luuSoLuong(ma, soLuong) {
+        try {
+            var form = new URLSearchParams(); form.append('id', ma); form.append('soLuong', soLuong);
+            var res = await fetch('/GioHang/DoiSoLuongAjax', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': layMaChongGiaMao() },
+                body: form.toString()
+            });
+            var kq = await res.json();
+            if (kq.thanhCong) {
+                var o = document.getElementById('sl_' + ma);
+                o.value = kq.soLuong; o.dataset.kho = kq.tonKho;
+                if (kq.biChinh) hienThongBao(kq.thongBao, false);
+                capNhatSoGio(kq.tongSoLuongGio);
+                tinhTong();
+            } else { hienThongBao(kq.thongBao, false); }
+        } catch (e) { /* mất mạng: số lượng vẫn được lưu lại khi bấm Thanh toán */ }
+    }
+    function chonTatCaSanPham(chon) {
+        document.querySelectorAll('.o-chon').forEach(function (cb) { cb.checked = chon; });
+        tinhTong();
+    }
+    function tinhTong() {
+        var tong = 0, dem = 0, tatCa = document.querySelectorAll('.o-chon');
+        tatCa.forEach(function (cb) {
+            if (cb.checked) {
+                var sl = parseInt(document.getElementById('sl_' + cb.dataset.ma).value) || 1;
+                tong += parseFloat(cb.dataset.gia) * sl; dem++;
+            }
+        });
+        document.getElementById('tongTien').textContent = dinhDangTien(tong);
+        document.getElementById('soChon').textContent = dem;
+        // Ô "Chọn tất cả" luôn phản ánh đúng trạng thái các ô con; nhãn đổi theo hành động sẽ xảy ra khi bấm
+        var oTatCa = document.getElementById('chonTatCa');
+        oTatCa.checked = dem > 0 && dem === tatCa.length;
+        document.getElementById('nhanChonTatCa').textContent = oTatCa.checked ? 'Bỏ chọn tất cả' : 'Chọn tất cả';
+        luuDanhSachChon();
+    }
+
+    // ===== Ghi nhớ các ô đã tích (rời giỏ hàng rồi quay lại vẫn giữ nguyên) =====
+    // Lưu dạng { "maSanPham": true/false } trong sessionStorage của tab hiện tại.
+    var KHOA_CHON = 'gioHangDaChon';
+    function luuDanhSachChon() {
+        var daChon = {};
+        document.querySelectorAll('.o-chon').forEach(function (cb) { daChon[cb.dataset.ma] = cb.checked; });
+        try { sessionStorage.setItem(KHOA_CHON, JSON.stringify(daChon)); } catch (e) { }
+    }
+    function khoiPhucDanhSachChon() {
+        var vuaThem = @vuaThem;   // vừa bấm "Mua ngay": chỉ tích sản phẩm đó (máy chủ đã tích sẵn), không khôi phục
+        if (vuaThem > 0) return;
+        var daChon = null;
+        try { daChon = JSON.parse(sessionStorage.getItem(KHOA_CHON) || 'null'); } catch (e) { }
+        if (!daChon) return;      // lần đầu vào giỏ: giữ mặc định (tích hết)
+        document.querySelectorAll('.o-chon').forEach(function (cb) {
+            if (daChon.hasOwnProperty(cb.dataset.ma)) cb.checked = daChon[cb.dataset.ma];
+            // sản phẩm mới thêm (chưa có trong danh sách đã lưu) giữ tích mặc định
+        });
+    }
+    khoiPhucDanhSachChon();
+    tinhTong();
+</script>
+}

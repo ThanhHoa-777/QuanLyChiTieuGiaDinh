@@ -1,0 +1,215 @@
+﻿@model DonHangKhachVM
+@{
+    var don = Model.Don;
+    var (tenTT, lopTT) = DichVuDonHang.TrangThaiKhach(don.TrangThai);
+    string tenController = Model.LaTraCuu ? "TraCuu" : "DonHang";
+    string mauTT = don.TrangThai switch
+    {
+        HangSo.HoanThanh => "#27ae60",
+        HangSo.Huy or HangSo.GiaoThatBai => "#e74c3c",
+        HangSo.DangGiao or HangSo.DaGiaoChoXacNhan => "#2980b9",
+        _ => "#f39c12"
+    };
+    bool laCK = don.PhuongThucThanhToan == HangSo.ThanhToanChuyenKhoan;
+}
+<div style="background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:1px solid #fce4ec;padding-bottom:10px;margin-bottom:10px;">
+        <div>
+            <strong style="color:#d63384;">Đơn hàng #@don.MaDonHang</strong>
+            <span style="color:#aaa;font-size:12px;margin-left:8px;">@TienIch.NgayGio(don.NgayDat)</span>
+        </div>
+        <span style="background:@mauTT;color:#fff;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">@tenTT</span>
+    </div>
+
+    @foreach (var ct in Model.ChiTiet)
+    {
+        <div style="display:flex;gap:12px;align-items:center;padding:6px 0;">
+            <img src="@TienIch.DuongDanAnh(ct.HinhAnh)" style="width:56px;height:56px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">
+            <div style="flex:1;font-size:14px;">
+                <a asp-controller="SanPham" asp-action="ChiTiet" asp-route-id="@ct.MaSanPham" style="color:#1a0a10;text-decoration:none;font-weight:600;">@ct.TenSanPham</a>
+                @* Đơn hoàn thành và còn hạn đánh giá: link thẳng tới ô đánh giá của sản phẩm (chỉ khách đăng nhập mới đánh giá được) *@
+                @if (!Model.LaTraCuu && don.TrangThai == HangSo.HoanThanh && Model.GiayDanhGia > 0)
+                {
+                    <a href="@Url.Action("ChiTiet", "SanPham", new { id = ct.MaSanPham, maDon = don.MaDonHang })#danhgia" style="margin-left:6px;font-size:12px;background:#fff3cd;color:#b8860b;border-radius:10px;padding:2px 8px;text-decoration:none;font-weight:600;">⭐ Đánh giá</a>
+                }
+                <div style="color:#888;font-size:12px;">
+                    @ct.ThuongHieu · x@(ct.SoLuong)
+                    <partial name="_NhanGiamGia" model="ct" />
+                </div>
+            </div>
+            <div style="font-weight:700;text-align:right;">
+                @TienIch.DinhDangTien(ct.GiaBan * ct.SoLuong)
+                @if (ct.GiaTruocGiam > ct.GiaBan)
+                {
+                    <div class="gia-goc" style="font-size:12px;font-weight:400;">@TienIch.DinhDangTien(ct.GiaTruocGiam * ct.SoLuong)</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div style="text-align:right;margin-top:6px;">
+        @* In hóa đơn: khách đã đăng nhập dùng /DonHang/InHoaDon, khách vãng lai (tra cứu) dùng /TraCuu/InHoaDon kèm số điện thoại *@
+        @if (Model.LaTraCuu)
+        {
+            <a asp-controller="TraCuu" asp-action="InHoaDon" asp-route-id="@Model.Don.MaDonHang" asp-route-soDienThoai="@Model.Don.SoDienThoai" target="_blank" class="btn-them-gio" style="padding:6px 14px;font-size:12px;">🖨 In hóa đơn</a>
+        }
+        else
+        {
+            <a asp-controller="DonHang" asp-action="InHoaDon" asp-route-id="@Model.Don.MaDonHang" target="_blank" class="btn-them-gio" style="padding:6px 14px;font-size:12px;">🖨 In hóa đơn</a>
+        }
+    </div>
+    <div style="border-top:1px dashed #f8d7da;margin-top:8px;padding-top:8px;font-size:14px;">
+        <div style="display:flex;justify-content:space-between;"><span>Tạm tính</span><span>@TienIch.DinhDangTien(Model.TongTienHang)</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Phí vận chuyển</span><span>@(Model.PhiShipHienThi == 0 ? "Miễn phí" : TienIch.DinhDangTien(Model.PhiShipHienThi))</span></div>
+        @if (don.TienGiam > 0)
+        {
+            <div style="display:flex;justify-content:space-between;color:#27ae60;"><span>Giảm giá @(string.IsNullOrEmpty(don.MaGiamGia) ? "" : "(" + don.MaGiamGia + ")")</span><span>-@TienIch.DinhDangTien(don.TienGiam)</span></div>
+        }
+        <div style="display:flex;justify-content:space-between;font-size:17px;font-weight:800;color:#d63384;margin-top:4px;"><span>Tổng cộng</span><span>@TienIch.DinhDangTien(don.TongTien)</span></div>
+    </div>
+
+    <div style="font-size:13px;color:#666;margin-top:10px;line-height:1.7;">
+        👤 @don.HoTen @if (don.MaNguoiDung == null) {
+        <span style="background:#9e9e9e;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;">Khách</span>
+                }
+ · 📞 @don.SoDienThoai<br>
+        📍 @don.DiaChiGiaoHang<br>
+        💳 @(laCK ? "Chuyển khoản" : "Thanh toán khi nhận hàng (COD)")
+        @if (laCK && don.DaNhanTien)
+        {
+            <span style="color:#27ae60;font-weight:700;"> — Đã nhận tiền</span>
+        }
+    </div>
+
+    <!-- ===== Thông báo + đồng hồ đếm ngược theo từng trạng thái ===== -->
+    @if (Model.GiayChuyenKhoan > 0)
+    {
+        <div style="background:#fff3cd;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            ⏰ Hạn chuyển khoản còn: <strong class="dem-nguoc-giay" data-giay="@Model.GiayChuyenKhoan"></strong> — quá hạn đơn sẽ tự hủy.
+        </div>
+        <details style="margin-top:8px;">
+            <summary class="btn-them-gio" style="cursor:pointer;padding:9px 18px;display:inline-block;">📱 Xem lại mã QR chuyển khoản</summary>
+            <partial name="_KhungChuyenKhoan" model="don" />
+        </details>
+    }
+    @if (don.TrangThai == HangSo.DangGiao)
+    {
+        <div style="background:#e3f2fd;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            🚚 Đơn hàng đang được giao đến bạn.
+            @if (Model.GiayTuDaGiao > 0)
+            {
+                <text>Tự chuyển sang "đã giao" sau: <strong class="dem-nguoc-giay" data-giay="@Model.GiayTuDaGiao"></strong></text>
+            }
+        </div>
+    }
+    @if (don.TrangThai == HangSo.DaGiaoChoXacNhan)
+    {
+        <div style="background:#e3f2fd;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            📦 Đơn hàng đã giao. Bạn hãy bấm "Đã nhận hàng" hoặc gửi khiếu nại nếu có vấn đề.
+            @if (Model.GiayTuHoanThanh > 0)
+            {
+                <div>Tự hoàn thành sau: <strong class="dem-nguoc-giay" data-giay="@Model.GiayTuHoanThanh"></strong></div>
+            }
+            @if (Model.CoTheKhieuNai)
+            {
+                <div>Còn thời gian khiếu nại: <strong class="dem-nguoc-giay" data-giay="@Model.GiayKhieuNai"></strong></div>
+            }
+        </div>
+    }
+    @if (don.DaKhieuNai)
+    {
+        <div style="background:#fff3e0;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            📝 <strong>Khiếu nại đã gửi (@TienIch.NgayGio(don.NgayKhieuNai)):</strong> @don.NoiDungKhieuNai
+            @if (!string.IsNullOrEmpty(don.AnhKhieuNai))
+            {
+                <div style="margin-top:6px;"><a href="@TienIch.DuongDanAnh(don.AnhKhieuNai)" target="_blank"><img src="@TienIch.DuongDanAnh(don.AnhKhieuNai)" style="max-width:160px;max-height:160px;border-radius:8px;" /></a></div>
+            }
+            @if (!Model.LaTraCuu)
+            {
+                <div style="margin-top:4px;"><a asp-controller="TinNhan" asp-action="Index" asp-route-tab="trochuyen" style="color:#d63384;">💬 Nhắn tin với cửa hàng về khiếu nại này</a></div>
+            }
+        </div>
+    }
+    @if (don.TrangThai == HangSo.HoanThanh && Model.GiayDanhGia > 0)
+    {
+        <div style="background:#e8f5e9;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            ⭐ Bạn có thể đánh giá sản phẩm trong: <strong class="dem-nguoc-giay" data-giay="@Model.GiayDanhGia"></strong>
+        </div>
+    }
+    @if (don.TrangThai == HangSo.Huy && !string.IsNullOrWhiteSpace(don.LyDoHuy))
+    {
+        <div style="background:#fdecea;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            ✖ <strong>@don.LyDoHuy</strong>@(don.NgayHuy != null ? " — lúc " + TienIch.NgayGio(don.NgayHuy) : "")
+        </div>
+    }
+    @if (don.TrangThai == HangSo.Huy && laCK && don.DaNhanTien)
+    {
+        <div style="background:#fff3cd;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            @(don.DaHoanTien ? "✅ Cửa hàng đã hoàn tiền cho bạn." : "💸 Cửa hàng sẽ hoàn tiền vào tài khoản bạn đã cung cấp.")
+        </div>
+    }
+    @if (don.TrangThai == HangSo.GiaoThatBai)
+    {
+        <div style="background:#fdecea;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;">
+            ❌ Giao hàng thất bại. @(laCK && don.DaNhanTien ? (don.DaHoanTien ? "Cửa hàng đã hoàn tiền cho bạn." : "Cửa hàng sẽ hoàn tiền cho bạn.") : "")
+        </div>
+    }
+
+    <!-- ===== Nút thao tác ===== -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        @if (Model.CoTheNhanHang)
+        {
+            <form asp-controller="@tenController" asp-action="XacNhanNhan" asp-route-id="@don.MaDonHang" method="post" style="margin:0;">
+                @if (Model.LaTraCuu)
+                {
+                    <input type="hidden" name="soDienThoai" value="@Model.SoDienThoai" />
+                }
+                <button type="submit" class="btn-mua-ngay" style="border:none;cursor:pointer;padding:9px 18px;" onclick="return confirm('Xác nhận bạn đã nhận được hàng?')">✅ Đã nhận hàng</button>
+            </form>
+        }
+        @if (Model.CoTheKhieuNai)
+        {
+            <details>
+                <summary class="btn-them-gio" style="cursor:pointer;padding:9px 18px;display:inline-block;">📝 Khiếu nại</summary>
+                <form asp-controller="@tenController" asp-action="KhieuNai" asp-route-id="@don.MaDonHang" method="post" enctype="multipart/form-data" style="margin-top:8px;">
+                    @if (Model.LaTraCuu)
+                    {
+                        <input type="hidden" name="soDienThoai" value="@Model.SoDienThoai" />
+                    }
+                    <textarea name="noiDung" rows="3" required placeholder="Mô tả vấn đề bạn gặp phải..." style="width:100%;min-width:260px;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;"></textarea>
+                    <div style="font-size:12px;color:#888;margin-top:4px;">📷 Ảnh minh chứng (không bắt buộc):</div>
+                    <input type="file" name="anh" accept="image/*" style="font-size:12px;" />
+                    <button type="submit" class="btn-mua-ngay" style="margin-top:6px;border:none;cursor:pointer;padding:8px 16px;">Gửi khiếu nại</button>
+                </form>
+            </details>
+        }
+        @if (Model.CoTheHuy)
+        {
+            <details>
+                <summary style="cursor:pointer;padding:9px 18px;border:1.5px solid #e74c3c;color:#e74c3c;border-radius:8px;display:inline-block;font-weight:600;">✖ Hủy đơn</summary>
+                <form asp-controller="@tenController" asp-action="Huy" asp-route-id="@don.MaDonHang" method="post" style="margin-top:8px;" onsubmit="return confirm('Bạn chắc chắn muốn hủy đơn này?')">
+                    @if (Model.LaTraCuu)
+                    {
+                        <input type="hidden" name="soDienThoai" value="@Model.SoDienThoai" />
+                    }
+                    @* Chỉ BẮT BUỘC nhập tài khoản khi cửa hàng đã xác nhận nhận tiền chuyển khoản.
+                       Chưa xác nhận: không bắt buộc (nếu lỡ chuyển rồi thì điền để shop kiểm tra và hoàn). *@
+                    @if (DichVuDonHang.HuyCanSoTaiKhoan(don))
+                    {
+                        <div style="font-size:12px;color:#888;margin-bottom:4px;">Cửa hàng đã nhận tiền của bạn. Nhập tài khoản để được hoàn tiền:</div>
+                        <input name="soTaiKhoan" placeholder="Số tài khoản (ngân hàng)" required style="width:100%;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;margin-bottom:6px;" />
+                        <input name="tenChuTaiKhoan" placeholder="Tên chủ tài khoản" required style="width:100%;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;margin-bottom:6px;" />
+                    }
+                    else if (laCK)
+                    {
+                        <div style="font-size:12px;color:#888;margin-bottom:4px;">Cửa hàng chưa nhận được tiền nên không cần nhập tài khoản. Nếu bạn đã chuyển khoản, hãy điền để được hoàn:</div>
+                        <input name="soTaiKhoan" placeholder="Số tài khoản (không bắt buộc)" style="width:100%;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;margin-bottom:6px;" />
+                        <input name="tenChuTaiKhoan" placeholder="Tên chủ tài khoản (không bắt buộc)" style="width:100%;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;margin-bottom:6px;" />
+                    }
+                    <input name="lyDo" maxlength="200" placeholder="Lý do hủy (không bắt buộc), ví dụ: đặt nhầm màu" style="width:100%;padding:8px;border:1.5px solid #f8d7da;border-radius:8px;margin-bottom:6px;" />
+                    <button type="submit" style="background:#e74c3c;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;">Xác nhận hủy</button>
+                </form>
+            </details>
+        }
+    </div>
+</div>

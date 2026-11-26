@@ -1,393 +1,178 @@
-﻿@using System.Security.Claims
-@using Microsoft.EntityFrameworkCore
-@using QuanLyChiTieuGiaDinh.Data
-
-@inject ApplicationDbContext DbContext
-
+﻿@using Microsoft.AspNetCore.Antiforgery
+@using Shopson.DichVu
+@inject IAntiforgery Antiforgery
+@inject DichVuGioHang GioHang
 @{
-    ViewData["Title"] = ViewData["Title"] ?? "Quản lý chi tiêu gia đình";
-
-    // =====================================================
-    // XÁC ĐỊNH CHỦ HỘ
-    // =====================================================
-
-    bool laChuHo = false;
-
-    if (User.Identity?.IsAuthenticated == true)
-    {
-        var email = User.FindFirstValue(ClaimTypes.Email);
-
-        if (!string.IsNullOrEmpty(email))
-        {
-            var nguoiDung =
-                await DbContext.NguoiDungs
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x =>
-                        x.Email == email);
-
-            if (nguoiDung != null)
-            {
-                laChuHo =
-                    await DbContext.HoGiaDinhs
-                        .AsNoTracking()
-                        .AnyAsync(x =>
-                            x.MaChuHo == nguoiDung.MaNguoiDung);
-            }
-        }
-    }
+    string tenTrang = (ViewContext.RouteData.Values["controller"] as string ?? "") + "/" + (ViewContext.RouteData.Values["action"] as string ?? "");
+    int soLuongGio = GioHang.Lay().Values.Sum(m => m.SoLuong);
+    string tokenChongGia = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? "";
+    bool dangNhap = User.DaDangNhap();
+    string DangChon(string controller) => (ViewContext.RouteData.Values["controller"] as string) == controller ? "active" : "";
 }
-
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
-
     <meta charset="utf-8" />
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0" />
-
-    <title>
-        @ViewData["Title"] - Quản lý chi tiêu gia đình
-    </title>
-
-    <!-- BOOTSTRAP -->
-    <link rel="stylesheet"
-          href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-
-    <!-- CSS CHUNG -->
-    <link rel="stylesheet"
-          href="~/css/site.css"
-          asp-append-version="true" />
-
-    <link rel="stylesheet"
-          href="~/QuanLyChiTieuGiaDinh.styles.css"
-          asp-append-version="true" />
-
-    @await RenderSectionAsync("Styles", required: false)
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="@tokenChongGia" />
+    <title>@(ViewData["Title"] ?? "ShopSon - Cửa Hàng Son Môi")</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet" href="~/css/trangtin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
-
-
 <body>
 
-    <!-- =====================================================
-         NAVBAR
-         ===================================================== -->
-
-    <header>
-
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
-
-            <div class="container-fluid px-4">
-
-                <!-- =================================================
-                     LOGO
-                     ================================================= -->
-
-                <a class="navbar-brand fw-bold text-primary me-4 text-nowrap"
-                   asp-controller="TrangChu"
-                   asp-action="TrangChinh">
-
-                    💰 Quản lý chi tiêu
-
-                </a>
-
-
-                <!-- =================================================
-                     MOBILE BUTTON
-                     ================================================= -->
-
-                <button class="navbar-toggler"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#menuChinh"
-                        aria-controls="menuChinh"
-                        aria-expanded="false"
-                        aria-label="Toggle navigation">
-
-                    <span class="navbar-toggler-icon"></span>
-
-                </button>
-
-
-                <div class="collapse navbar-collapse"
-                     id="menuChinh">
-
-
-                    <!-- =================================================
-                         MENU CHÍNH
-                         ================================================= -->
-
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
-
-
-                        <!-- TRANG CHỦ -->
-
-                        <li class="nav-item">
-
-                            <a class="nav-link px-2 text-dark fw-semibold text-nowrap"
-                               asp-controller="TrangChu"
-                               asp-action="TrangChinh">
-
-                                🏠 Trang chủ
-
-                            </a>
-
-                        </li>
-
-
-                        <!-- GIAO DỊCH -->
-
-                        <li class="nav-item">
-
-                            <a class="nav-link px-2 text-dark fw-semibold text-nowrap"
-                               asp-controller="GiaoDiches"
-                               asp-action="Index">
-
-                                💰 Giao dịch
-
-                            </a>
-
-                        </li>
-
-
-                        <!-- =================================================
-                             QUẢN LÝ
-                             ================================================= -->
-
-                        <li class="nav-item dropdown">
-
-                            <a class="nav-link dropdown-toggle px-2 text-dark fw-semibold text-nowrap"
-                               href="#"
-                               id="quanLyDropdown"
-                               role="button"
-                               data-bs-toggle="dropdown"
-                               aria-expanded="false">
-
-                                📂 Quản lý
-
-                            </a>
-
-
-                            <ul class="dropdown-menu shadow-sm border-0"
-                                aria-labelledby="quanLyDropdown">
-
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="HoGiaDinhs"
-                                       asp-action="Index">
-
-                                        🏠 Hộ gia đình
-
-                                    </a>
-
-                                </li>
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="TaiKhoanTiens"
-                                       asp-action="Index">
-
-                                        💳 Tài khoản tiền
-
-                                    </a>
-
-                                </li>
-
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="DanhMucs"
-                                       asp-action="Index">
-
-                                        📂 Danh mục
-
-                                    </a>
-
-                                </li>
-
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="NganSaches"
-                                       asp-action="Index">
-
-                                        📋 Ngân sách
-
-                                    </a>
-
-                                </li>
-
-                            </ul>
-
-                        </li>
-
-
-                        <!-- =================================================
-                             TIẾT KIỆM
-                             ================================================= -->
-
-                        <li class="nav-item dropdown">
-
-                            <a class="nav-link dropdown-toggle px-2 text-dark fw-semibold text-nowrap"
-                               href="#"
-                               id="tietKiemDropdown"
-                               role="button"
-                               data-bs-toggle="dropdown"
-                               aria-expanded="false">
-
-                                💎 Tiết kiệm
-
-                            </a>
-
-
-                            <ul class="dropdown-menu shadow-sm border-0"
-                                aria-labelledby="tietKiemDropdown">
-
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="MucTieuTietKiems"
-                                       asp-action="Index">
-
-                                        🎯 Mục tiêu tiết kiệm
-
-                                    </a>
-
-                                </li>
-
-                                <li>
-
-                                    <a class="dropdown-item py-2"
-                                       asp-controller="LichSuTietKiems"
-                                       asp-action="Index">
-
-                                        📜 Lịch sử tiết kiệm
-
-                                    </a>
-
-                                </li>
-
-                            </ul>
-
-                        </li>
-
-
-                        <!-- =================================================
-                             BÁO CÁO
-                             ================================================= -->
-
-                        <li class="nav-item">
-
-                            <a class="nav-link px-2 text-dark fw-semibold text-nowrap"
-                               asp-controller="BaoCao"
-                               asp-action="Index">
-
-                                📊 Báo cáo
-
-                            </a>
-
-                        </li>
-
-
-                        <!-- =================================================
-                             THÔNG BÁO
-                             ================================================= -->
-
-                        <li class="nav-item">
-
-                            @await Component.InvokeAsync("ThongBao")
-
-                        </li>
-
-
-                        <!-- =================================================
-                             NHẬT KÝ HỆ THỐNG
-                             CHỈ CHỦ HỘ
-                             ================================================= -->
-                        @if (laChuHo)
-                        {
-                            <li class="nav-item">
-
-                                <a class="nav-link px-2 text-dark fw-bold text-nowrap"
-                                   asp-controller="NhatKyHeThongs"
-                                   asp-action="Index">
-
-                                    📜 Nhật ký hệ thống
-
-                                </a>
-
-                            </li>
-                        }
-
-                    </ul>
-
-
-                    <!-- =================================================
-                         LOGIN / LOGOUT
-                         ================================================= -->
-
-                    <div class="ms-lg-3 text-nowrap">
-
-                        <partial name="_LoginPartial" />
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </nav>
-
-    </header>
-
-
-    <!-- =====================================================
-         NỘI DUNG
-         ===================================================== -->
-
-    <div class="container">
-
-        <main role="main"
-              class="pb-3">
-
-            @RenderBody()
-
-        </main>
-
+<!-- ===== PHẦN ĐẦU (HEADER) ===== -->
+<div id="PhanDau">
+    <div class="logo-khu">
+        <div class="logo-ten">Shop<span>Son</span></div>
+        <div class="logo-phu">BEAUTY BOUTIQUE</div>
     </div>
 
+    <ul class="menu-dieuhuong">
+        <li><a asp-controller="TrangChu" asp-action="Index" class="@DangChon("TrangChu")">TRANG CHỦ</a></li>
+        <li><a asp-controller="SanPham" asp-action="Index" class="@DangChon("SanPham")">SẢN PHẨM</a></li>
+        <li><a asp-controller="FlashSale" asp-action="Index" class="@DangChon("FlashSale")">FLASH SALE 🔥</a></li>
+        <li><a asp-controller="KhuyenMai" asp-action="Index" class="@DangChon("KhuyenMai")">KHUYẾN MÃI</a></li>
+        <li><a asp-controller="TinTuc" asp-action="Index" class="menu-ai @DangChon("TinTuc")">🤖 AI BEAUTY ADVISOR</a></li>
+    </ul>
 
-    <!-- =====================================================
-         FOOTER
-         ===================================================== -->
+    <div class="header-phai">
+        <a asp-controller="SanPham" asp-action="TimKiem"><i class="bi bi-search"></i></a>
 
-    <footer class="border-top footer text-muted mt-4">
+        <a asp-controller="GioHang" asp-action="Index" class="gio-hang-icon">
+            <i class="bi bi-bag"></i>
+            @if (soLuongGio > 0)
+            {
+                <span class="so-gio">@soLuongGio</span>
+            }
+        </a>
 
-        <div class="container">
+        @if (dangNhap)
+        {
+            @await Component.InvokeAsync("ThongTinNguoiDung")
+        }
+        else
+        {
+            <a asp-controller="TaiKhoan" asp-action="DangNhap" asp-route-quayLai="@(Context.Request.Path + Context.Request.QueryString)" class="btn-admin">
+                <i class="bi bi-person"></i> Đăng Nhập
+            </a>
+        }
+    </div>
+</div>
 
-            &copy; 2026 - Quản lý chi tiêu gia đình
+<div id="PhanBanner">
+    <marquee behavior="scroll" scrollamount="10" style="font-size:16pt;">Chào mừng bạn đến với ShopSon - Nơi bạn tìm thấy những sản phẩm son môi chất lượng cao!</marquee>
+</div>
 
+<!-- ===== PHẦN GIỮA (NỘI DUNG) ===== -->
+<div id="PhanGiua">
+    @if (tenTrang != "TrangChu/Index")
+    {
+        <button type="button" class="nut-quay-lai" onclick="quayLaiTrangTruoc('/')">← Quay lại</button>
+    }
+    @if (TempData["ThongBaoOK"] != null)
+    {
+        <div class="ThongBaoOK" style="background:#d4edda;border:1px solid #c3e6cb;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#155724;font-weight:600;">@TempData["ThongBaoOK"]</div>
+    }
+    @if (TempData["ThongBaoLoi"] != null)
+    {
+        <div class="ThongBaoLoi" style="background:#fce4ec;border:1px solid #f8d7da;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#c62828;font-weight:600;">@TempData["ThongBaoLoi"]</div>
+    }
+    @RenderBody()
+</div>
+
+<!-- ===== PHẦN CUỐI (FOOTER) ===== -->
+<div id="PhanCuoi">
+    <div class="footer-luoi">
+        <div class="footer-cot">
+            <div class="footer-logo-ten">Shop<span>Son</span></div>
+            <p class="footer-mo-ta">Chuyên cung cấp son môi chính hãng từ các thương hiệu cao cấp. Mỹ phẩm xịn, giá tốt, giao hàng nhanh.</p>
+            <div style="display:flex;gap:12px;margin-top:12px;">
+                <a href="https://www.facebook.com/share/18jkpfuzXN/?mibextid=wwXIfr" title="Facebook" style="color:#aaa;font-size:22px;"><i class="bi bi-facebook"></i></a>
+                <a href="#" title="Instagram" style="color:#aaa;font-size:22px;"><i class="bi bi-instagram"></i></a>
+                <a href="#" title="TikTok" style="color:#aaa;font-size:22px;"><i class="bi bi-tiktok"></i></a>
+            </div>
         </div>
+        <div class="footer-cot">
+            <h4>Sản Phẩm</h4>
+            <ul>
+                <li><a asp-controller="SanPham" asp-action="Index">Tất cả son</a></li>
+                <li><a asp-controller="FlashSale" asp-action="Index">Flash Sale</a></li>
+                <li><a asp-controller="KhuyenMai" asp-action="Index">Khuyến mãi</a></li>
+            </ul>
+        </div>
+        <div class="footer-cot">
+            <h4>Hỗ Trợ</h4>
+            <ul>
+                <li><a href="#" onclick="moModal('modalHuongDan');return false;">Hướng dẫn mua hàng</a></li>
+                <li><a href="#" onclick="moModal('modalDoiTra');return false;">Chính sách đổi trả</a></li>
+                <li><a asp-controller="TinNhan" asp-action="Index" asp-route-tab="trochuyen">Liên hệ chúng tôi</a></li>
+                <li><a asp-controller="TraCuu" asp-action="Index" style="color:#d63384;font-weight:600;">📦 Tra Cứu Đơn Hàng</a></li>
+                <li><a asp-controller="TinTuc" asp-action="Index" style="color:#d63384;font-weight:600;">🤖 AI Beauty Advisor</a></li>
+            </ul>
+        </div>
+        <div class="footer-cot">
+            <h4>Liên Hệ</h4>
+            <ul>
+                <li><a href="mailto:shopson@gmail.com">📧 shopson@gmail.com</a></li>
+                <li><a href="#">📞 1800 xxxx</a></li>
+                <li><a href="#">📍 TP. Long Xuyên</a></li>
+            </ul>
+        </div>
+    </div>
+    <hr class="footer-duong-ke">
+    <div class="footer-cuoi">
+        <span>💄 ShopSon &copy; 2026 - Beauty Boutique.</span>
+        @if (User.LaQuanTri())
+        {
+            <a href="/QuanTri" style="color:#d63384;"><i class="bi bi-gear-fill"></i> Quản trị Admin</a>
+        }
+    </div>
+</div>
 
-    </footer>
+<!-- Hộp thoại hướng dẫn mua hàng -->
+<div id="modalHuongDan" class="modal-nen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)dongModal('modalHuongDan')">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:520px;width:92%;position:relative;max-height:90vh;overflow:auto;">
+        <button onclick="dongModal('modalHuongDan')" style="position:absolute;top:14px;right:16px;background:#e91e8c;color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
+        <h4 style="color:#e91e8c;font-weight:800;margin-bottom:20px;">💄 Hướng Dẫn Mua Hàng ShopSon</h4>
+        <ol style="line-height:1.9;color:#444;">
+            <li><strong>Chọn sản phẩm:</strong> duyệt sản phẩm, nhấn <em>Thêm vào giỏ</em> hoặc <em>Mua ngay</em>.</li>
+            <li><strong>Giỏ hàng:</strong> kiểm tra lại sản phẩm, tick chọn món muốn thanh toán.</li>
+            <li><strong>Thanh toán:</strong> điền địa chỉ, nhập mã giảm giá, chọn hình thức thanh toán, đặt đơn.</li>
+            <li><strong>Nhận hàng:</strong> giao hàng trong <strong>2–5 ngày</strong> làm việc.</li>
+        </ol>
+        <div style="background:#fdf6f8;border-radius:10px;padding:12px;font-size:13px;margin-top:10px;">
+            <strong>Hỗ trợ:</strong> 📞 1800 xxxx &nbsp;|&nbsp; 📧 shopson@gmail.com<br>
+            <a asp-controller="TraCuu" asp-action="Index" style="color:#e91e8c;font-weight:600;">📦 Tra cứu đơn hàng tại đây</a>
+        </div>
+    </div>
+</div>
 
+<!-- Hộp thoại chính sách đổi trả -->
+<div id="modalDoiTra" class="modal-nen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)dongModal('modalDoiTra')">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:520px;width:92%;position:relative;max-height:90vh;overflow:auto;">
+        <button onclick="dongModal('modalDoiTra')" style="position:absolute;top:14px;right:16px;background:#e91e8c;color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
+        <h4 style="color:#e91e8c;font-weight:800;margin-bottom:20px;">🔄 Chính Sách Đổi Trả ShopSon</h4>
+        <h6 style="font-weight:700;">✅ Điều kiện đổi/trả</h6>
+        <ul style="color:#555;line-height:1.8;">
+            <li>Sản phẩm còn nguyên seal, chưa qua sử dụng.</li>
+            <li>Đổi/trả trong vòng <strong>3 ngày</strong> kể từ ngày nhận hàng.</li>
+            <li>Có đầy đủ hóa đơn, bao bì gốc.</li>
+        </ul>
+        <h6 style="font-weight:700;margin-top:14px;">❌ Không áp dụng đổi/trả</h6>
+        <ul style="color:#555;line-height:1.8;">
+            <li>Sản phẩm đã qua sử dụng, bóc seal.</li>
+            <li>Quá thời hạn 3 ngày sau khi nhận hàng.</li>
+            <li>Sản phẩm Flash Sale ghi rõ không đổi trả.</li>
+        </ul>
+    </div>
+</div>
 
-    <!-- =====================================================
-         JAVASCRIPT
-         ===================================================== -->
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src="~/js/site.js"
-            asp-append-version="true"></script>
-
-    @await RenderSectionAsync("Scripts", required: false)
-
+<script>window.GIAY_CON_LAI_TRONG_NGAY = @TienIch.GiayConLaiTrongNgay();</script>
+<script src="~/js/trangtin.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
 </body>
-
 </html>

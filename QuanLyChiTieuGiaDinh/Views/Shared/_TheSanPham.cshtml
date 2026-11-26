@@ -1,0 +1,61 @@
+@model TheSanPhamVM
+@{
+    var sp = Model.SanPham;
+    int sao = (int)Math.Round(sp.DanhGia);
+    bool dangGiam = Model.CoGiamGia;   // giá cuối thấp hơn giá thường (flash sale và/hoặc ưu đãi đặc biệt)
+}
+<div class="the-sanpham">
+    @if (dangGiam)
+    {
+        <span class="nhan-badge giam">-@Model.PhanTramGiam%</span>
+    }
+    else if (Model.LaMoiNhat)
+    {
+        <span class="nhan-badge moi">NEW</span>
+    }
+    <a asp-controller="SanPham" asp-action="ChiTiet" asp-route-id="@sp.MaSanPham">
+        @if (!string.IsNullOrEmpty(sp.HinhAnh))
+        {
+            <img class="hinh-sp" src="@TienIch.DuongDanAnh(sp.HinhAnh)" alt="@sp.TenSanPham"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div class="hinh-sp-mac-dinh" style="display:none;">💄</div>
+        }
+        else
+        {
+            <div class="hinh-sp-mac-dinh">💄</div>
+        }
+    </a>
+    <div class="noi-dung-sp">
+        <div class="nhan-thuonghieu">@Model.TenThuongHieu</div>
+        <div class="ten-sanpham">
+            <a asp-controller="SanPham" asp-action="ChiTiet" asp-route-id="@sp.MaSanPham">@TienIch.CatChuoi(sp.TenSanPham, 55)</a>
+        </div>
+        <div class="khu-danh-gia">
+            <span class="sao-vang">@(new string('★', sao))@(new string('☆', 5 - sao))</span>
+            <span class="so-danh-gia">(@sp.SoDanhGia)</span>
+        </div>
+        <div class="da-ban">
+            Đã bán @sp.DaBan
+            @if (Model.SoConBan <= 0)
+            {
+                <span style="color:#e74c3c;font-weight:600;"> · Tạm hết hàng</span>
+            }
+            else if (Model.SoConBan <= HangSo.NguongSapHet)
+            {
+
+                <span style="color:#e67e22;font-weight:600;"> · Chỉ còn @Model.SoConBan</span>
+            }
+        </div>
+        <div class="hang-gia">
+            <div>
+                <span class="gia-ban" style="@(Model.LaFlash || Model.Gia.LaGiamChamBan ? "color:#e74c3c;" : "")">@TienIch.DinhDangTien(Model.GiaHienThi)</span>
+                @if (dangGiam)
+                {
+                    <span class="gia-goc">@TienIch.DinhDangTien(Model.GiaGachNgang)</span>
+                }
+            </div>
+            <a asp-controller="GioHang" asp-action="Them" asp-route-id="@sp.MaSanPham" asp-route-sl="1" asp-route-quayLai="true"
+               class="btn-them-gio" data-them-gio data-ma="@sp.MaSanPham">🛍 Thêm</a>
+        </div>
+    </div>
+</div>

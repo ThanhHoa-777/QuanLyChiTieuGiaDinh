@@ -1,0 +1,38 @@
+@model DonHang
+@inject IConfiguration CauHinh
+@{
+    string maNH = CauHinh["NganHang:MaNganHang"] ?? "vcb";
+    string soTK = CauHinh["NganHang:SoTaiKhoan"] ?? "";
+    string chuTK = CauHinh["NganHang:ChuTaiKhoan"] ?? "";
+    string tenNH = CauHinh["NganHang:TenNganHang"] ?? "";
+    string noiDungCK = "Thanh toan don hang " + Model.MaDonHang;
+    int conLai = 0;
+    if (Model.NgayThanhToanCk != null)
+    {
+        conLai = (int)(Model.NgayThanhToanCk.Value.AddHours(HangSo.GioChoChuyenKhoan) - DateTime.Now).TotalSeconds;
+    }
+}
+<div style="background:#fff8e1;border-radius:12px;padding:16px;margin:16px 0;text-align:left;">
+    <div style="font-weight:700;color:#d63384;margin-bottom:10px;">🏦 Thông tin chuyển khoản</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+        <div style="flex:1;min-width:200px;font-size:14px;line-height:1.8;">
+            <div>Ngân hàng: <strong>@tenNH</strong></div>
+            <div>Số tài khoản: <strong>@soTK</strong></div>
+            <div>Chủ tài khoản: <strong>@chuTK</strong></div>
+            <div>Số tiền: <strong style="color:#e74c3c;">@TienIch.DinhDangTien(Model.TongTien)</strong></div>
+            <div>⚠ Nội dung CK: <strong style="color:#856404;">@noiDungCK</strong></div>
+        </div>
+        <div style="text-align:center;">
+            <div style="font-size:11px;color:#888;margin-bottom:6px;">Quét QR thanh toán</div>
+            <img src="https://img.vietqr.io/image/@maNH-@soTK-compact2.png?amount=@((long)Model.TongTien)&addInfo=@Uri.EscapeDataString(noiDungCK)&accountName=@Uri.EscapeDataString(chuTK)"
+                 width="170" height="170" style="border:2px solid #f8d7da;border-radius:10px;" alt="QR Chuyển khoản">
+        </div>
+    </div>
+    @if (conLai > 0)
+    {
+        <div style="margin-top:12px;background:#fff3cd;border-radius:8px;padding:8px 12px;font-size:13px;">
+            ⏰ <strong>Thời hạn chuyển khoản còn lại:</strong> <span class="dem-nguoc-giay" data-giay="@conLai"></span>
+            <div style="font-size:11px;color:#888;margin-top:4px;">Đơn sẽ tự động hủy nếu quá 24 giờ chưa xác nhận.</div>
+        </div>
+    }
+</div>

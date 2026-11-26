@@ -1,0 +1,254 @@
+﻿@model ThanhToanVM
+@{
+    ViewData["Title"] = "Thanh toán - ShopSon";
+}
+<div class="tieude-khu">
+    <h2>💳 Thanh Toán</h2>
+</div>
+
+<form asp-controller="ThanhToan" asp-action="DatHang" method="post" id="formDatHang">
+    <input type="hidden" name="muaNgay" value="@(Model.MuaNgay ? "true" : "false")" />
+    <input type="hidden" name="maGiamGia" id="maGiamGiaDaChon" value="" />
+
+    <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:start;" class="luoi-thanhtoan">
+        <!-- ===== Thông tin giao hàng + thanh toán ===== -->
+        <div>
+            <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:18px;">
+                <h4 style="font-weight:700;margin-bottom:14px;">📍 Thông tin giao hàng</h4>
+                @if (!Model.DaDangNhap)
+                {
+                    <p style="font-size:13px;color:#888;">Bạn đang đặt hàng với tư cách khách. <a asp-controller="TaiKhoan" asp-action="DangNhap" asp-route-quayLai="/ThanhToan" style="color:#d63384;font-weight:700;">Đăng nhập</a> để tích điểm và dùng mã giảm giá.</p>
+                }
+                @if (Model.LayTuDonTruoc)
+                {
+                    <p style="font-size:12px;color:#27ae60;margin-bottom:10px;">✔ Đã điền sẵn từ đơn hàng gần nhất của bạn — bạn có thể sửa nếu muốn giao đến nơi khác.</p>
+                }
+                <input name="hoTen" placeholder="Họ và tên *" required value="@Model.HoTen" class="o-nhap" />
+                <input name="soDienThoai" placeholder="Số điện thoại *" required value="@Model.SoDienThoai" class="o-nhap" />
+                <input name="email" type="email" placeholder="Email" value="@Model.Email" class="o-nhap" />
+                <input name="diaChi" placeholder="Địa chỉ giao hàng *" required value="@Model.DiaChi" class="o-nhap" />
+                <textarea name="ghiChu" rows="2" placeholder="Ghi chú cho cửa hàng (không bắt buộc)" class="o-nhap"></textarea>
+            </div>
+
+            <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+                <h4 style="font-weight:700;margin-bottom:14px;">💰 Hình thức thanh toán</h4>
+                <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid #f8d7da;border-radius:10px;margin-bottom:10px;cursor:pointer;">
+                    <input type="radio" name="phuongThuc" value="COD" checked onchange="doiPhuongThuc()" />
+                    <div><strong>🚚 Thanh toán khi nhận hàng (COD)</strong><div style="font-size:12px;color:#888;">Kiểm tra hàng rồi mới trả tiền</div></div>
+                </label>
+                <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid #f8d7da;border-radius:10px;cursor:pointer;">
+                    <input type="radio" name="phuongThuc" value="CHUYEN_KHOAN" onchange="doiPhuongThuc()" />
+                    <div><strong>🏦 Chuyển khoản ngân hàng</strong><div style="font-size:12px;color:#888;">Sau khi đặt hàng sẽ có mã QR. Đơn tự hủy nếu quá 24 giờ chưa xác nhận tiền.</div></div>
+                </label>
+                <div id="khuChuyenKhoan" style="display:none;background:#fff8e1;border-radius:10px;padding:12px;margin-top:10px;font-size:13px;">
+                    <div>Ngân hàng: <strong>@Model.TenNganHang</strong></div>
+                    <div>Số tài khoản: <strong>@Model.SoTaiKhoan</strong></div>
+                    <div>Chủ tài khoản: <strong>@Model.ChuTaiKhoan</strong></div>
+                    <div style="color:#856404;margin-top:6px;">⏰ Vui lòng chuyển khoản trong vòng 24 giờ sau khi đặt hàng.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Tóm tắt đơn ===== -->
+        <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+            <h4 style="font-weight:700;margin-bottom:14px;">🧾 Đơn hàng của bạn</h4>
+            @* Tiền hàng khách đang thấy: máy chủ so lại khi đặt hàng, khác thì báo khách xem lại (không tự đổi giá) *@
+            <input type="hidden" name="tamTinhDaXem" value="@((long)Model.TamTinh)" />
+            @if (Model.ThongBaoGioiHanFlash.Count > 0)
+            {
+                <div style="background:#fff3cd;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px;">
+                    @foreach (var tb in Model.ThongBaoGioiHanFlash) { <div>@tb</div> }
+                </div>
+            }
+            @foreach (var m in Model.DanhSach)
+            {
+                <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #fce4ec;">
+                    <img src="@TienIch.DuongDanAnh(m.HinhAnh)" style="width:50px;height:50px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">
+                    <div style="flex:1;font-size:13px;">
+                        <div style="font-weight:600;">@m.TenSanPham</div>
+                        <div style="color:#888;">
+                            x @m.SoLuong
+                            @if (m.LaFlashSale)
+                            {
+                                <span style="color:#e74c3c;">⚡ -@m.PhanTramFlash%</span>
+                            }
+                            else if (Model.DanhSach.Any(x => x.MaSanPham == m.MaSanPham && x.LaFlashSale))
+                            {
+                                <span>(giá thường – vượt giới hạn flash)</span>
+                            }
+                            @if (m.LaGiamChamBan)
+                            {
+                                <span style="color:#e74c3c;">🎁 Ưu đãi</span>
+                            }
+                        </div>
+                    </div>
+                    <div style="font-weight:700;">@TienIch.DinhDangTien(m.ThanhTien)</div>
+                </div>
+            }
+
+            @if (Model.DaDangNhap)
+            {
+                <div style="display:flex;gap:8px;margin:14px 0 4px;">
+                    <div style="position:relative;flex:1;" id="khungOMa">
+                        <input id="oMaGiamGia" placeholder="Nhập hoặc chọn mã giảm giá" autocomplete="off" class="o-nhap" style="margin:0;width:100%;text-transform:uppercase;" onfocus="moGoiYMa()" onclick="moGoiYMa()" />
+                        <!-- Danh sách gợi ý mã: hạng cao xuống thấp -->
+                        <div id="goiYVoucher" class="goi-y-voucher"></div>
+                    </div>
+                    <button type="button" onclick="apDungMa()" style="background:#d63384;color:#fff;border:none;border-radius:8px;padding:0 16px;cursor:pointer;font-weight:700;">Áp dụng</button>
+                </div>
+                <div id="thongBaoMa" style="font-size:12px;min-height:18px;"></div>
+                <a asp-controller="KhuyenMai" asp-action="Index" style="font-size:12px;color:#d63384;">🎟 Xem tất cả mã giảm giá (thông tin bạn đã điền sẽ được giữ lại)</a>
+            }
+
+            <div style="margin-top:12px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Tạm tính</span><strong id="tamTinh">@TienIch.DinhDangTien(Model.TamTinh)</strong></div>
+                <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Phí vận chuyển</span><strong id="phiShip">@(Model.PhiShip == 0 ? "Miễn phí" : TienIch.DinhDangTien(Model.PhiShip))</strong></div>
+                <div id="dongGiam" style="display:none;justify-content:space-between;padding:4px 0;color:#27ae60;"><span id="tenGiam"></span><strong id="tienGiam"></strong></div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px dashed #f8d7da;margin-top:6px;font-size:18px;">
+                    <span>Tổng cộng</span><strong id="tongCong" style="color:#d63384;">@TienIch.DinhDangTien(Model.TamTinh + Model.PhiShip)</strong>
+                </div>
+                <div style="font-size:12px;color:#888;">Đơn từ @TienIch.DinhDangTien(HangSo.NguongMienPhiShip) được miễn phí vận chuyển.</div>
+            </div>
+            <button type="submit" class="btn-mua-ngay" style="width:100%;margin-top:14px;padding:14px;border:none;font-size:16px;cursor:pointer;">✅ Đặt hàng</button>
+            <a asp-controller="GioHang" asp-action="Index" style="display:block;text-align:center;margin-top:10px;color:#d63384;">← Quay lại giỏ hàng</a>
+        </div>
+    </div>
+</form>
+
+<style>
+    .o-nhap { width:100%; padding:11px 12px; border:1.5px solid #f8d7da; border-radius:8px; margin-bottom:10px; font:inherit; }
+    @@media (max-width: 800px) { .luoi-thanhtoan { grid-template-columns: 1fr !important; } }
+</style>
+
+@section Scripts {
+<script>
+    var muaNgay = @(Model.MuaNgay ? "true" : "false");
+    var daDangNhap = @(Model.DaDangNhap ? "true" : "false");
+    // Bản nháp form được lưu RIÊNG cho từng tài khoản (khách vãng lai = 0).
+    // Nhờ vậy đổi tài khoản trên cùng trình duyệt sẽ không tự điền thông tin của người trước.
+    var khoaNhap = 'thanhToanDangDien_' + @(Model.DaDangNhap ? User.MaNguoiDung() : 0);
+    var form = document.getElementById('formDatHang');
+    var cacTruong = ['hoTen', 'soDienThoai', 'email', 'diaChi', 'ghiChu'];
+
+    function doiPhuongThuc() {
+        var ck = document.querySelector('input[name=phuongThuc]:checked').value === 'CHUYEN_KHOAN';
+        document.getElementById('khuChuyenKhoan').style.display = ck ? 'block' : 'none';
+    }
+
+    // ================= GIỮ LẠI THÔNG TIN ĐÃ ĐIỀN =================
+    // Mỗi lần khách gõ / chọn, lưu vào sessionStorage. Khách rời trang (xem mã giảm giá, xem sản phẩm...) rồi quay lại
+    // thì các ô được điền lại như cũ, kể cả mã giảm giá đã áp dụng và hình thức thanh toán.
+    function luuNhap() {
+        var d = { url: location.pathname + location.search, truong: {}, phuongThuc: '', ma: '' };
+        cacTruong.forEach(function (t) { d.truong[t] = form.elements[t].value; });
+        d.phuongThuc = document.querySelector('input[name=phuongThuc]:checked').value;
+        d.ma = document.getElementById('maGiamGiaDaChon').value;
+        try { sessionStorage.setItem(khoaNhap, JSON.stringify(d)); } catch (e) { }
+    }
+    function khoiPhucNhap() {
+        var daKhoiPhuc = false;
+        try {
+            sessionStorage.removeItem('thanhToanDangDien');   // bản nháp kiểu cũ (dùng chung mọi tài khoản) -> bỏ
+            var d = JSON.parse(sessionStorage.getItem(khoaNhap) || 'null');
+            if (d && d.truong) {
+                cacTruong.forEach(function (t) { if (d.truong[t]) form.elements[t].value = d.truong[t]; });
+                if (d.phuongThuc) {
+                    var o = document.querySelector('input[name=phuongThuc][value=' + d.phuongThuc + ']');
+                    if (o) o.checked = true;
+                }
+                if (d.ma && daDangNhap) { document.getElementById('oMaGiamGia').value = d.ma; apDungMa(); }
+                daKhoiPhuc = true;
+            }
+            // Khách vãng lai: nếu chưa có bản nháp thì điền sẵn từ lần đặt hàng trước (lưu trong trình duyệt)
+            if (!daKhoiPhuc && !daDangNhap) {
+                var cu = JSON.parse(localStorage.getItem('thongTinGiaoHang') || 'null');
+                if (cu) ['hoTen', 'soDienThoai', 'email', 'diaChi'].forEach(function (t) { if (cu[t] && !form.elements[t].value) form.elements[t].value = cu[t]; });
+            }
+        } catch (e) { }
+        doiPhuongThuc();
+    }
+    form.addEventListener('input', luuNhap);
+    form.addEventListener('change', luuNhap);
+    form.addEventListener('submit', function () {
+        luuNhap();
+        // Nhớ thông tin giao hàng cho đơn sau: CHỈ khách vãng lai (khách đăng nhập được điền từ hồ sơ / đơn gần nhất của chính mình)
+        if (daDangNhap) return;
+        try {
+            localStorage.setItem('thongTinGiaoHang', JSON.stringify({
+                hoTen: form.elements['hoTen'].value, soDienThoai: form.elements['soDienThoai'].value,
+                email: form.elements['email'].value, diaChi: form.elements['diaChi'].value
+            }));
+        } catch (e) { }
+    });
+
+    // ================= GỢI Ý MÃ GIẢM GIÁ =================
+    function thoatHtml(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    async function moGoiYMa() {
+        var khung = document.getElementById('goiYVoucher');
+        khung.classList.add('mo');
+        khung.innerHTML = '<div class="goi-y-muc khoa">Đang tải mã giảm giá...</div>';
+        try {
+            var res = await fetch('/ThanhToan/GoiYMa?muaNgay=' + muaNgay);
+            var ds = await res.json();
+            if (!ds.length) { khung.innerHTML = '<div class="goi-y-muc khoa">Hiện chưa có mã nào dành cho bạn.</div>'; return; }
+            var html = '', hangTruoc = '';
+            ds.forEach(function (g) {
+                if (g.hang !== hangTruoc) {
+                    html += '<div class="goi-y-tieude" style="background:' + thoatHtml(g.mauHang) + ';">MÃ HẠNG ' + thoatHtml(g.tenHang).toUpperCase() + '</div>';
+                    hangTruoc = g.hang;
+                }
+                html += '<div class="goi-y-muc' + (g.duDieuKien ? '' : ' khoa') + '" data-ma="' + thoatHtml(g.maCode) + '" data-du="' + (g.duDieuKien ? 1 : 0) + '" data-lydo="' + thoatHtml(g.lyDo) + '">'
+                    + '<div><span class="goi-y-ma">' + thoatHtml(g.maCode) + '</span> <span class="goi-y-giam">' + thoatHtml(g.moTaGiam) + '</span></div>'
+                    + '<div class="goi-y-phu">' + thoatHtml(g.moTa) + ' · ' + thoatHtml(g.hanDung) + '</div>'
+                    + (g.duDieuKien ? '<div class="goi-y-phu" style="color:#27ae60;font-weight:700;">Tiết kiệm khoảng ' + dinhDangTien(g.tienGiamUocTinh) + '</div>'
+                                    : '<div class="goi-y-phu" style="color:#e67e22;font-weight:700;">' + thoatHtml(g.lyDo) + '</div>')
+                    + '</div>';
+            });
+            khung.innerHTML = html;
+        } catch (e) { khung.innerHTML = '<div class="goi-y-muc khoa">Không tải được danh sách mã.</div>'; }
+    }
+    // Bấm vào một mã gợi ý -> điền vào ô và áp dụng ngay (mã chưa đủ điều kiện thì chỉ báo lý do)
+    document.getElementById('goiYVoucher').addEventListener('click', function (e) {
+        var muc = e.target.closest('.goi-y-muc');
+        if (!muc || !muc.dataset.ma) return;
+        if (muc.dataset.du !== '1') {
+            var tb = document.getElementById('thongBaoMa'); tb.style.color = '#e67e22'; tb.textContent = muc.dataset.lydo; return;
+        }
+        document.getElementById('oMaGiamGia').value = muc.dataset.ma;
+        document.getElementById('goiYVoucher').classList.remove('mo');
+        apDungMa();
+    });
+    document.addEventListener('click', function (e) {
+        var khung = document.getElementById('khungOMa');
+        if (khung && !khung.contains(e.target)) document.getElementById('goiYVoucher').classList.remove('mo');
+    });
+
+    // ================= ÁP DỤNG MÃ =================
+    async function apDungMa() {
+        var ma = document.getElementById('oMaGiamGia').value.trim();
+        var tb = document.getElementById('thongBaoMa');
+        if (!ma) { tb.style.color = '#c62828'; tb.textContent = 'Vui lòng nhập mã!'; return; }
+        var dl = new URLSearchParams(); dl.append('maCode', ma); dl.append('muaNgay', muaNgay);
+        var res = await fetch('/ThanhToan/KiemTraMa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': layMaChongGiaMao() },
+            body: dl.toString()
+        });
+        var kq = await res.json();
+        tb.style.color = kq.hopLe ? '#27ae60' : '#c62828';
+        tb.textContent = kq.thongBao;
+        document.getElementById('maGiamGiaDaChon').value = kq.hopLe ? kq.maCode : '';
+        document.getElementById('phiShip').textContent = kq.phiShip === 0 ? 'Miễn phí' : dinhDangTien(kq.phiShip);
+        var dong = document.getElementById('dongGiam');
+        if (kq.hopLe && kq.tienGiam > 0) {
+            dong.style.display = 'flex';
+            document.getElementById('tenGiam').textContent = kq.tenDong;
+            document.getElementById('tienGiam').textContent = '-' + dinhDangTien(kq.tienGiam);
+        } else { dong.style.display = 'none'; }
+        document.getElementById('tongCong').textContent = dinhDangTien(kq.tong);
+        luuNhap();
+    }
+
+    khoiPhucNhap();
+</script>
+}

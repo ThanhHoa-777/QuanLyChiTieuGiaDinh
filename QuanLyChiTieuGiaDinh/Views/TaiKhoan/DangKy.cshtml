@@ -1,0 +1,19 @@
+@{ ViewData["Title"] = "Đăng ký - ShopSon"; }
+<div style="max-width:440px;margin:30px auto;background:#fff;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+    <h2 style="text-align:center;color:#d63384;margin-bottom:6px;">✨ Đăng Ký</h2>
+    <p style="text-align:center;color:#888;font-size:13px;margin-bottom:18px;">Tạo tài khoản để tích điểm và nhận ưu đãi theo hạng</p>
+    @if (ViewBag.Loi != null)
+    {
+        <div style="background:#fce4ec;color:#c62828;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px;">@ViewBag.Loi</div>
+    }
+    <form asp-controller="TaiKhoan" asp-action="DangKy" method="post">
+        <input name="tenNguoiDung" placeholder="Họ và tên" value="@ViewBag.TenNguoiDung" class="o-nhap" />
+        <input name="tenDangNhap" placeholder="Tên đăng nhập" value="@ViewBag.TenDangNhap" class="o-nhap" />
+        <input name="email" type="email" placeholder="Email" value="@ViewBag.Email" class="o-nhap" />
+        <input name="matKhau" type="password" placeholder="Mật khẩu" class="o-nhap" />
+        <input name="matKhauLai" type="password" placeholder="Nhập lại mật khẩu" class="o-nhap" />
+        <button type="submit" class="btn-mua-ngay" style="width:100%;padding:12px;border:none;cursor:pointer;font-size:15px;">Tạo tài khoản</button>
+    </form>
+    <p style="text-align:center;margin-top:14px;font-size:14px;">Đã có tài khoản? <a asp-controller="TaiKhoan" asp-action="DangNhap" style="color:#d63384;font-weight:700;">Đăng nhập</a></p>
+</div>
+<style>.o-nhap { width:100%; padding:11px 12px; border:1.5px solid #f8d7da; border-radius:8px; margin-bottom:12px; font:inherit; }</style>
