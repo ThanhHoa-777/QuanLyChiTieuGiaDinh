@@ -28,6 +28,15 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return await _context.NguoiDungs.FirstOrDefaultAsync(x => x.Email == email);
         }
 
+        private async Task<int?> LayMaGiaDinhAsync(NguoiDung nguoiDung)
+        {
+            var thanhVien = await _context.ThanhVienGiaDinhs
+                .FirstOrDefaultAsync(x => x.MaNguoiDung == nguoiDung.MaNguoiDung && x.TrangThai == "DaXacNhan");
+
+            return thanhVien?.MaGiaDinh
+                   ?? (await _context.HoGiaDinhs.FirstOrDefaultAsync(h => h.MaChuHo == nguoiDung.MaNguoiDung))?.MaGiaDinh;
+        }
+
         private async Task NapDuLieuForm(int? maGiaDinh, int? selectedDanhMucId = null)
         {
             // Lấy danh mục chi tiêu của gia đình hoặc danh mục chung hệ thống
@@ -42,11 +51,18 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             ViewBag.MaDanhMuc = new SelectList(danhMucs, "MaDanhMuc", "TenDanhMuc", selectedDanhMucId);
         }
 
+        // MaDanhMuc = null nghĩa là "Tất cả danh mục" => không bắt buộc chọn.
+        // Các navigation property cũng không được bind từ form nên bỏ khỏi ModelState.
+        private void BoQuaValidateDanhMuc()
+        {
+            ModelState.Remove(nameof(NganSach.MaDanhMuc));
+            ModelState.Remove(nameof(NganSach.DanhMuc));
+            ModelState.Remove(nameof(NganSach.NguoiTao));
+        }
+
         #endregion
 
-        // =========================================================
         // MÀN HÌNH DANH SÁCH NGÂN SÁCH CÁ NHÂN THEO THÁNG/NĂM
-        // =========================================================
         public async Task<IActionResult> Index(int? thang, int? nam)
         {
             var nguoiDung = await LayNguoiDungDangNhap();
@@ -69,18 +85,11 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var danhSachTinhToan = new List<object>();
             int ngayDaQua = DateTime.Now.Day;
 
-            // Lấy thông tin Hộ gia đình của người dùng để dò tài khoản ví cá nhân
-            var thanhVien = await _context.ThanhVienGiaDinhs
-                .Include(x => x.HoGiaDinh)
-                .FirstOrDefaultAsync(x => x.MaNguoiDung == nguoiDung.MaNguoiDung && x.TrangThai == "DaXacNhan");
-            int? maGiaDinh = thanhVien?.MaGiaDinh ?? (await _context.HoGiaDinhs.FirstOrDefaultAsync(h => h.MaChuHo == nguoiDung.MaNguoiDung))?.MaGiaDinh;
-
             foreach (var nganSach in danhSachNganSach)
             {
                 var giaoDichQuery = _context.GiaoDichs
                     .Include(g => g.TaiKhoanTien)
                     .Where(x => x.LoaiGiaoDich == "Chi" &&
-                                x.TrangThaiDuyet == "DaDuyet" &&
                                 x.TrangThai == "HoatDong" &&
                                 x.TaiKhoanTien != null &&
                                 x.MaNguoiThucHien == nguoiDung.MaNguoiDung &&
@@ -88,7 +97,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                                 x.NgayGiaoDich.Month == nganSach.Thang &&
                                 x.NgayGiaoDich.Year == nganSach.Nam);
 
-                // Lọc theo Danh mục nếu ngân sách có chỉ định cụ thể danh mục
+                // Có chỉ định danh mục => lọc theo danh mục; null => tính tất cả danh mục
                 if (nganSach.MaDanhMuc.HasValue)
                 {
                     giaoDichQuery = giaoDichQuery.Where(x => x.MaDanhMuc == nganSach.MaDanhMuc.Value);
@@ -139,9 +148,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(danhSachNganSach);
         }
 
-        // =========================================================
         // XEM CHI TIẾT DANH SÁCH GIAO DỊCH THUỘC NGÂN SÁCH (DRILL-DOWN)
-        // =========================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -161,7 +168,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 .Include(g => g.DanhMuc)
                 .Include(g => g.NguoiThucHien)
                 .Where(x => x.LoaiGiaoDich == "Chi" &&
-                            x.TrangThaiDuyet == "DaDuyet" &&
                             x.TrangThai == "HoatDong" &&
                             x.TaiKhoanTien != null &&
                             x.MaNguoiThucHien == nguoiDung.MaNguoiDung &&
@@ -182,16 +188,13 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(nganSach);
         }
 
-        // =========================================================
         // THIẾT LẬP NGÂN SÁCH MỚI
-        // =========================================================
         public async Task<IActionResult> Create()
         {
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null) return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            var thanhVien = await _context.ThanhVienGiaDinhs.FirstOrDefaultAsync(x => x.MaNguoiDung == nguoiDung.MaNguoiDung && x.TrangThai == "DaXacNhan");
-            int? maGiaDinh = thanhVien?.MaGiaDinh ?? (await _context.HoGiaDinhs.FirstOrDefaultAsync(h => h.MaChuHo == nguoiDung.MaNguoiDung))?.MaGiaDinh;
+            int? maGiaDinh = await LayMaGiaDinhAsync(nguoiDung);
 
             await NapDuLieuForm(maGiaDinh);
 
@@ -217,11 +220,24 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             if (nguoiDung == null) return RedirectToPage("/Account/Login", new { area = "Identity" });
 
             nganSach.IsGiaDinh = false; // Cố định cá nhân
+            BoQuaValidateDanhMuc();     // null = Tất cả danh mục
 
-            var thanhVien = await _context.ThanhVienGiaDinhs.FirstOrDefaultAsync(x => x.MaNguoiDung == nguoiDung.MaNguoiDung && x.TrangThai == "DaXacNhan");
-            int? maGiaDinh = thanhVien?.MaGiaDinh ?? (await _context.HoGiaDinhs.FirstOrDefaultAsync(h => h.MaChuHo == nguoiDung.MaNguoiDung))?.MaGiaDinh;
+            int? maGiaDinh = await LayMaGiaDinhAsync(nguoiDung);
 
-            // Kiểm tra trùng lặp cấu hình ngân sách cá nhân theo danh mục trong tháng/năm
+            // Nếu chọn một danh mục cụ thể: phải là danh mục chi tiêu hợp lệ của hộ hoặc hệ thống
+            if (nganSach.MaDanhMuc.HasValue)
+            {
+                bool danhMucHopLe = await _context.DanhMucs.AnyAsync(x =>
+                    x.MaDanhMuc == nganSach.MaDanhMuc.Value &&
+                    x.LoaiDanhMuc == "ChiTieu" &&
+                    x.TrangThai == "Active" &&
+                    (x.MaGiaDinh == null || (maGiaDinh.HasValue && x.MaGiaDinh == maGiaDinh.Value)));
+
+                if (!danhMucHopLe)
+                    ModelState.AddModelError(nameof(nganSach.MaDanhMuc), "Danh mục không hợp lệ.");
+            }
+
+            // Kiểm tra trùng lặp cấu hình ngân sách cá nhân theo danh mục (hoặc "Tất cả") trong tháng/năm
             var daTonTai = await _context.NganSachs.AnyAsync(x =>
                 x.MaNguoiTao == nguoiDung.MaNguoiDung &&
                 !x.IsGiaDinh &&
@@ -232,7 +248,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             if (daTonTai)
             {
-                ModelState.AddModelError("", "Ngân sách cho danh mục này trong tháng đã chọn đã tồn tại!");
+                ModelState.AddModelError("", nganSach.MaDanhMuc.HasValue
+                    ? "Ngân sách cho danh mục này trong tháng đã chọn đã tồn tại!"
+                    : "Ngân sách cho tất cả danh mục trong tháng đã chọn đã tồn tại!");
             }
 
             if (!ModelState.IsValid)
@@ -253,9 +271,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // =========================================================
         // CHỈNH SỬA NGÂN SÁCH CÁ NHÂN
-        // =========================================================
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -263,7 +279,9 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null) return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            var nganSach = await _context.NganSachs.FirstOrDefaultAsync(x => x.MaNganSach == id && x.TrangThai == "Active" && x.MaNguoiTao == nguoiDung.MaNguoiDung);
+            var nganSach = await _context.NganSachs
+                .Include(x => x.DanhMuc)
+                .FirstOrDefaultAsync(x => x.MaNganSach == id && x.TrangThai == "Active" && x.MaNguoiTao == nguoiDung.MaNguoiDung);
             if (nganSach == null) return NotFound();
 
             await NapDuLieuForm(nganSach.MaGiaDinh, nganSach.MaDanhMuc);
@@ -279,8 +297,13 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             var nguoiDung = await LayNguoiDungDangNhap();
             if (nguoiDung == null) return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            var nganSachGoc = await _context.NganSachs.FirstOrDefaultAsync(x => x.MaNganSach == id && x.TrangThai == "Active" && x.MaNguoiTao == nguoiDung.MaNguoiDung);
+            var nganSachGoc = await _context.NganSachs
+                .Include(x => x.DanhMuc)
+                .FirstOrDefaultAsync(x => x.MaNganSach == id && x.TrangThai == "Active" && x.MaNguoiTao == nguoiDung.MaNguoiDung);
             if (nganSachGoc == null) return NotFound();
+
+            // Edit không đổi danh mục (MaDanhMuc có thể null = Tất cả) nên không validate các trường này
+            BoQuaValidateDanhMuc();
 
             if (ModelState.IsValid)
             {
@@ -296,13 +319,14 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            await NapDuLieuForm(nganSachGoc.MaGiaDinh, nganSachInput.MaDanhMuc);
+            // Giữ nguyên danh mục gốc khi hiển thị lại form (không cho đổi trong Edit)
+            nganSachInput.MaDanhMuc = nganSachGoc.MaDanhMuc;
+            nganSachInput.DanhMuc = nganSachGoc.DanhMuc;
+            await NapDuLieuForm(nganSachGoc.MaGiaDinh, nganSachGoc.MaDanhMuc);
             return View(nganSachInput);
         }
 
-        // =========================================================
         // XÓA NGÂN SÁCH CÁ NHÂN
-        // =========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)

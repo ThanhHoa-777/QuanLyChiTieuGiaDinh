@@ -45,13 +45,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 _context.HoGiaDinhs.Any(h => h.MaGiaDinh == x.MaGiaDinh && h.TrangThai == "HoatDong"));
         }
 
-        private async Task<bool> KiemTraCongNoChuaQuyetToan(int maGiaDinh, int maNguoiDung)
-        {
-            return await _context.GiaoDichs.AnyAsync(g =>
-                g.MaNguoiThucHien == maNguoiDung &&
-                _context.TaiKhoanTiens.Any(tk => tk.MaTaiKhoan == g.MaTaiKhoan && tk.MaGiaDinh == maGiaDinh) &&
-                g.TrangThaiQuyetToan == "ChuaQuyetToan");
-        }
+        
 
         #endregion
 
@@ -155,9 +149,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
                 // Thêm Chủ hộ vào danh sách thành viên
                 _context.ThanhVienGiaDinhs.Add(new ThanhVienGiaDinh { MaGiaDinh = ho.MaGiaDinh, MaNguoiDung = nguoiDung.MaNguoiDung, VaiTro = "ChuHo", NgayThamGia = thoiGianTao, TrangThai = "DaXacNhan" });
-
-                // Thêm danh mục mặc định
-                _context.DanhMucs.Add(new DanhMuc { MaGiaDinh = ho.MaGiaDinh, TenDanhMuc = "Tiết kiệm", LoaiDanhMuc = "TietKiem", BieuTuong = "💰" });
 
                 // Tự động sinh Tài khoản Quỹ chung gia đình mặc định
                 var quyChungGiaDinh = new TaiKhoanTien
@@ -268,7 +259,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                     "📩 Lời mời gia nhập hộ gia đình",
                     $"Chủ hộ {nguoiDung.HoTen} đã mời bạn gia nhập hộ gia đình '{ho.TenGiaDinh}'.",
                     "LoiMoi",
-                    PhamViThongBao.GiaDinh);
+                    PhamViThongBao.CaNhan);
 
                 await transaction.CommitAsync();
                 TempData["Success"] = $"Đã gửi lời mời tham gia hộ gia đình tới email {emailNguoiNhan}.";
@@ -401,7 +392,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             _context.ThanhVienGiaDinhs.Remove(thanhVien);
             await _context.SaveChangesAsync();
 
-            await _thongBaoService.TaoThongBaoAsync(maNguoiDungCanGo, "⚠️ Bạn đã bị gỡ khỏi hộ", $"Chủ hộ đã gỡ bạn khỏi hộ gia đình '{ho.TenGiaDinh}'.", "ThanhVien", PhamViThongBao.GiaDinh);
+            await _thongBaoService.TaoThongBaoAsync(maNguoiDungCanGo, "⚠️ Bạn đã bị gỡ khỏi hộ", $"Chủ hộ đã gỡ bạn khỏi hộ gia đình '{ho.TenGiaDinh}'.", "ThanhVien", PhamViThongBao.CaNhan);
             TempData["Success"] = "Đã gỡ thành viên khỏi hộ gia đình.";
             return RedirectToAction(nameof(Index));
         }
@@ -426,13 +417,13 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            bool coCongNo = await KiemTraCongNoChuaQuyetToan(maGiaDinh, nguoiDung.MaNguoiDung);
+            
             var yeuCau = new YeuCauRoiHo
             {
                 MaGiaDinh = maGiaDinh,
                 MaNguoiDung = nguoiDung.MaNguoiDung,
                 ThoiDiemGui = DateTime.Now,
-                TrangThai = coCongNo ? "ChoQuyetToan" : "ChoDuyet"
+                
             };
 
             _context.YeuCauRoiHos.Add(yeuCau);
@@ -444,23 +435,16 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 noiDungThongBao += $" Lý do: {lyDo.Trim()}";
             }
 
-            if (coCongNo)
-            {
-                TempData["Error"] = "Bạn còn khoản thu/chi chưa quyết toán với hộ. Yêu cầu chuyển trạng thái chờ quyết toán.";
-            }
-            else
-            {
-                await _thongBaoService.TaoThongBaoAsync(
-                    ho.MaChuHo,
-                    "🚪 Yêu cầu rời hộ",
-                    noiDungThongBao,
-                    PhamViThongBao.GiaDinh,
-                    LoaiThongBao.YeuCauThoatHo,
-                    yeuCau.MaYeuCau.ToString()
-                );
-                TempData["Success"] = "Đã gửi yêu cầu rời hộ tới Chủ hộ.";
-            }
+            // Gửi thông báo cho chủ hộ
+            await _thongBaoService.TaoThongBaoAsync(
+                ho.MaChuHo,
+                "🚪 Yêu cầu rời hộ",
+                noiDungThongBao,
+                PhamViThongBao.GiaDinh,
+                LoaiThongBao.YeuCauThoatHo,
+                yeuCau.MaYeuCau.ToString());   // DuLieuLienKet
 
+            TempData["Success"] = "Đã gửi yêu cầu rời hộ, vui lòng chờ chủ hộ duyệt.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -489,16 +473,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction("Index", "ThongBaos", new { tab = "GiaDinh" });
             }
 
-            bool coCongNo = await KiemTraCongNoChuaQuyetToan(yeuCau.MaGiaDinh, yeuCau.MaNguoiDung);
-
-            var danhSachGiaoDichChuaQuyetToan = await _context.GiaoDichs
-                .Where(g => g.MaNguoiThucHien == yeuCau.MaNguoiDung &&
-                            _context.TaiKhoanTiens.Any(tk => tk.MaTaiKhoan == g.MaTaiKhoan && tk.MaGiaDinh == yeuCau.MaGiaDinh) &&
-                            g.TrangThaiQuyetToan == "ChuaQuyetToan")
-                .ToListAsync();
-
-            ViewBag.CoCongNo = coCongNo;
-            ViewBag.DanhSachGiaoDich = danhSachGiaoDichChuaQuyetToan;
+            
 
             return View(yeuCau);
         }
@@ -524,7 +499,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 var thanhVien = await _context.ThanhVienGiaDinhs.FirstOrDefaultAsync(tv => tv.MaGiaDinh == yeuCau.MaGiaDinh && tv.MaNguoiDung == yeuCau.MaNguoiDung);
                 if (thanhVien != null) _context.ThanhVienGiaDinhs.Remove(thanhVien);
 
-                await _thongBaoService.TaoThongBaoAsync(yeuCau.MaNguoiDung, "✅ Đã duyệt yêu cầu rời hộ", $"Chủ hộ đã chấp nhận yêu cầu của bạn.{thongBaoPhanHoi}", PhamViThongBao.GiaDinh, LoaiThongBao.PheDuyet, null);
+                await _thongBaoService.TaoThongBaoAsync(yeuCau.MaNguoiDung, "✅ Đã duyệt yêu cầu rời hộ", $"Chủ hộ đã chấp nhận yêu cầu của bạn.{thongBaoPhanHoi}", PhamViThongBao.CaNhan, LoaiThongBao.PheDuyet, null);
                 TempData["Success"] = "Đã duyệt yêu cầu rời hộ.";
             }
             else
@@ -534,10 +509,12 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 TempData["Success"] = "Đã từ chối yêu cầu rời hộ.";
             }
 
+            var keyJson = $"\"MaYeuCau\":{maYeuCau}}}";
             var thongBaoLienQuan = await _context.ThongBaos
                 .FirstOrDefaultAsync(t => t.MaNguoiDung == nguoiDung.MaNguoiDung &&
                                            t.LoaiThongBao == LoaiThongBao.YeuCauThoatHo &&
-                                           t.DuLieuLienKet == maYeuCau.ToString());
+                                           t.DuLieuLienKet != null &&
+                                           (t.DuLieuLienKet == maYeuCau.ToString() || t.DuLieuLienKet.Contains(keyJson)));
             if (thongBaoLienQuan != null)
             {
                 thongBaoLienQuan.DaDoc = true;
@@ -644,7 +621,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
                 foreach (var tv in thanhViens.Where(t => t.MaNguoiDung != nguoiDung.MaNguoiDung))
                 {
-                    await _thongBaoService.TaoThongBaoAsync(tv.MaNguoiDung, "📢 Hộ gia đình đã giải tán", $"Chủ hộ đã giải tán '{ho.TenGiaDinh}'.", "ThanhVien", PhamViThongBao.GiaDinh);
+                    await _thongBaoService.TaoThongBaoAsync(tv.MaNguoiDung, "📢 Hộ gia đình đã giải tán", $"Chủ hộ đã giải tán '{ho.TenGiaDinh}'.", "ThanhVien", PhamViThongBao.CaNhan);
                 }
 
                 _context.ThanhVienGiaDinhs.RemoveRange(thanhViens);

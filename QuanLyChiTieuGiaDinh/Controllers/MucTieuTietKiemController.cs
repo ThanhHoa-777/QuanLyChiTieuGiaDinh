@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QuanLyChiTieuGiaDinh.Data;
+using QuanLyChiTieuGiaDinh.Helpers;
 using QuanLyChiTieuGiaDinh.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -22,9 +23,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
         private enum KetQuaMoi { DaMoi, DaCoTrongNhom, KhongCoTaiKhoan }
 
-        // =====================================================
         // Helpers
-        // =====================================================
 
         // MaNguoiDung (int) của bảng NguoiDung, được gán 1 lần cho mỗi request
         private int _currentUserId;
@@ -64,12 +63,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             await next();
         }
 
-        /// <summary>
-        /// Chia đều SoTienMucTieu cho các thành viên ĐÃ THAM GIA (DaThamGia).
-        /// Người đang chờ xác nhận / đã từ chối có ChiTieuCanDong = 0 cho tới khi họ đồng ý.
-        /// Phần dư do làm tròn cộng vào người cuối để tổng luôn đúng bằng SoTienMucTieu.
-        /// Đồng thời cập nhật cờ DaHoanThanhChiTieu (BR47).
-        /// </summary>
         private static void ChiaLaiChiTieu(MucTieuTietKiem mt)
         {
             var dangThamGia = mt.ThanhVienMucTieus
@@ -120,11 +113,6 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 .ToList();
         }
 
-        /// <summary>
-        /// Mời 1 người theo email (chưa SaveChanges). Vì MaNguoiDung là int bắt buộc nên
-        /// email phải thuộc về người dùng đã có trong bảng NguoiDung.
-        /// Các MaNguoiDung được mời thành công sẽ được thêm vào daMoiIds để gửi thông báo sau.
-        /// </summary>
         private async Task<KetQuaMoi> MoiTheoEmailAsync(MucTieuTietKiem mt, string email, List<int> daMoiIds)
         {
             var nguoiDung = await _context.NguoiDungs
@@ -205,10 +193,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             await _context.SaveChangesAsync();
         }
 
-        /// <summary>
-        /// Đánh dấu thông báo lời mời của mục tiêu là đã xử lý (ẩn nút Chấp nhận / Từ chối). Chưa SaveChanges.
-        /// maNguoiDung = null => áp dụng cho mọi người được mời (dùng khi xóa mục tiêu).
-        /// </summary>
+       
         private async Task DongThongBaoLoiMoiAsync(int? maNguoiDung, int maMucTieu)
         {
             var key = $"\"MaMucTieu\":{maMucTieu}}}";
@@ -296,18 +281,26 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             await DongThongBaoLoiMoiAsync(null, mt.MaMucTieu);
 
-            bool laGiaDinh = mt.MaGiaDinh.HasValue && mt.MaGiaDinh > 0;
+            bool laGiaDinh = mt.LoaiMucTieu == LoaiMucTieuTietKiem.HoGiaDinh && mt.MaGiaDinh.HasValue && mt.MaGiaDinh > 0;
+            bool laNhom = mt.LoaiMucTieu == LoaiMucTieuTietKiem.NhomTuDo;
+
+            string tenVi = laGiaDinh ? "Quỹ chung: " + mt.TenMucTieu
+                         : laNhom ? "Ví nhóm: " + mt.TenMucTieu
+                         : "Ví mục tiêu: " + mt.TenMucTieu;
+
             var vi = new TaiKhoanTien
             {
-                // Hộ gia đình gắn MaGiaDinh, nhóm tự do tách hẳn (= 0)
-                MaGiaDinh = laGiaDinh ? mt.MaGiaDinh!.Value : 0,
+                // Hộ gia đình gắn MaGiaDinh; Ví nhóm / cá nhân không thuộc hộ nào (null)
+                MaGiaDinh = laGiaDinh ? mt.MaGiaDinh : null,
+                MaMucTieuNguon = mt.MaMucTieu,
                 MaNguoiSoHuu = mt.MaTruongNhom,
-                TenTaiKhoan = (laGiaDinh ? "Quỹ chung: " : "Quỹ nhóm (Trưởng nhóm giữ): ") + mt.TenMucTieu,
+                TenTaiKhoan = Cat(tenVi, 100),
                 LoaiTaiKhoan = "TienMat",
-                LoaiVi = laGiaDinh ? "QuyChung" : "CaNhan",
+                LoaiVi = laGiaDinh ? "QuyChung" : laNhom ? "ViNhom" : "ViCaNhan",
                 LaTaiKhoanGiaDinh = laGiaDinh,
                 SoDuBanDau = mt.SoTienHienCo,
                 SoDuHienTai = mt.SoTienHienCo,
+                GhiChu = laNhom ? "Ví nhóm: mọi thành viên đã tham gia (kể cả người ngoài hộ) đều được xem. Trưởng nhóm đứng tên." : null,
                 TrangThai = true
             };
             _context.Add(vi);
@@ -327,7 +320,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 "Mục tiêu đã hoàn thành",
                 $"Chúc mừng! Mục tiêu \"{mt.TenMucTieu}\" đã đạt {mt.SoTienMucTieu:N0} đ. " +
                 $"Quỹ được chuyển thành ví \"{vi.TenTaiKhoan}\" do {tenTruong} đứng tên" +
-                (laGiaDinh ? " (ví chung của hộ gia đình)." : "."),
+                (laGiaDinh ? " (ví chung của hộ gia đình)." : laNhom ? " (ví nhóm - tất cả thành viên đều xem được)." : "."),
                 baoCaNguoiThucHien: true);
 
             // Người còn đang chờ xác nhận
@@ -401,19 +394,18 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                     t.HoGiaDinh!.TrangThai == "HoatDong");
         }
 
-        // =====================================================
         // INDEX
-        // =====================================================
         public async Task<IActionResult> Index(string? tuKhoa, TrangThaiMucTieu? trangThai)
         {
             int userId = CurrentUserId;
 
             var query = _context.MucTieuTietKiems
-                .AsNoTracking()
-                .Include(m => m.ThanhVienMucTieus)
-                .Where(m => m.MaTruongNhom == userId ||
-                            m.ThanhVienMucTieus.Any(t => t.MaNguoiDung == userId &&
-                                                         t.TrangThai == TrangThaiThamGia.DaThamGia));
+                    .AsNoTracking()
+                    .Include(m => m.HoGiaDinh)
+                    .Include(m => m.ThanhVienMucTieus)
+                    .Where(m => m.MaTruongNhom == userId ||
+                                m.ThanhVienMucTieus.Any(t => t.MaNguoiDung == userId &&
+                                                             t.TrangThai == TrangThaiThamGia.DaThamGia));
 
             if (!string.IsNullOrWhiteSpace(tuKhoa))
                 query = query.Where(m => m.TenMucTieu.Contains(tuKhoa));
@@ -440,9 +432,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(ds);
         }
 
-        // =====================================================
         // DETAILS
-        // =====================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -495,9 +485,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(mt);
         }
 
-        // =====================================================
         // CREATE
-        // =====================================================
         public async Task<IActionResult> Create()
         {
             await NapThongTinHoAsync(CurrentUserId);
@@ -619,9 +607,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Details), new { id = model.MaMucTieu });
         }
 
-        // =====================================================
         // EDIT
-        // =====================================================
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -637,11 +623,10 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             }
             return View(mt);
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id,
-            [Bind("MaMucTieu,TenMucTieu,SoTienMucTieu,NgayHan,AnhDaiDienUrl")] MucTieuTietKiem model)
+            [Bind("MaMucTieu,TenMucTieu,NgayHan,AnhDaiDienUrl")] MucTieuTietKiem model)
         {
             if (id != model.MaMucTieu) return NotFound();
 
@@ -654,21 +639,21 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            // Các trường này không nhận từ form nên không validate
             ModelState.Remove(nameof(MucTieuTietKiem.TruongNhom));
             ModelState.Remove(nameof(MucTieuTietKiem.HoGiaDinh));
             ModelState.Remove(nameof(MucTieuTietKiem.LoaiMucTieu));
+            ModelState.Remove(nameof(MucTieuTietKiem.SoTienMucTieu));
 
             if (model.NgayHan.Date <= mt.NgayBatDau.Date)
                 ModelState.AddModelError(nameof(model.NgayHan), "Hạn hoàn thành phải sau ngày bắt đầu.");
 
-            if (model.SoTienMucTieu < mt.SoTienHienCo)
-                ModelState.AddModelError(nameof(model.SoTienMucTieu),
-                    $"Số tiền mục tiêu không được nhỏ hơn số tiền đã tích lũy ({mt.SoTienHienCo:N0}).");
-
             if (!ModelState.IsValid)
             {
+                // Trả lại các giá trị chỉ xem để view hiển thị đúng
                 model.LoaiMucTieu = mt.LoaiMucTieu;
                 model.NgayBatDau = mt.NgayBatDau;
+                model.SoTienMucTieu = mt.SoTienMucTieu;
                 model.SoTienHienCo = mt.SoTienHienCo;
                 model.TrangThai = mt.TrangThai;
                 model.IsActiveWallet = mt.IsActiveWallet;
@@ -676,30 +661,16 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return View(model);
             }
 
-            bool doiSoTien = mt.SoTienMucTieu != model.SoTienMucTieu;
             bool doiHan = mt.NgayHan.Date != model.NgayHan.Date;
 
-            // Chỉ cập nhật các field được phép sửa (IsActiveWallet do hệ thống quản lý)
+            // Chỉ cập nhật thông tin. KHÔNG đụng tới SoTienMucTieu, SoTienHienCo, chỉ tiêu thành viên.
             mt.TenMucTieu = model.TenMucTieu;
-            mt.SoTienMucTieu = model.SoTienMucTieu;
             mt.NgayHan = model.NgayHan;
             mt.AnhDaiDienUrl = model.AnhDaiDienUrl;
 
-            if (doiSoTien) ChiaLaiChiTieu(mt);
-
-            if (doiSoTien || doiHan)
-            {
-                var ly = new List<string>();
-                if (doiSoTien) ly.Add($"số tiền mục tiêu đổi thành {mt.SoTienMucTieu:N0} đ");
-                if (doiHan) ly.Add($"hạn hoàn thành đổi thành {mt.NgayHan:dd/MM/yyyy}");
-
+            if (doiHan)
                 ThongBaoChiTieu(mt, DangThamGiaIds(mt), "Mục tiêu được cập nhật",
-                    $"Trưởng nhóm đã cập nhật \"{mt.TenMucTieu}\": {string.Join(", ", ly)}.");
-            }
-
-            // Đủ tiền sau khi sửa (hạ mục tiêu xuống bằng số đã tích lũy): tạo ví giống NapTien
-            if (mt.SoTienHienCo > 0 && mt.SoTienHienCo >= mt.SoTienMucTieu && !mt.IsActiveWallet)
-                await HoanThanhVaTaoViAsync(mt);
+                    $"Trưởng nhóm đã cập nhật \"{mt.TenMucTieu}\": hạn hoàn thành đổi thành {mt.NgayHan:dd/MM/yyyy}.");
 
             try
             {
@@ -711,15 +682,11 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 throw;
             }
 
-            TempData["Success"] = doiSoTien
-                ? "Đã cập nhật mục tiêu và chia lại chỉ tiêu cho các thành viên."
-                : "Đã cập nhật mục tiêu.";
+            TempData["Success"] = "Đã cập nhật mục tiêu.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // =====================================================
         // MỜI / XÓA THÀNH VIÊN (Nhóm tự do)
-        // =====================================================
 
         /// <summary>Trưởng nhóm mời thêm người bằng email (nhiều email cách nhau bởi dấu phẩy).</summary>
         [HttpPost]
@@ -996,9 +963,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // =====================================================
         // DELETE
-        // =====================================================
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -1011,6 +976,25 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             return View(mt);
         }
 
+        /// <summary>Chia đều soTien cho ids (làm tròn xuống đồng, phần dư cộng cho người cuối) rồi cộng dồn vào phan.</summary>
+        private static void ChiaDeuVao(Dictionary<int, decimal> phan, List<int> ids, decimal soTien)
+        {
+            if (soTien <= 0 || ids.Count == 0) return;
+
+            decimal moiNguoi = Math.Floor(soTien / ids.Count);
+            foreach (var uid in ids)
+                phan[uid] = phan.GetValueOrDefault(uid) + moiNguoi;
+
+            phan[ids[^1]] += soTien - moiNguoi * ids.Count;
+        }
+
+        /// <summary>
+        /// XÓA MỤC TIÊU + HOÀN TIỀN (quy tắc 6):
+        ///  - Còn đủ tiền: mỗi người nhận lại đúng phần mình đã đóng.
+        ///  - Đã chi bớt (còn lại &lt; tổng đã đóng): số còn lại chia đều cho những người đã đóng.
+        ///  - Mỗi khoản hoàn là 1 giao dịch Thu (dấu |NAP_MUC_TIEU|) vào ví cá nhân của người nhận,
+        ///    và ví chung của mục tiêu (nếu có) ghi 1 giao dịch Chi tương ứng, nên số dư luôn khớp lịch sử.
+        /// </summary>
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -1026,59 +1010,145 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 if (mt == null) return NotFound();
                 if (mt.MaTruongNhom != CurrentUserId) return Forbid();
 
-                decimal tienHoanVe = mt.SoTienHienCo;
-                TaiKhoanTien? viChungLienQuan = null;
+                // 1. Số tiền còn lại thực tế: mục tiêu đã thành ví thì lấy số dư ví (có thể đã chi bớt)
+                decimal conLai = mt.SoTienHienCo;
+                TaiKhoanTien? viMucTieu = null;
 
-                // Nếu mục tiêu đã biến thành ví, ta lấy số dư thực tế CÒN LẠI của ví đó
                 if (mt.IsActiveWallet)
                 {
-                    viChungLienQuan = await _context.Set<TaiKhoanTien>()
-                        .FirstOrDefaultAsync(tk => tk.TenTaiKhoan.Contains(mt.TenMucTieu) && tk.MaNguoiSoHuu == mt.MaTruongNhom && tk.TrangThai == true);
+                    viMucTieu = await _context.Set<TaiKhoanTien>()
+                        .FirstOrDefaultAsync(tk => tk.MaMucTieuNguon == mt.MaMucTieu && tk.TrangThai == true)
+                        // Ví tạo trước khi có MaMucTieuNguon: tìm theo tên
+                        ?? await _context.Set<TaiKhoanTien>()
+                        .FirstOrDefaultAsync(tk => tk.MaMucTieuNguon == null && tk.TenTaiKhoan.Contains(mt.TenMucTieu) && tk.MaNguoiSoHuu == mt.MaTruongNhom && tk.TrangThai == true);
 
-                    if (viChungLienQuan != null)
+                    if (viMucTieu != null) conLai = viMucTieu.SoDuHienTai;
+                }
+
+                // 2. Chia phần hoàn cho từng người đã đóng
+                var nguoiDong = mt.ThanhVienMucTieus.Where(t => t.SoTienDaDong > 0).ToList();
+                var idsNguoiDong = nguoiDong.Select(t => t.MaNguoiDung).ToList();
+                var phanHoan = new Dictionary<int, decimal>();
+
+                if (conLai > 0)
+                {
+                    if (!nguoiDong.Any())
                     {
-                        tienHoanVe = viChungLienQuan.SoDuHienTai;
+                        // Dữ liệu cũ không có chi tiết người đóng: hoàn cho trưởng nhóm
+                        phanHoan[mt.MaTruongNhom] = conLai;
+                    }
+                    else
+                    {
+                        decimal tongDong = nguoiDong.Sum(t => t.SoTienDaDong);
+
+                        if (conLai >= tongDong)
+                        {
+                            // Chưa chi: trả đúng phần mỗi người đã đóng (phần dư nếu có chia đều)
+                            foreach (var t in nguoiDong) phanHoan[t.MaNguoiDung] = t.SoTienDaDong;
+                            ChiaDeuVao(phanHoan, idsNguoiDong, conLai - tongDong);
+                        }
+                        else
+                        {
+                            // Đã chi bớt: số còn lại chia đều cho những người đã đóng
+                            ChiaDeuVao(phanHoan, idsNguoiDong, conLai);
+                        }
                     }
                 }
 
-                // Nếu có tiền cần hoàn, tìm ví cá nhân của Trưởng nhóm
-                if (tienHoanVe > 0)
-                {
-                    var viCaNhan = await _context.Set<TaiKhoanTien>()
-                        .FirstOrDefaultAsync(tk => tk.MaNguoiSoHuu == mt.MaTruongNhom && tk.LaTaiKhoanGiaDinh == false && tk.TrangThai == true);
+                // 3. Tìm ví cá nhân nhận tiền của từng người (ưu tiên ví họ đã dùng để nạp gần nhất)
+                var viNhan = new Dictionary<int, TaiKhoanTien>();
+                var thieuVi = new List<int>();
 
-                    // Chặn xóa nếu Trưởng nhóm không có ví cá nhân để nhận lại tiền
-                    if (viCaNhan == null)
+                foreach (var uid in phanHoan.Keys)
+                {
+                    var maViDaNap = mt.LichSuTietKiems
+                        .Where(l => l.MaNguoiThucHien == uid && l.LoaiGiaoDich == LoaiGiaoDichQuy.NapTien && l.MaTaiKhoanNguon.HasValue)
+                        .OrderByDescending(l => l.NgayThucHien)
+                        .Select(l => l.MaTaiKhoanNguon)
+                        .FirstOrDefault();
+
+                    var dsVi = await _context.Set<TaiKhoanTien>()
+                        .ViCaNhanThuong(uid)
+                        .OrderBy(x => x.MaTaiKhoan)
+                        .ToListAsync();
+
+                    var vi = dsVi.FirstOrDefault(x => x.MaTaiKhoan == maViDaNap) ?? dsVi.FirstOrDefault();
+                    if (vi == null) thieuVi.Add(uid); else viNhan[uid] = vi;
+                }
+
+                // Chặn xóa nếu có người nhận tiền mà không có ví cá nhân để nhận
+                if (thieuVi.Any())
+                {
+                    var ten = new List<string>();
+                    foreach (var uid in thieuVi) ten.Add(await LayTenAsync(uid));
+
+                    TempData["Error"] = "Không thể xóa mục tiêu vì những người sau chưa có ví cá nhân đang hoạt động để nhận lại tiền: "
+                                        + string.Join(", ", ten) + ".";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // 4. Ghi hoàn tiền: cộng số dư + ghi giao dịch Thu (không tính vào thu nhập thực tế)
+                decimal tongHoan = 0;
+                foreach (var (uid, soTien) in phanHoan)
+                {
+                    if (soTien <= 0) continue;
+
+                    var vi = viNhan[uid];
+                    var dmThu = await _context.LayHoacTaoDanhMucHeThongAsync(
+                        BaoCaoQueryExtensions.DanhMucNapMucTieu, "ThuNhap", vi.MaGiaDinh, uid);
+
+                    vi.SoDuHienTai += soTien;
+                    tongHoan += soTien;
+
+                    _context.GiaoDichs.Add(new GiaoDich
                     {
-                        TempData["Error"] = "Bạn cần có ít nhất 1 ví cá nhân đang hoạt động để nhận lại tiền hoàn trả trước khi xóa mục tiêu này.";
-                        return RedirectToAction(nameof(Index));
+                        MaTaiKhoan = vi.MaTaiKhoan,
+                        MaDanhMuc = dmThu.MaDanhMuc,
+                        MaNguoiThucHien = uid,
+                        SoTien = soTien,
+                        LoaiGiaoDich = "Thu",
+                        NgayGiaoDich = DateTime.Now,
+                        TrangThai = "HoatDong",
+                        GhiChu = Cat($"{BaoCaoQueryExtensions.DauNapMucTieu} Hoàn tiền từ mục tiêu \"{mt.TenMucTieu}\" đã bị xóa.", 500)
+                    });
+                }
+
+                // 5. Ví chung của mục tiêu: ghi Chi tương ứng rồi vô hiệu hóa (số dư về 0, khớp lịch sử)
+                if (viMucTieu != null)
+                {
+                    if (tongHoan > 0)
+                    {
+                        var dmChi = await _context.LayHoacTaoDanhMucHeThongAsync(
+                            BaoCaoQueryExtensions.DanhMucNapMucTieu, "ChiTieu", viMucTieu.MaGiaDinh, mt.MaTruongNhom);
+
+                        _context.GiaoDichs.Add(new GiaoDich
+                        {
+                            MaTaiKhoan = viMucTieu.MaTaiKhoan,
+                            MaDanhMuc = dmChi.MaDanhMuc,
+                            MaNguoiThucHien = mt.MaTruongNhom,
+                            SoTien = tongHoan,
+                            LoaiGiaoDich = "Chi",
+                            NgayGiaoDich = DateTime.Now,
+                            TrangThai = "HoatDong",
+                            GhiChu = Cat($"{BaoCaoQueryExtensions.DauNapMucTieu} Hoàn tiền cho các thành viên khi xóa mục tiêu \"{mt.TenMucTieu}\".", 500)
+                        });
                     }
 
-                    // Hoàn tiền về ví cá nhân
-                    viCaNhan.SoDuHienTai += tienHoanVe;
-                    _context.Update(viCaNhan);
-
-                    TempData["Success"] = $"Đã xóa mục tiêu và hoàn trả {tienHoanVe:N0} đ về ví cá nhân \"{viCaNhan.TenTaiKhoan}\".";
-                }
-                else
-                {
-                    TempData["Success"] = "Đã xóa mục tiêu tiết kiệm.";
+                    viMucTieu.SoDuHienTai = 0;
+                    viMucTieu.TrangThai = false;
+                    _context.Update(viMucTieu);
                 }
 
-                // Vô hiệu hóa Ví dùng chung nếu có (Rút sạch số dư về 0 và chuyển trạng thái)
-                if (viChungLienQuan != null)
-                {
-                    viChungLienQuan.SoDuHienTai = 0;
-                    viChungLienQuan.TrangThai = false;
-                    _context.Update(viChungLienQuan);
-                }
+                TempData["Success"] = tongHoan > 0
+                    ? $"Đã xóa mục tiêu và hoàn trả {tongHoan:N0} đ về ví cá nhân của {phanHoan.Count(x => x.Value > 0)} người đã đóng."
+                    : "Đã xóa mục tiêu tiết kiệm.";
 
-                // Báo cho thành viên (không gắn liên kết vì mục tiêu sẽ không còn)
+                // 6. Báo cho thành viên (không gắn liên kết vì mục tiêu sẽ không còn)
                 var tenTruongXoa = await LayTenAsync(CurrentUserId);
                 ThemThongBao(mt,
                     mt.ThanhVienMucTieus.Where(t => t.TrangThai != TrangThaiThamGia.TuChoi).Select(t => t.MaNguoiDung),
                     LoaiThongBao.HeThong, "Mục tiêu đã bị xóa",
-                    $"{tenTruongXoa} đã xóa mục tiêu \"{mt.TenMucTieu}\". Số tiền còn lại được hoàn về ví cá nhân của trưởng nhóm.",
+                    $"{tenTruongXoa} đã xóa mục tiêu \"{mt.TenMucTieu}\". Số tiền còn lại được hoàn về ví cá nhân của những người đã đóng.",
                     kemLienKet: false);
 
                 // Các lời mời chưa xử lý của mục tiêu này không còn hiệu lực
@@ -1102,9 +1172,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             }
         }
 
-        // =====================================================
         // NẠP TIỀN VÀO MỤC TIÊU (Lấy từ ví cá nhân)
-        // =====================================================
 
         /// <summary>GET: Nạp tiền</summary>
         public async Task<IActionResult> NapTien(int? id)
@@ -1140,8 +1208,8 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             // Lấy danh sách ví cá nhân đang hoạt động của User này để làm Nguồn nạp
             var dsViCaNhan = await _context.Set<TaiKhoanTien>()
+                .ViCaNhanThuong(CurrentUserId)
                 .AsNoTracking()
-                .Where(tk => tk.MaNguoiSoHuu == CurrentUserId && tk.LaTaiKhoanGiaDinh == false && tk.TrangThai == true)
                 .ToListAsync();
 
             ViewBag.MucTieu = mt;
@@ -1156,7 +1224,11 @@ namespace QuanLyChiTieuGiaDinh.Controllers
             });
         }
 
-        /// <summary>POST: Xử lý trừ tiền từ ví và cộng tiền vào tiến độ cá nhân + quỹ chung</summary>
+        /// <summary>
+        /// POST: Xử lý trừ tiền từ ví và cộng tiền vào tiến độ cá nhân + quỹ chung.
+        /// ĐÂY LÀ NƠI DUY NHẤT thực hiện nghiệp vụ nạp tiền vào mục tiêu
+        /// (LichSuTietKiemsController/Create chuyển hướng về đây, không còn logic nạp riêng).
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> NapTien(LichSuTietKiem lichSu)
@@ -1185,36 +1257,66 @@ namespace QuanLyChiTieuGiaDinh.Controllers
                 return RedirectToAction(nameof(Details), new { id = lichSu.MaMucTieu });
             }
 
+            // Giống GET: chỉ thành viên ĐÃ THAM GIA mới được nạp
+            var tvNguoiNap = mt.ThanhVienMucTieus.FirstOrDefault(t =>
+                t.MaNguoiDung == userId && t.TrangThai == TrangThaiThamGia.DaThamGia);
+            if (tvNguoiNap == null)
+            {
+                TempData["Error"] = "Bạn chưa tham gia mục tiêu này (hoặc đang chờ xác nhận) nên không thể nạp tiền.";
+                return RedirectToAction(nameof(Details), new { id = lichSu.MaMucTieu });
+            }
+
+            // Số tiền nạp phải > 0 (kiểm tra tường minh, không phụ thuộc DataAnnotations của model)
+            if (lichSu.SoTien <= 0)
+                ModelState.AddModelError(nameof(LichSuTietKiem.SoTien), "Số tiền nạp phải lớn hơn 0.");
+
+            // Ví nguồn BẮT BUỘC và chỉ được là ví cá nhân thường (không phải ví gia đình / ví nhóm / ví mục tiêu)
+            TaiKhoanTien? viNguon = null;
+            if (!lichSu.MaTaiKhoanNguon.HasValue)
+            {
+                ModelState.AddModelError("MaTaiKhoanNguon", "Vui lòng chọn ví cá nhân để nạp tiền.");
+            }
+            else
+            {
+                viNguon = await _context.Set<TaiKhoanTien>()
+                    .ViCaNhanThuong(userId)
+                    .FirstOrDefaultAsync(x => x.MaTaiKhoan == lichSu.MaTaiKhoanNguon.Value);
+
+                if (viNguon == null)
+                    ModelState.AddModelError("MaTaiKhoanNguon", "Ví nguồn không hợp lệ (chỉ được nạp từ ví cá nhân của bạn).");
+                else if (lichSu.SoTien > 0 && viNguon.SoDuHienTai < lichSu.SoTien)
+                    ModelState.AddModelError("SoTien", $"Số dư ví \"{viNguon.TenTaiKhoan}\" không đủ (Còn {viNguon.SoDuHienTai:N0} đ).");
+            }
+
             if (ModelState.IsValid)
             {
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // 1. Trừ tiền ở ví cá nhân (Nếu có chọn ví)
-                    if (lichSu.MaTaiKhoanNguon.HasValue)
+                    // 1. Trừ tiền ví cá nhân và ghi giao dịch Chi tương ứng (số dư khớp lịch sử)
+                    viNguon!.SoDuHienTai -= lichSu.SoTien;
+                    _context.Update(viNguon);
+
+                    var dmChi = await _context.LayHoacTaoDanhMucHeThongAsync(
+                        BaoCaoQueryExtensions.DanhMucNapMucTieu, "ChiTieu", viNguon.MaGiaDinh, userId);
+
+                    _context.GiaoDichs.Add(new GiaoDich
                     {
-                        var viCaNhan = await _context.Set<TaiKhoanTien>().FindAsync(lichSu.MaTaiKhoanNguon.Value);
-                        if (viCaNhan == null || viCaNhan.MaNguoiSoHuu != userId)
-                        {
-                            ModelState.AddModelError("MaTaiKhoanNguon", "Ví nguồn không hợp lệ.");
-                            throw new Exception("Ví nguồn không hợp lệ.");
-                        }
-
-                        if (viCaNhan.SoDuHienTai < lichSu.SoTien)
-                        {
-                            ModelState.AddModelError("SoTien", $"Số dư ví \"{viCaNhan.TenTaiKhoan}\" không đủ (Còn {viCaNhan.SoDuHienTai:N0} đ).");
-                            throw new Exception("Số dư không đủ.");
-                        }
-
-                        viCaNhan.SoDuHienTai -= lichSu.SoTien;
-                        _context.Update(viCaNhan);
-                    }
+                        MaTaiKhoan = viNguon.MaTaiKhoan,
+                        MaDanhMuc = dmChi.MaDanhMuc,
+                        MaNguoiThucHien = userId,
+                        SoTien = lichSu.SoTien,
+                        LoaiGiaoDich = "Chi",
+                        NgayGiaoDich = DateTime.Now,
+                        TrangThai = "HoatDong",
+                        GhiChu = Cat($"{BaoCaoQueryExtensions.DauNapMucTieu} Nạp tiền vào mục tiêu \"{mt.TenMucTieu}\".", 500)
+                    });
 
                     // 2. Cập nhật tiến độ của người nạp
                     decimal tienDoTruoc = TinhTienDo(mt);
                     bool truocDoDaXong = false;
 
-                    var tv = mt.ThanhVienMucTieus.FirstOrDefault(t => t.MaNguoiDung == userId && t.TrangThai == TrangThaiThamGia.DaThamGia);
+                    var tv = tvNguoiNap;
                     if (tv != null)
                     {
                         truocDoDaXong = tv.DaHoanThanhChiTieu;
@@ -1276,11 +1378,12 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             // Nếu Validate lỗi (ví dụ không nhập số tiền), nạp lại dữ liệu cho Dropdown
             var dsViLoadLai = await _context.Set<TaiKhoanTien>()
+                .ViCaNhanThuong(userId)
                 .AsNoTracking()
-                .Where(tk => tk.MaNguoiSoHuu == userId && tk.LaTaiKhoanGiaDinh == false && tk.TrangThai == true)
                 .ToListAsync();
 
             ViewBag.MucTieu = mt;
+            ViewBag.ThanhVien = tvNguoiNap;
             ViewData["MaTaiKhoanNguon"] = new SelectList(dsViLoadLai, "MaTaiKhoan", "TenTaiKhoan", lichSu.MaTaiKhoanNguon);
 
             return View(lichSu);

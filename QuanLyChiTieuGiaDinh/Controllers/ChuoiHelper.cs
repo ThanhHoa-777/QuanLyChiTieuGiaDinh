@@ -5,8 +5,7 @@ using System.Text.RegularExpressions;
 namespace QuanLyChiTieuGiaDinh.Helpers
 {
     /// <summary>
-    /// Hàm xử lý chuỗi dùng chung. Trước đây LamSachChuoi chỉ nằm trong DanhMucsController
-    /// nên các nơi khác tự tạo danh mục (GiaoDiches) không có TenDanhMucClean -> bỏ qua BR34.
+    /// Hàm xử lý chuỗi dùng chung.
     /// </summary>
     public static class ChuoiHelper
     {
