@@ -187,6 +187,7 @@ namespace QuanLyChiTieuGiaDinh.Controllers
 
             return RedirectToAction(nameof(Index), new { tab = tab });
         }
+        // XỬ LÝ TỪ CHỐI LỜI MỜI DIRECTLY (TỪ THÔNG BÁO)
 
         [HttpPost]
         [ValidateAntiForgeryToken]
