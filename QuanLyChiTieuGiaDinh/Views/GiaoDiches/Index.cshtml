@@ -17,7 +17,7 @@
     string LamSachGhiChu(string? ghiChu) =>
         Regex.Replace(ghiChu ?? "", @"\|[A-Z_]+(:\d+)?\|", "").Trim();
 
-    // Giao dịch đã xóa (DaXoa) vẫn hiện trong danh sách nhưng bị xám/khóa,
+    // Giao dịch đã xóa (DaXoa) vẫn hiện trong danh sách nhưng bị xám/khóa,chuthich
     // và KHÔNG được tính vào tổng thu / tổng chi.
     var dangHoatDong = Model.Where(x => x.TrangThai != "DaXoa").ToList();
     decimal tongThu = dangHoatDong.Where(x => x.LoaiGiaoDich == "Thu").Sum(x => x.SoTien);
