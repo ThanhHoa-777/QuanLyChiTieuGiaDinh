@@ -8,6 +8,7 @@
     string filterCurrent = ViewBag.FilterCurrent ?? "tat-ca";
     int countCaNhan = ViewBag.CountChuaDocCaNhan ?? 0;
     int countGiaDinh = ViewBag.CountChuaDocGiaDinh ?? 0;
+    int countCanhBao = ViewBag.CountCanhBao ?? 0;
 
     var thanhCong = (TempData["SuccessMessage"] ?? TempData["Success"])?.ToString();
     var loi = (TempData["ErrorMessage"] ?? TempData["Error"])?.ToString();
@@ -53,6 +54,17 @@
     </div>
 }
 
+<!-- BANNER THÔNG BÁO CẢNH BÁO -->
+@if (countCanhBao > 0 && filterCurrent != "canh-bao")
+{
+    <div class="alert alert-warning d-flex align-items-center mb-3 shadow-sm" role="alert">
+        <span style="font-size: 22px;">⚠️</span>
+        <strong class="ms-2">Bạn có @countCanhBao thông báo cảnh báo chưa đọc!</strong>
+        <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="canh-bao"
+           class="btn btn-warning btn-sm fw-bold ms-auto">Xem ngay</a>
+    </div>
+}
+
 <!-- NAVIGATION TABS -->
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
@@ -88,8 +100,12 @@
         Chưa đọc
     </a>
     <a asp-action="Index" asp-route-tab="@tabCurrent" asp-route-filter="canh-bao"
-       class="btn btn-sm @(filterCurrent == "canh-bao" ? "btn-warning text-dark" : "btn-outline-warning text-dark")">
-        ⚠️ Cảnh báo / Khẩn cấp
+       class="btn btn-sm @(filterCurrent == "canh-bao" ? "btn-warning" : "btn-outline-warning text-dark")">
+        ⚠️ Cảnh báo
+        @if (countCanhBao > 0)
+        {
+            <span class="badge bg-danger ms-1">@countCanhBao</span>
+        }
     </a>
 </div>
 
@@ -109,9 +125,11 @@ else
     <div class="list-group shadow-sm">
         @foreach (var thongBao in Model)
         {
-            bool isUrgent = thongBao.LoaiThongBao == LoaiThongBao.CanhBaoNganSach;
-            string borderClass = isUrgent ? "border-danger border-2" : (!thongBao.DaDoc ? "border-primary" : "");
-            string bgClass = !thongBao.DaDoc ? "bg-light" : "bg-white";
+            bool laCanhBao = thongBao.LoaiThongBao == LoaiThongBao.CanhBaoNganSach;
+            string borderClass = laCanhBao && !thongBao.DaDoc ? "border-warning border-2"
+            : (!thongBao.DaDoc ? "border-primary" : "");
+            string bgClass = laCanhBao && !thongBao.DaDoc ? "bg-warning-subtle"
+            : (!thongBao.DaDoc ? "bg-light" : "bg-white");
             var maMucTieu = thongBao.LayMaMucTieu();
             var returnUrl = Context.Request.Path + Context.Request.QueryString;
 
@@ -120,41 +138,20 @@ else
 
                     <div class="me-3 flex-grow-1">
                         <div class="d-flex align-items-center gap-2 mb-1">
-                            <span style="font-size: 22px;">
-                                @switch (thongBao.LoaiThongBao)
-                                {
-                                    case LoaiThongBao.CanhBaoNganSach:
-                                        <span>⚠️</span>
-                                        break;
-                                    case LoaiThongBao.PheDuyet:
-                                    case LoaiThongBao.YeuCauThoatHo:
-                                        <span>📋</span>
-                                        break;
-                                    case LoaiThongBao.LoiMoi:
-                                        <span>✉️</span>
-                                        break;
-                                    case LoaiThongBao.BienDongSoDu:
-                                    case LoaiThongBao.SplitExpense:
-                                        <span>💰</span>
-                                        break;
-                                    default:
-                                        <span>🔔</span>
-                                        break;
-                                }
-                            </span>
+                            <span style="font-size: 22px;">@(laCanhBao ? "⚠️" : "🔔")</span>
 
-                            <h6 class="mb-0 fw-bold text-dark fs-6">
+                            <h6 class="mb-0 fw-bold @(laCanhBao ? "text-warning-emphasis" : "text-dark") fs-6">
                                 @thongBao.TieuDe
                             </h6>
+
+                            @if (laCanhBao)
+                            {
+                                <span class="badge bg-warning text-dark">Cảnh báo</span>
+                            }
 
                             @if (!thongBao.DaDoc)
                             {
                                 <span class="badge bg-primary">Mới</span>
-                            }
-
-                            @if (isUrgent)
-                            {
-                                <span class="badge bg-danger">Khẩn cấp</span>
                             }
                         </div>
 
@@ -175,11 +172,13 @@ else
                                     @* Lời mời mục tiêu tiết kiệm: gọi MucTieuTietKiem, xong quay lại trang thông báo *@
                                     <form asp-controller="MucTieuTietKiem" asp-action="DongYThamGia"
                                           asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-success btn-sm fw-bold me-2">✓ Tham gia</button>
                                     </form>
                                     <form asp-controller="MucTieuTietKiem" asp-action="TuChoiThamGia"
                                           asp-route-id="@maMucTieu" asp-route-returnUrl="@returnUrl" method="post" class="d-inline"
                                           onsubmit="return confirm('Bạn có chắc chắn muốn từ chối lời mời này không?');">
+                                        @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">❌ Từ chối</button>
                                     </form>
                                 }
@@ -214,21 +213,40 @@ else
 
                         @if (thongBao.LoaiThongBao == LoaiThongBao.YeuCauThoatHo && !string.IsNullOrEmpty(thongBao.DuLieuLienKet))
                         {
+                            int? maYeuCau = null;
+                            if (int.TryParse(thongBao.DuLieuLienKet, out int soId))
+                            {
+                                maYeuCau = soId;
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    using var doc = System.Text.Json.JsonDocument.Parse(thongBao.DuLieuLienKet);
+                                    if (doc.RootElement.TryGetProperty("MaYeuCau", out var prop) && prop.TryGetInt32(out int jsonId))
+                                    {
+                                        maYeuCau = jsonId;
+                                    }
+                                }
+                                catch { }
+                            }
+
                             @* Nếu đã thao tác xong HOẶC đã đọc thì chỉ hiện nút Xem *@
-                            @if (thongBao.IsThaoTacXong || thongBao.DaDoc)
+                            if (thongBao.IsThaoTacXong || thongBao.DaDoc || maYeuCau == null)
                             {
                                 <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-secondary btn-sm">Xem chi tiết</a>
                             }
                             else
                             {
-                                <a asp-controller="HoGiaDinhs" asp-action="XuLyYeuCau" asp-route-id="@thongBao.DuLieuLienKet" class="btn btn-outline-primary btn-sm fw-bold">
+                                <a asp-controller="HoGiaDinhs" asp-action="XuLyYeuCau" asp-route-id="@maYeuCau" class="btn btn-outline-primary btn-sm fw-bold">
                                     🔍 Xử lý ngay
                                 </a>
                             }
                         }
                         else
                         {
-                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao" class="btn btn-outline-primary btn-sm">
+                            <a asp-action="Details" asp-route-id="@thongBao.MaThongBao"
+                               class="btn @(laCanhBao && !thongBao.DaDoc ? "btn-warning" : "btn-outline-primary") btn-sm">
                                 @(maMucTieu != null ? "Xem mục tiêu" : "Xem")
                             </a>
                         }

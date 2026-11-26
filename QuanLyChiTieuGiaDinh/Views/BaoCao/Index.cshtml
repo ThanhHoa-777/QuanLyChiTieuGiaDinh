@@ -10,8 +10,20 @@
     string cheDoXem = ViewBag.CheDoXem as string ?? "gia-dinh";
     bool isCaNhan = cheDoXem == "ca-nhan";
 
-    // Số liệu so sánh với tháng trước (do BaoCaoController tính, cùng điều kiện lọc với số liệu tháng này)
+    string kieuBaoCao = ViewBag.KieuBaoCao as string ?? "thang";
+    bool laCaNam = ViewBag.LaCaNam is bool b && b;
+
+    string nhanKyHienTai = laCaNam ? $"Năm {Model.NamBaoCao}" : $"Tháng {Model.ThangBaoCao}/{Model.NamBaoCao}";
+
+    // Số liệu so sánh với kỳ trước (tháng trước hoặc năm trước)
     var soSanh = ViewBag.SoSanh as QuanLyChiTieuGiaDinh.Models.BaoCaoSoSanhViewModel;
+    string nhanKyTruoc = soSanh == null
+        ? ""
+        : (laCaNam ? $"năm {soSanh.NamTruoc}" : $"tháng {soSanh.ThangTruoc}/{soSanh.NamTruoc}");
+    string nhanKyTruocVietHoa = string.IsNullOrEmpty(nhanKyTruoc)
+        ? ""
+        : char.ToUpper(nhanKyTruoc[0]) + nhanKyTruoc.Substring(1);
+
     var dongSoSanh = soSanh == null
         ? null
         : new[]
@@ -22,7 +34,6 @@
         };
 
     string TienCoDau(decimal v) => (v > 0 ? "+" : v < 0 ? "-" : "") + Math.Abs(v).ToString("N0") + " đ";
-    // Tăng chi là xấu (đỏ), tăng thu / tăng chênh lệch là tốt (xanh)
     string MauSoSanh(decimal chenhLech, bool tangLaXau) =>
         chenhLech == 0 ? "text-muted" : ((chenhLech > 0) != tangLaXau ? "text-success" : "text-danger");
     string TextPhanTram(QuanLyChiTieuGiaDinh.Models.ChiSoSoSanhViewModel c) =>
@@ -30,8 +41,13 @@
             ? (c.PhanTram.Value > 0 ? "▲ +" : c.PhanTram.Value < 0 ? "▼ " : "") + c.PhanTram.Value.ToString("0.#") + "%"
             : (c.HienTai != 0 ? "Mới phát sinh" : "—");
 
-    var tuNgayBaoCao = new DateTime(Model.NamBaoCao, Model.ThangBaoCao, 1);
-    var denNgayBaoCao = tuNgayBaoCao.AddMonths(1).AddDays(-1);
+    var tuNgayBaoCao = laCaNam
+        ? new DateTime(Model.NamBaoCao, 1, 1)
+        : new DateTime(Model.NamBaoCao, Model.ThangBaoCao, 1);
+    var denNgayBaoCao = laCaNam
+        ? new DateTime(Model.NamBaoCao, 12, 31)
+        : tuNgayBaoCao.AddMonths(1).AddDays(-1);
+
     var soSanhJson = dongSoSanh?.Select(d => new
     {
         ChiSo = d.Nhan,
@@ -40,6 +56,7 @@
         ChenhLechTien = d.ChiSo.ChenhLechTien,
         PhanTram = d.ChiSo.PhanTram
     });
+
     string NhanLoai(string loai) => loai switch
     {
         "Thu" => "Thu",
@@ -48,22 +65,18 @@
         _ => loai
     };
 
-    string NhanTrangThai(string tt) => tt switch
-    {
-        "DaDuyet" => "Đã duyệt",
-        "ChoDuyet" => "Chờ duyệt",
-        "TuChoi" => "Từ chối",
-        _ => tt
-    };
+   
 }
 
 <div class="container-fluid py-3">
     <div class="bg-success bg-opacity-10 rounded-3 p-3 p-md-4">
 
-        @* ===== TIÊU ĐỀ + NÚT ===== *@
+        @* ===== TIÊU ĐỀ + NÚT XUẤT EXCEL (CHỌN THEO THÁNG HOẶC CẢ NĂM) ===== *@
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
             <div>
-                <h2 class="fw-bold mb-1">Báo cáo tháng @Model.ThangBaoCao/@Model.NamBaoCao</h2>
+                <h2 class="fw-bold mb-1">
+                    @(laCaNam ? $"Báo cáo năm {Model.NamBaoCao}" : $"Báo cáo tháng {Model.ThangBaoCao}/{Model.NamBaoCao}")
+                </h2>
                 <div class="text-muted">
                     @if (Model.HoGiaDinh != null)
                     {
@@ -74,41 +87,72 @@
                         <span>Theo dõi tình hình thu chi của gia đình</span>
                     }
                 </div>
-                <div class="text-muted small d-none d-print-block">In ngày @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
             </div>
 
             @if (Model.HoGiaDinh != null)
             {
-                <div class="d-flex gap-2 d-print-none">
-                    <button type="button" class="btn btn-outline-success" onclick="window.print()">🖨️ In báo cáo</button>
-                    <button type="button" class="btn btn-success" id="btnXuatExcel">📥 Xuất Excel</button>
-                    <button type="button" class="btn btn-danger" id="btnXuatPdf">📄 Xuất PDF</button>
-                </div>
+                <form asp-controller="BaoCao" asp-action="Index" method="get"
+                      class="d-flex flex-wrap gap-2 align-items-center">
+                    <input type="hidden" name="cheDo" value="@cheDoXem" />
+                    <input type="hidden" name="xuat" value="1" />
+
+                    <select name="kieuBaoCao" id="xuatKieuBaoCao" class="form-select form-select-sm w-auto" aria-label="Loại báo cáo xuất">
+                        <option value="thang" selected="@(!laCaNam)">Theo tháng</option>
+                        <option value="nam" selected="@(laCaNam)">Cả năm</option>
+                    </select>
+
+                    <select name="thang" id="xuatThang" class="form-select form-select-sm w-auto" aria-label="Tháng xuất"
+                            style="@(laCaNam ? "display:none;" : "")">
+                        @for (int i = 1; i <= 12; i++)
+                        {
+                            <option value="@i" selected="@(i == Model.ThangBaoCao)">Tháng @i</option>
+                        }
+                    </select>
+
+                    <select name="nam" class="form-select form-select-sm w-auto" aria-label="Năm xuất">
+                        @for (int i = DateTime.Now.Year - 5; i <= DateTime.Now.Year + 1; i++)
+                        {
+                            <option value="@i" selected="@(i == Model.NamBaoCao)">Năm @i</option>
+                        }
+                    </select>
+
+                    <button type="submit" class="btn btn-success btn-sm" id="btnXuatExcel">📥 Xuất Excel</button>
+                </form>
             }
         </div>
 
         @if (Model.HoGiaDinh != null)
         {
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <span class="small text-secondary">
                     Đang xem: <strong class="text-success">@(isCaNhan ? "👤 Cá nhân của bạn" : "🏠 Hộ gia đình")</strong>
                 </span>
                 <div class="btn-group btn-group-sm" role="group">
                     <a asp-controller="BaoCao" asp-action="Index"
+                       asp-route-kieuBaoCao="@kieuBaoCao"
                        asp-route-thang="@Model.ThangBaoCao" asp-route-nam="@Model.NamBaoCao" asp-route-cheDo="gia-dinh"
                        class="btn @(!isCaNhan ? "btn-success" : "btn-outline-success")">🏠 Hộ gia đình</a>
                     <a asp-controller="BaoCao" asp-action="Index"
+                       asp-route-kieuBaoCao="@kieuBaoCao"
                        asp-route-thang="@Model.ThangBaoCao" asp-route-nam="@Model.NamBaoCao" asp-route-cheDo="ca-nhan"
                        class="btn @(isCaNhan ? "btn-success" : "btn-outline-success")">👤 Cá nhân</a>
                 </div>
             </div>
         }
 
-        @* ===== BỘ LỌC ===== *@
-        <form asp-controller="BaoCao" asp-action="Index" method="get" class="card border-0 shadow-sm mb-3 d-print-none">
+        @* ===== BỘ LỌC XEM BÁO CÁO ===== *@
+        <form asp-controller="BaoCao" asp-action="Index" method="get" class="card border-0 shadow-sm mb-3">
+            <input type="hidden" name="cheDo" value="@cheDoXem" />
             <div class="card-body">
                 <div class="row g-2 align-items-end">
-                    <div class="col-6 col-md-4">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-semibold mb-1" for="locKieuBaoCao">Kỳ báo cáo</label>
+                        <select id="locKieuBaoCao" name="kieuBaoCao" class="form-select">
+                            <option value="thang" selected="@(!laCaNam)">Theo tháng</option>
+                            <option value="nam" selected="@(laCaNam)">Cả năm</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3" id="khungLocThang" style="@(laCaNam ? "display:none;" : "")">
                         <label class="form-label fw-semibold mb-1" for="thang">Tháng</label>
                         <select id="thang" name="thang" class="form-select">
                             @for (int i = 1; i <= 12; i++)
@@ -117,7 +161,7 @@
                             }
                         </select>
                     </div>
-                    <div class="col-6 col-md-4">
+                    <div class="col-6 col-md-3" id="khungLocNam">
                         <label class="form-label fw-semibold mb-1" for="nam">Năm</label>
                         <select id="nam" name="nam" class="form-select">
                             @for (int i = DateTime.Now.Year - 5; i <= DateTime.Now.Year + 1; i++)
@@ -126,7 +170,7 @@
                             }
                         </select>
                     </div>
-                    <div class="col-12 col-md-4">
+                    <div class="col-12 col-md-3">
                         <button type="submit" class="btn btn-success w-100">🔍 Xem báo cáo</button>
                     </div>
                 </div>
@@ -143,21 +187,6 @@
         }
         else
         {
-            @* ===== PHẠM VI ===== *@
-            <div class="alert alert-success py-2 mb-3">
-                @if (laChuHo)
-                {
-                    <span>👑 <strong>Chủ hộ:</strong> báo cáo gồm toàn bộ giao dịch của gia đình.</span>
-                }
-                else
-                {
-                    <span>👤 <strong>Thành viên:</strong> báo cáo gồm giao dịch của bạn và giao dịch dùng tài khoản gia đình.</span>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.PhamViBaoCao))
-                {
-                    <div class="small text-muted mt-1">@Model.PhamViBaoCao</div>
-                }
-            </div>
 
             @* ===== TỔNG QUAN ===== *@
             <div class="row g-3 mb-3">
@@ -197,20 +226,20 @@
                 </div>
             </div>
 
-            @* ===== SO SÁNH VỚI THÁNG TRƯỚC ===== *@
+            @* ===== SO SÁNH VỚI KỲ TRƯỚC (THÁNG TRƯỚC / NĂM TRƯỚC) ===== *@
             @if (soSanh != null && dongSoSanh != null)
             {
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body">
                         <h5 class="fw-bold mb-3">
-                            🔁 So sánh với tháng trước
-                            <span class="text-muted fs-6">(tháng @Model.ThangBaoCao/@Model.NamBaoCao so với tháng @soSanh.ThangTruoc/@soSanh.NamTruoc)</span>
+                            🔁 So sánh với @(laCaNam ? "năm trước" : "tháng trước")
+                            <span class="text-muted fs-6">(@nhanKyHienTai.ToLower() so với @nhanKyTruoc)</span>
                         </h5>
 
                         @if (!soSanh.CoDuLieuThangTruoc)
                         {
                             <div class="alert alert-secondary py-2 small">
-                                Tháng @soSanh.ThangTruoc/@soSanh.NamTruoc chưa có giao dịch nào thuộc phạm vi báo cáo,
+                                @nhanKyTruocVietHoa chưa có giao dịch nào thuộc phạm vi báo cáo,
                                 nên chưa tính được tỷ lệ tăng/giảm.
                             </div>
                         }
@@ -220,8 +249,8 @@
                                 <thead class="table-success">
                                     <tr>
                                         <th>Chỉ số</th>
-                                        <th class="text-end">Tháng @Model.ThangBaoCao/@Model.NamBaoCao</th>
-                                        <th class="text-end">Tháng @soSanh.ThangTruoc/@soSanh.NamTruoc</th>
+                                        <th class="text-end">@nhanKyHienTai</th>
+                                        <th class="text-end">@nhanKyTruocVietHoa</th>
                                         <th class="text-end">Tăng/giảm (đ)</th>
                                         <th class="text-end">Tăng/giảm (%)</th>
                                     </tr>
@@ -242,7 +271,7 @@
                             </table>
                         </div>
                         <div class="small text-muted mt-2">
-                            ▲ tăng, ▼ giảm so với tháng trước. Tăng thu là tốt (xanh), tăng chi là cần lưu ý (đỏ).
+                            ▲ tăng, ▼ giảm so với @(laCaNam ? "năm trước" : "tháng trước"). Tăng thu là tốt (xanh), tăng chi là cần lưu ý (đỏ).
                         </div>
                     </div>
                 </div>
@@ -321,7 +350,7 @@
                             }
                             else
                             {
-                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong tháng này.</p>
+                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong kỳ báo cáo này.</p>
                             }
                         </div>
                     </div>
@@ -370,7 +399,7 @@
                             }
                             else
                             {
-                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản thu nào trong tháng này.</p>
+                                <p class="text-muted text-center py-4 mb-0">Chưa có khoản thu nào trong kỳ báo cáo này.</p>
                             }
                         </div>
                     </div>
@@ -406,7 +435,7 @@
                     }
                     else
                     {
-                        <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong tháng này.</p>
+                        <p class="text-muted text-center py-4 mb-0">Chưa có khoản chi nào trong kỳ báo cáo này.</p>
                     }
                 </div>
             </div>
@@ -415,8 +444,10 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0">📋 Các giao dịch trong tháng</h5>
-                        <a asp-controller="GiaoDiches" asp-action="Index" class="btn btn-outline-success btn-sm d-print-none">Xem giao dịch</a>
+                        <h5 class="fw-bold mb-0">
+                            @(laCaNam ? $"📋 Các giao dịch trong năm {Model.NamBaoCao}" : "📋 Các giao dịch trong tháng")
+                        </h5>
+                        <a asp-controller="GiaoDiches" asp-action="Index" class="btn btn-outline-success btn-sm">Xem giao dịch</a>
                     </div>
 
                     @if (Model.GiaoDichs.Any())
@@ -430,7 +461,6 @@
                                         <th>Loại</th>
                                         <th>Tài khoản</th>
                                         <th>Danh mục</th>
-                                        <th>Trạng thái</th>
                                         <th class="text-end">Số tiền</th>
                                     </tr>
                                 </thead>
@@ -455,11 +485,6 @@
                                                 </span>
                                             </td>
                                             <td>@(gd.DanhMuc?.TenDanhMuc ?? "Không có")</td>
-                                            <td>
-                                                <span class="badge @(gd.TrangThaiDuyet == "DaDuyet" ? "bg-success" : gd.TrangThaiDuyet == "TuChoi" ? "bg-danger" : "bg-warning text-dark")">
-                                                    @NhanTrangThai(gd.TrangThaiDuyet)
-                                                </span>
-                                            </td>
                                             <td class="text-end text-nowrap fw-bold @(laThu ? "text-success" : "text-danger")">
                                                 @(laThu ? "+" : "-")@gd.SoTien.ToString("N0") đ
                                             </td>
@@ -472,7 +497,7 @@
                     else
                     {
                         <p class="text-muted text-center py-4 mb-0">
-                            Không có giao dịch nào trong tháng này thuộc phạm vi báo cáo của bạn.
+                            Không có giao dịch nào trong kỳ báo cáo này thuộc phạm vi của bạn.
                         </p>
                     }
                 </div>
@@ -483,57 +508,89 @@
 </div>
 
 @section Scripts {
+    <script>
+        // Ẩn/hiện dropdown Tháng khi người dùng đổi "Theo tháng" / "Cả năm"
+        (function () {
+            const xuatKieu = document.getElementById("xuatKieuBaoCao");
+            const xuatThang = document.getElementById("xuatThang");
+            if (xuatKieu && xuatThang) {
+                xuatKieu.addEventListener("change", function () {
+                    xuatThang.style.display = this.value === "nam" ? "none" : "";
+                });
+            }
+
+            const locKieu = document.getElementById("locKieuBaoCao");
+            const khungThang = document.getElementById("khungLocThang");
+            if (locKieu && khungThang) {
+                locKieu.addEventListener("change", function () {
+                    khungThang.style.display = this.value === "nam" ? "none" : "";
+                });
+            }
+        })();
+    </script>
 
     @if (Model.HoGiaDinh != null)
     {
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
         <script>
             // =====================================================
             // DỮ LIỆU TỪ SERVER
             // =====================================================
             const duLieuChi = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                        Model.ChiTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
+                                        Model.ChiTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
 
     const duLieuThu = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Model.ThuTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
+                                Model.ThuTheoDanhMuc.Select(x => new { x.TenDanhMuc, x.SoTien })));
 
     const duLieuNgay = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Model.ChiTheoNgay.Select(x => new { Ngay = x.Ngay.ToString("dd/MM/yyyy"), x.SoTien })));
+                                Model.ChiTheoNgay.Select(x => new { Ngay = x.Ngay.ToString("dd/MM/yyyy"), x.SoTien })));
 
     const duLieuGiaoDich = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Model.GiaoDichs.Select(g => new
-                {
-                        Ngay = g.NgayGiaoDich.ToString("dd/MM/yyyy"),
-                        NguoiThucHien = g.NguoiThucHien?.HoTen ?? "Không xác định",
-                        Loai = NhanLoai(g.LoaiGiaoDich),
-                        TaiKhoan = g.TaiKhoanTien?.TenTaiKhoan ?? "Không có",
-                        PhamVi = (g.TaiKhoanTien != null && g.TaiKhoanTien.LaTaiKhoanGiaDinh) ? "Gia đình" : "Cá nhân",
-                        DanhMuc = g.DanhMuc?.TenDanhMuc ?? "Không có",
-                        TrangThai = NhanTrangThai(g.TrangThaiDuyet),
-                        SoTien = g.LoaiGiaoDich == "Thu" ? g.SoTien : -g.SoTien
-                })));
+                                Model.GiaoDichs.Select(g => new
+                                {
+                                        Ngay = g.NgayGiaoDich.ToString("dd/MM/yyyy"),
+                                        NguoiThucHien = g.NguoiThucHien?.HoTen ?? "Không xác định",
+                                        Loai = NhanLoai(g.LoaiGiaoDich),
+                                        TaiKhoan = g.TaiKhoanTien?.TenTaiKhoan ?? "Không có",
+                                        PhamVi = (g.TaiKhoanTien != null && g.TaiKhoanTien.LaTaiKhoanGiaDinh) ? "Gia đình" : "Cá nhân",
+                                        DanhMuc = g.DanhMuc?.TenDanhMuc ?? "Không có",
+                                        SoTien = g.LoaiGiaoDich == "Thu" ? g.SoTien : -g.SoTien
+                                })));
 
+    const laCaNam = @(laCaNam.ToString().ToLower());
+    const isCaNhan = @(isCaNhan.ToString().ToLower());
     const tongThu = @Model.TongThu.ToString(inv);
     const tongChi = @Model.TongChi.ToString(inv);
     const chenhLech = @Model.ChenhLech.ToString(inv);
     const soGiaoDich = @Model.SoGiaoDich;
-    const tieuDe = "Báo cáo tháng @Model.ThangBaoCao/@Model.NamBaoCao";
-    const tenGiaDinh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.HoGiaDinh.TenGiaDinh ?? ""));
-    const tenFile = "BaoCao_@(Model.NamBaoCao)_@(Model.ThangBaoCao.ToString("00")).xlsx";
-    const tenFilePdf = "BaoCao_@(Model.NamBaoCao)_@(Model.ThangBaoCao.ToString("00"))";
-    const thoiGianBaoCao = "Tháng @Model.ThangBaoCao/@Model.NamBaoCao (@tuNgayBaoCao.ToString("dd/MM/yyyy") - @denNgayBaoCao.ToString("dd/MM/yyyy"))";
-    const phamViBaoCao = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PhamViBaoCao ?? ""));
-    const ngayXuat = "@DateTime.Now.ToString("dd/MM/yyyy HH:mm")";
-    const tieuDeThangTruoc = "@(soSanh != null ? $"tháng {soSanh.ThangTruoc}/{soSanh.NamTruoc}" : "")";
-    const duLieuSoSanh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(soSanhJson));
+
+            // Tên hiển thị trên đầu báo cáo Excel: Cá nhân -> Tên người dùng | Hộ gia đình -> Tên hộ gia đình
+            const tenGiaDinh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.HoGiaDinh.TenGiaDinh ?? ""));
+            const tenCaNhan = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NguoiDung?.HoTen ?? ""));
+            const tenDoiTuongBaoCao = isCaNhan ? ("CÁ NHÂN: " + tenCaNhan) : tenGiaDinh;
+
+            const tienToFile = isCaNhan ? "BaoCao_CaNhan" : "BaoCao_GiaDinh";
+            const tenFile = laCaNam
+                ? `${tienToFile}_Nam_@(Model.NamBaoCao).xlsx`
+                : `${tienToFile}_@(Model.NamBaoCao)_@(Model.ThangBaoCao.ToString("00")).xlsx`;
+
+            const nhanKy = laCaNam
+                ? "NĂM @Model.NamBaoCao"
+                : "THÁNG @Model.ThangBaoCao/@Model.NamBaoCao";
+
+            const cotKyHienTai = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(nhanKyHienTai));
+            const thoiGianBaoCao = @Html.Raw(System.Text.Json.JsonSerializer.Serialize($"{nhanKyHienTai} ({tuNgayBaoCao:dd/MM/yyyy} - {denNgayBaoCao:dd/MM/yyyy})"));
+            const phamViBaoCao = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PhamViBaoCao ?? ""));
+            const ngayXuat = "@DateTime.Now.ToString("dd/MM/yyyy HH:mm")";
+            const tieuDeKyTruoc = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(nhanKyTruoc));
+            const tenSheetSoSanh = laCaNam ? "So sánh năm trước" : "So sánh tháng trước";
+            const duLieuSoSanh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(soSanhJson));
 
             // =====================================================
             // BIỂU ĐỒ (tông xanh lá pastel)
             // =====================================================
-            Chart.defaults.animation = false;   // để in ra đủ hình
-
             const mauPastel = ["#64b57d", "#aedfba", "#8fd0a2", "#cfeed6", "#3f9a62",
                                "#b7e4c1", "#7cc592", "#d9786c", "#f0b7ad", "#9fd6ae"];
 
@@ -582,19 +639,146 @@
             }
 
             // =====================================================
-            // XUẤT EXCEL
+            // XUẤT EXCEL - theo mẫu báo cáo tài chính
             // =====================================================
-            function taoSheet(duLieu, doRong) {
-                const ws = XLSX.utils.aoa_to_sheet(duLieu);
-                ws["!cols"] = doRong.map(w => ({ wch: w }));
-                // Định dạng số có dấu phân cách hàng nghìn cho dễ đọc
-                Object.keys(ws).forEach(k => {
-                    if (k[0] !== "!" && ws[k].t === "n") ws[k].z = "#,##0.##";
+            const FONT = "Times New Roman";
+            const MAU_CHINH = "2E7D4F";   // xanh lá đậm cho tiêu đề + dòng header
+            const MAU_TONG = "DFF1E4";    // xanh lá nhạt cho dòng tổng cộng
+
+            const VIEN = { style: "thin", color: { rgb: "000000" } };
+            const KHUNG = { top: VIEN, bottom: VIEN, left: VIEN, right: VIEN };
+            const DINH_DANG_SO = {
+                tien: "#,##0",
+                tienAm: "#,##0;[Red]-#,##0",
+                pt: '0.0"%"',
+                ptDau: '+#,##0.0"%";[Red]-#,##0.0"%";0.0"%"'
+            };
+
+            const KIEU = {
+                tenDoiTuong: { font: { name: FONT, sz: 12, bold: true }, alignment: { horizontal: "center", vertical: "center" } },
+                tieuDe: { font: { name: FONT, sz: 15, bold: true, color: { rgb: MAU_CHINH } }, alignment: { horizontal: "center", vertical: "center" } },
+                phuDe: { font: { name: FONT, sz: 12, italic: true }, alignment: { horizontal: "center", vertical: "center", wrapText: true } },
+                donVi: { font: { name: FONT, sz: 11, italic: true }, alignment: { horizontal: "right", vertical: "center" } },
+                header: {
+                    font: { name: FONT, sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+                    fill: { patternType: "solid", fgColor: { rgb: MAU_CHINH } },
+                    border: KHUNG,
+                    alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                },
+                ghiChu: { font: { name: FONT, sz: 11, italic: true }, alignment: { horizontal: "left", vertical: "center" } },
+                kyTen: { font: { name: FONT, sz: 12, bold: true }, alignment: { horizontal: "center", vertical: "center" } },
+                kyGhiChu: { font: { name: FONT, sz: 11, italic: true }, alignment: { horizontal: "center", vertical: "center" } }
+            };
+
+            function kieuDuLieu(loaiCot, laTong) {
+                const s = {
+                    font: { name: FONT, sz: 12, bold: !!laTong },
+                    border: KHUNG,
+                    alignment: { vertical: "center", wrapText: true }
+                };
+                if (laTong) s.fill = { patternType: "solid", fgColor: { rgb: MAU_TONG } };
+                if (loaiCot === "tien" || loaiCot === "tienAm" || loaiCot === "pt" || loaiCot === "ptDau") s.alignment.horizontal = "right";
+                else if (loaiCot === "giua") s.alignment.horizontal = "center";
+                else s.alignment.horizontal = "left";
+                return s;
+            }
+
+            function taoSheetBaoCao(cfg) {
+                const soCot = cfg.doRong.length;
+                const aoa = [];
+                const merges = [];
+                const hang = {};
+                const kieu = [];
+                const dat = (r, c, s) => kieu.push({ r, c, s });
+
+                function dongGop(text, s, cao) {
+                    const r = aoa.length;
+                    aoa.push([text]);
+                    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: soCot - 1 } });
+                    dat(r, 0, s);
+                    if (cao) hang[r] = { hpt: cao };
+                }
+
+                function themDong(arr, laTong) {
+                    const r = aoa.length;
+                    aoa.push(Array.from({ length: soCot }, (_, c) => (arr[c] === undefined || arr[c] === null) ? "" : arr[c]));
+                    for (let c = 0; c < soCot; c++) dat(r, c, kieuDuLieu(cfg.kieuCot[c], laTong));
+                    return r;
+                }
+
+                // ----- Phần đầu báo cáo (tên hộ gia đình hoặc tên cá nhân) -----
+                dongGop((tenDoiTuongBaoCao || "").toUpperCase(), KIEU.tenDoiTuong, 20);
+                dongGop(cfg.tieuDe, KIEU.tieuDe, 32);
+                dongGop(thoiGianBaoCao, KIEU.phuDe, 20);
+                if (cfg.phamVi && phamViBaoCao) dongGop("Phạm vi: " + phamViBaoCao, KIEU.phuDe, 34);
+                dongGop("Đơn vị tính: đồng  |  Ngày xuất: " + ngayXuat, KIEU.donVi, 20);
+                aoa.push([]);
+
+                // ----- Header bảng -----
+                const rHeader = aoa.length;
+                aoa.push(cfg.header);
+                cfg.header.forEach((_, c) => dat(rHeader, c, KIEU.header));
+                hang[rHeader] = { hpt: 26 };
+
+                // ----- Dữ liệu -----
+                if (cfg.rows.length === 0) {
+                    const r = themDong(["Không có dữ liệu"], false);
+                    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: soCot - 1 } });
+                    dat(r, 0, Object.assign({}, kieuDuLieu("giua", false)));
+                } else {
+                    cfg.rows.forEach(a => themDong(a, false));
+                }
+
+                // ----- Dòng tổng cộng -----
+                (cfg.tong || []).forEach(a => {
+                    const r = themDong(a, true);
+                    if (cfg.gopTong && soCot > 2) merges.push({ s: { r: r, c: 0 }, e: { r: r, c: soCot - 2 } });
                 });
+                (cfg.sauTong || []).forEach(a => themDong(a, false));
+
+                // ----- Ghi chú -----
+                if (cfg.ghiChu) {
+                    aoa.push([]);
+                    dongGop(cfg.ghiChu, KIEU.ghiChu, 20);
+                }
+
+                // ----- Khu vực ký tên -----
+                if (cfg.chuKy && soCot >= 2) {
+                    aoa.push([]);
+                    const r = aoa.length;
+                    if (isCaNhan) {
+                        aoa.push(["", "Người lập báo cáo"]);
+                        dat(r, 1, KIEU.kyTen);
+                        aoa.push(["", "(Ký, ghi rõ họ tên)"]);
+                        dat(r + 1, 1, KIEU.kyGhiChu);
+                    } else {
+                        aoa.push(["Người lập báo cáo", "Chủ hộ xác nhận"]);
+                        dat(r, 0, KIEU.kyTen); dat(r, 1, KIEU.kyTen);
+                        aoa.push(["(Ký, ghi rõ họ tên)", "(Ký, ghi rõ họ tên)"]);
+                        dat(r + 1, 0, KIEU.kyGhiChu); dat(r + 1, 1, KIEU.kyGhiChu);
+                    }
+                    aoa.push(["", ""]);
+                    hang[r + 2] = { hpt: 60 };
+                }
+
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws["!cols"] = cfg.doRong.map(w => ({ wch: w }));
+                ws["!merges"] = merges;
+                ws["!rows"] = aoa.map((_, i) => hang[i] || {});
+
+                kieu.forEach(function (o) {
+                    const addr = XLSX.utils.encode_cell({ r: o.r, c: o.c });
+                    if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+                    ws[addr].s = o.s;
+                    if (ws[addr].t === "n") {
+                        ws[addr].z = DINH_DANG_SO[cfg.kieuCot[o.c]] || DINH_DANG_SO.tien;
+                    }
+                });
+
                 return ws;
             }
 
-            document.getElementById("btnXuatExcel").addEventListener("click", function () {
+            function xuatExcel() {
                 if (typeof XLSX === "undefined") {
                     alert("Không tải được thư viện xuất Excel. Vui lòng kiểm tra kết nối mạng.");
                     return;
@@ -602,75 +786,97 @@
 
                 const wb = XLSX.utils.book_new();
 
-                XLSX.utils.book_append_sheet(wb, taoSheet([
-                    [tieuDe],
-                    ["Gia đình", tenGiaDinh],
-                    ["Thời gian báo cáo", thoiGianBaoCao],
-                    ["Phạm vi", phamViBaoCao],
-                    ["Ngày xuất", ngayXuat],
-                    [],
-                    ["Chỉ tiêu", "Giá trị"],
-                    ["Tổng thu (đ)", tongThu],
-                    ["Tổng chi (đ)", tongChi],
-                    ["Còn lại (đ)", chenhLech],
-                    ["Số giao dịch", soGiaoDich]
-                ], [24, 60]), "Tổng quan");
+                // 1. Tổng quan
+                XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                    tieuDe: "BÁO CÁO THU CHI " + nhanKy,
+                    doRong: [42, 30],
+                    header: ["Chỉ tiêu", "Số tiền (đ)"],
+                    kieuCot: ["chu", "tienAm"],
+                    rows: [
+                        ["I. Tổng thu", tongThu],
+                        ["II. Tổng chi", tongChi]
+                    ],
+                    tong: [["III. Còn lại (I - II)", chenhLech]],
+                    sauTong: [["Số giao dịch phát sinh", soGiaoDich]],
+                    phamVi: true,
+                    chuKy: true
+                }), "Tổng quan");
 
+                // 2. So sánh với kỳ trước (tháng trước hoặc năm trước)
                 if (duLieuSoSanh) {
-                    XLSX.utils.book_append_sheet(wb, taoSheet([
-                        ["So sánh " + tieuDe + " với " + tieuDeThangTruoc],
-                        [],
-                        ["Chỉ số", tieuDe.replace("Báo cáo ", ""), tieuDeThangTruoc, "Tăng/giảm (đ)", "Tăng/giảm (%)"],
-                        ...duLieuSoSanh.map(x => [
+                    XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                        tieuDe: "SO SÁNH THU CHI " + nhanKy + " VỚI " + tieuDeKyTruoc.toUpperCase(),
+                        doRong: [28, 22, 22, 20, 20],
+                        header: ["Chỉ số", cotKyHienTai, tieuDeKyTruoc.charAt(0).toUpperCase() + tieuDeKyTruoc.slice(1), "Tăng/giảm (đ)", "Tăng/giảm (%)"],
+                        kieuCot: ["chu", "tien", "tien", "tienAm", "ptDau"],
+                        rows: duLieuSoSanh.map(x => [
                             x.ChiSo, x.HienTai, x.ThangTruoc, x.ChenhLechTien,
-                            x.PhanTram === null ? "Không có số liệu tháng trước" : x.PhanTram
+                            x.PhanTram === null ? (x.HienTai !== 0 ? "Mới phát sinh" : "—") : x.PhanTram
                         ]),
-                        [],
-                        ["Ghi chú: số dương = tăng, số âm = giảm so với tháng trước."]
-                    ], [26, 22, 22, 18, 30]), "So sánh tháng trước");
+                        ghiChu: "Ghi chú: số dương = tăng, số âm = giảm so với " + tieuDeKyTruoc + "."
+                    }), tenSheetSoSanh);
                 }
 
-                XLSX.utils.book_append_sheet(wb, taoSheet([
-                    ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
-                    ...duLieuChi.map(x => [x.TenDanhMuc, x.SoTien, tongChi > 0 ? Math.round(x.SoTien / tongChi * 10000) / 100 : 0]),
-                    ["Tổng chi", tongChi, 100]
-                ], [28, 18, 12]), "Chi theo danh mục");
+                // 3. Chi theo danh mục
+                XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                    tieuDe: "CHI TIÊU THEO DANH MỤC - " + nhanKy,
+                    doRong: [34, 22, 14],
+                    header: ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
+                    kieuCot: ["chu", "tien", "pt"],
+                    rows: duLieuChi.map(x => [x.TenDanhMuc, x.SoTien, tongChi > 0 ? Math.round(x.SoTien / tongChi * 10000) / 100 : 0]),
+                    tong: [["Tổng chi", tongChi, 100]]
+                }), "Chi theo danh mục");
 
-                XLSX.utils.book_append_sheet(wb, taoSheet([
-                    ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
-                    ...duLieuThu.map(x => [x.TenDanhMuc, x.SoTien, tongThu > 0 ? Math.round(x.SoTien / tongThu * 10000) / 100 : 0]),
-                    ["Tổng thu", tongThu, 100]
-                ], [28, 18, 12]), "Thu theo danh mục");
+                // 4. Thu theo danh mục
+                XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                    tieuDe: "THU NHẬP THEO DANH MỤC - " + nhanKy,
+                    doRong: [34, 22, 14],
+                    header: ["Danh mục", "Số tiền (đ)", "Tỷ lệ (%)"],
+                    kieuCot: ["chu", "tien", "pt"],
+                    rows: duLieuThu.map(x => [x.TenDanhMuc, x.SoTien, tongThu > 0 ? Math.round(x.SoTien / tongThu * 10000) / 100 : 0]),
+                    tong: [["Tổng thu", tongThu, 100]]
+                }), "Thu theo danh mục");
 
-                XLSX.utils.book_append_sheet(wb, taoSheet([
-                    ["Ngày", "Số tiền chi (đ)"],
-                    ...duLieuNgay.map(x => [x.Ngay, x.SoTien])
-                ], [14, 18]), "Chi theo ngày");
+                // 5. Chi theo ngày
+                XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                    tieuDe: "CHI TIÊU THEO NGÀY - " + nhanKy,
+                    doRong: [24, 26],
+                    header: ["Ngày", "Số tiền chi (đ)"],
+                    kieuCot: ["giua", "tien"],
+                    rows: duLieuNgay.map(x => [x.Ngay, x.SoTien]),
+                    tong: [["Tổng chi", tongChi]]
+                }), "Chi theo ngày");
 
-                XLSX.utils.book_append_sheet(wb, taoSheet([
-                    ["Ngày", "Người thực hiện", "Loại", "Tài khoản", "Phạm vi", "Danh mục", "Trạng thái", "Số tiền (đ)"],
-                    ...duLieuGiaoDich.map(g => [g.Ngay, g.NguoiThucHien, g.Loai, g.TaiKhoan, g.PhamVi, g.DanhMuc, g.TrangThai, g.SoTien])
-                ], [12, 22, 12, 22, 12, 22, 14, 16]), "Giao dịch");
+                // 6. Danh sách giao dịch
+                const dongTong = (nhan, v) => [nhan, "", "", "", "", "", v];
+                XLSX.utils.book_append_sheet(wb, taoSheetBaoCao({
+                    tieuDe: "DANH SÁCH GIAO DỊCH - " + nhanKy,
+                    doRong: [13, 22, 12, 24, 12, 22, 18],
+                    header: ["Ngày", "Người thực hiện", "Loại", "Tài khoản", "Phạm vi", "Danh mục", "Số tiền (đ)"],
+                    kieuCot: ["giua", "chu", "giua", "chu", "giua", "chu", "tienAm"],
+                    rows: duLieuGiaoDich.map(g => [g.Ngay, g.NguoiThucHien, g.Loai, g.TaiKhoan, g.PhamVi, g.DanhMuc, g.SoTien]),
+                    tong: [
+                        dongTong("Tổng thu", tongThu),
+                        dongTong("Tổng chi", -tongChi),
+                        dongTong("Còn lại (thu - chi)", chenhLech)
+                    ],
+                    gopTong: true,
+                    phamVi: true
+                }), "Giao dịch");
 
                 XLSX.writeFile(wb, tenFile);
-            });
-
-            // =====================================================
-            // XUẤT PDF (dùng "Lưu dưới dạng PDF" của trình duyệt, nội dung = đúng giao diện báo cáo)
-            // =====================================================
-            const btnXuatPdf = document.getElementById("btnXuatPdf");
-            if (btnXuatPdf) {
-                btnXuatPdf.addEventListener("click", function () {
-                    const tieuDeCu = document.title;
-                    document.title = tenFilePdf;   // tên file gợi ý khi lưu
-                    window.addEventListener("afterprint", function khoiPhuc() {
-                        document.title = tieuDeCu;
-                        window.removeEventListener("afterprint", khoiPhuc);
-                    });
-                    alert("Trong hộp thoại in, hãy chọn máy in \"Lưu dưới dạng PDF\" (Save as PDF) rồi bấm Lưu.");
-                    window.print();
-                });
             }
+
+            // Tự động xuất khi vừa chọn kỳ từ form xuất Excel (URL có xuat=1)
+            (function () {
+                const params = new URLSearchParams(location.search);
+                if (params.get("xuat") === "1") {
+                    params.delete("xuat");
+                    const query = params.toString();
+                    history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));
+                    window.addEventListener("load", xuatExcel);
+                }
+            })();
         </script>
     }
 }
